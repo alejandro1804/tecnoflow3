@@ -17,6 +17,17 @@ class AppTheme {
       surface:   _surface,
     ),
     scaffoldBackgroundColor: _bg,
+    textTheme: const TextTheme(
+      bodyLarge:   TextStyle(fontSize: 12),
+      bodyMedium:  TextStyle(fontSize: 11),
+      bodySmall:   TextStyle(fontSize: 10),
+      titleLarge:  TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+      titleMedium: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+      titleSmall:  TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+      labelLarge:  TextStyle(fontSize: 12),
+      labelMedium: TextStyle(fontSize: 10),
+      labelSmall:  TextStyle(fontSize: 10),
+    ),
     appBarTheme: const AppBarTheme(
       backgroundColor: _primary,
       foregroundColor: Colors.white,
@@ -24,7 +35,7 @@ class AppTheme {
       centerTitle: false,
       titleTextStyle: TextStyle(
         fontWeight: FontWeight.w700,
-        fontSize: 20,
+        fontSize: 12,
         color: Colors.white,
       ),
     ),
@@ -43,19 +54,22 @@ class AppTheme {
           borderSide: const BorderSide(color: Color(0xFFDADCE0))),
       focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(color: _primary, width: 2)),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      labelStyle: const TextStyle(fontSize: 13),
+      hintStyle: const TextStyle(fontSize: 12),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         backgroundColor: _primary,
         foregroundColor: Colors.white,
-        minimumSize: const Size.fromHeight(50),
+        minimumSize: const Size.fromHeight(46),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+        textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
       ),
     ),
     chipTheme: ChipThemeData(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      labelStyle: const TextStyle(fontSize: 11),
     ),
   );
 }

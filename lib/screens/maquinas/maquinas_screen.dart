@@ -38,9 +38,9 @@ class MaquinasScreen extends ConsumerWidget {
                     const SizedBox(width: 12),
                     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text(m.nombre,
-                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 10)),
                       Text('${m.codigo} • ${m.sectorNombre ?? 'Sin sector'}',
-                          style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                          style: const TextStyle(fontSize: 10, color: Colors.grey)),
                     ])),
                     // Badge estado
                     Container(
@@ -48,22 +48,22 @@ class MaquinasScreen extends ConsumerWidget {
                       decoration: BoxDecoration(
                           color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
                       child: Text(m.estado,
-                          style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600))),
+                          style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600))),
                     const SizedBox(width: 4),
                     // Editar máquina
                     IconButton(
-                      icon: const Icon(Icons.edit_outlined, size: 20),
+                      icon: const Icon(Icons.edit_outlined, size: 13),
                       onPressed: () => context.push('/maquinas/${m.id}')),
                   ]),
                   const SizedBox(height: 8),
                   // Botón repuestos
                   SizedBox(width: double.infinity,
                     child: OutlinedButton.icon(
-                      icon: const Icon(Icons.settings_outlined, size: 16),
+                      icon: const Icon(Icons.settings_outlined, size: 10),
                       label: const Text('Ver / gestionar repuestos'),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 8),
-                        textStyle: const TextStyle(fontSize: 13),
+                        textStyle: const TextStyle(fontSize: 9),
                         side: BorderSide(color: Colors.blue.withOpacity(0.4)),
                         foregroundColor: Colors.blue),
                       onPressed: () => Navigator.push(
