@@ -105,6 +105,11 @@ class HomeScreen extends ConsumerWidget {
               _MenuCard(icon: Icons.inventory_2_outlined, title: 'Repuestos',
                   subtitle: 'Stock y catálogo de repuestos', color: Colors.blue,
                   onTap: () => context.push('/repuestos')),
+            // Máquinas — solo admin y técnico
+            if (isAdmin || isTecnico)
+              _MenuCard(icon: Icons.precision_manufacturing_outlined, title: 'Máquinas',
+                  subtitle: 'Ver máquinas y sus repuestos', color: Colors.teal,
+                  onTap: () => context.push('/maquinas')),
 
             // Todo lo demás — solo admin
             if (isAdmin) ...[
