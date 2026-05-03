@@ -59,10 +59,10 @@ class _State extends ConsumerState<MaquinasScreen> {
                     TextField(
                       decoration: InputDecoration(
                         hintText: 'Buscar por nombre o código...',
-                        prefixIcon: const Icon(Icons.search, size: 20),
+                        prefixIcon: const Icon(Icons.search, size: 16),
                         suffixIcon: _busqueda.isNotEmpty
                             ? IconButton(
-                            icon: const Icon(Icons.clear, size: 18),
+                            icon: const Icon(Icons.clear, size: 14),
                             onPressed: () => setState(() => _busqueda = ''))
                             : null,
                         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -86,7 +86,7 @@ class _State extends ConsumerState<MaquinasScreen> {
                               onSelected: (_) => setState(() => _sectorId = ''),
                               selectedColor: Theme.of(context).colorScheme.primary.withOpacity(0.15),
                               labelStyle: TextStyle(
-                                  fontSize: 12,
+                                  fontSize: 10,
                                   fontWeight: FontWeight.w600,
                                   color: _sectorId.isEmpty
                                       ? Theme.of(context).colorScheme.primary
@@ -138,7 +138,7 @@ class _State extends ConsumerState<MaquinasScreen> {
                         final color = m.estado == 'en_reparacion' ? Colors.red
                             : m.estado == 'inactivo' ? Colors.grey : Colors.green;
                         return Card(child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             Row(children: [
                               CircleAvatar(
@@ -147,9 +147,9 @@ class _State extends ConsumerState<MaquinasScreen> {
                               const SizedBox(width: 12),
                               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                 Text(m.nombre,
-                                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 10)),
                                 Text('${m.codigo} • ${m.sectorNombre ?? 'Sin sector'}',
-                                    style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                                    style: const TextStyle(fontSize: 10, color: Colors.grey)),
                               ])),
                               Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -160,17 +160,17 @@ class _State extends ConsumerState<MaquinasScreen> {
                                       style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600))),
                               const SizedBox(width: 4),
                               IconButton(
-                                  icon: const Icon(Icons.edit_outlined, size: 18),
+                                  icon: const Icon(Icons.edit_outlined, size: 12),
                                   onPressed: () => context.push('/maquinas/${m.id}')),
                             ]),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 6),
                             SizedBox(width: double.infinity,
                                 child: OutlinedButton.icon(
-                                    icon: const Icon(Icons.settings_outlined, size: 14),
+                                    icon: const Icon(Icons.settings_outlined, size: 12),
                                     label: const Text('Ver / gestionar repuestos'),
                                     style: OutlinedButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(vertical: 8),
-                                        textStyle: const TextStyle(fontSize: 12),
+                                        padding: const EdgeInsets.symmetric(vertical: 6),
+                                        textStyle: const TextStyle(fontSize: 9),
                                         side: BorderSide(color: Colors.blue.withOpacity(0.4)),
                                         foregroundColor: Colors.blue),
                                     onPressed: () => Navigator.push(
