@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/widgets.dart';
+import '../../models/models.dart';
 import '../../providers/providers.dart';
 import 'salida_form_screen.dart';
 
@@ -35,8 +36,8 @@ class SalidasScreen extends ConsumerWidget {
                 padding: const EdgeInsets.only(bottom: 80),
                 itemCount: salidas.length,
                 itemBuilder: (_, i) {
-                  final s      = salidas[i];
-                  final esMia  = s.registradoPor == uid;
+                  final s       = salidas[i];
+                  final esMia   = s.registradoPor == uid;
                   final canEdit = isAdmin || esMia;
 
                   return Card(child: ListTile(
@@ -70,7 +71,6 @@ class SalidasScreen extends ConsumerWidget {
                       ],
                     ),
                     trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                      // Badge cantidad
                       Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 4),
@@ -93,7 +93,7 @@ class SalidasScreen extends ConsumerWidget {
                                       parent: ProviderScope.containerOf(context),
                                       child: SalidaFormScreen(salida: s))));
                             } else if (v == 'eliminar') {
-                              _eliminar(context, ref, s.id);
+                              _eliminar(context, ref, s);
                             }
                           },
                           itemBuilder: (_) => [
@@ -121,19 +121,65 @@ class SalidasScreen extends ConsumerWidget {
     );
   }
 
+  // ── Confirmación con advertencia de devolución de stock ────
   Future<void> _eliminar(
-      BuildContext context, WidgetRef ref, String id) async {
-    final ok = await confirmarEliminacion(
-        context, '¿Eliminar esta salida de repuesto?');
-    if (!ok) return;
+      BuildContext context, WidgetRef ref, SalidaRepuesto s) async {
+    final repuesto = '${s.repuestoCodigo ?? ''} — ${s.repuestoDescripcion ?? ''}';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Eliminar salida'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('¿Eliminar esta salida de repuesto?'),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green.withOpacity(0.3)),
+              ),
+              child: Row(children: [
+                const Icon(Icons.info_outline, color: Colors.green, size: 18),
+                const SizedBox(width: 8),
+                Expanded(child: Text(
+                  'Se devolverán ${s.cantidad} unidad${s.cantidad != 1 ? 'es' : ''} '
+                      'de "$repuesto" al stock.',
+                  style: const TextStyle(fontSize: 12, color: Colors.green),
+                )),
+              ]),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Solo confirmá si el repuesto fue devuelto físicamente al depósito.',
+              style: TextStyle(fontSize: 11, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar')),
+          ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Eliminar y devolver stock')),
+        ],
+      ),
+    );
+    if (ok != true) return;
     try {
-      await ref.read(movimientosRepoProvider).deleteSalida(id);
+      await ref.read(movimientosRepoProvider).deleteSalida(s.id);
       ref.invalidate(salidasProvider);
       ref.invalidate(repuestosProvider);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Salida eliminada'),
-            backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(
+                'Salida eliminada — ${s.cantidad} unidad${s.cantidad != 1 ? 'es' : ''} devueltas al stock'),
+            backgroundColor: Colors.green));
       }
     } catch (e) {
       if (context.mounted) {
