@@ -6,6 +6,7 @@ import '../../core/widgets.dart';
 import '../../models/models.dart';
 import '../../providers/providers.dart';
 import '../maquinas/repuestos_maquina_screen.dart';
+import '../movimientos/salida_form_screen.dart';
 
 final _ticketProvider = FutureProvider.family<Ticket?, String>(
         (ref, id) => ref.watch(ticketsRepoProvider).getById(id));
@@ -149,6 +150,20 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                                 child: RepuestosMaquinaScreen(
                                     maquinaId:     ticket.maquinaId,
                                     maquinaNombre: ticket.maquinaNombre ?? 'Máquina')))))),
+
+              // Botón registrar salida desde ticket — admin y técnico asignado
+              if ((isAdmin || (isTecnico && esAsignado)) && ticket.estado != TicketEstados.cerrado)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red[700]),
+                    icon: const Icon(Icons.output_outlined),
+                    label: const Text('Registrar salida de repuesto'),
+                    onPressed: () => Navigator.push(
+                        context,
+                          MaterialPageRoute(builder: (_) => ProviderScope(
+                          parent: ProviderScope.containerOf(context),
+                          child: SalidaFormScreen(ticketIdInicial: ticket.id)))))),
 
               // Descripción
               Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(

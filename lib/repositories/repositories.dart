@@ -181,7 +181,10 @@ class TicketsRepository {
 }
 
 // ── Movimientos ───────────────────────────────────────────────
+// REEMPLAZAR la clase MovimientosRepository en lib/repositories/repositories.dart
+
 class MovimientosRepository {
+  // ── INGRESOS ────────────────────────────────────────────────
   Future<List<IngresoRepuesto>> getIngresos() async {
     final data = await _db.from('ingreso_repuestos')
         .select('*, repuestos(codigo, descripcion)')
@@ -206,6 +209,7 @@ class MovimientosRepository {
     });
   }
 
+  // ── SALIDAS ─────────────────────────────────────────────────
   Future<List<SalidaRepuesto>> getSalidas() async {
     final data = await _db.from('salida_repuestos')
         .select('*, repuestos(codigo, descripcion)')
@@ -215,8 +219,9 @@ class MovimientosRepository {
 
   Future<void> createSalida({
     required String repuestoId,
-    required String ticketId,
     required int cantidad,
+    String? ticketId,
+    String? observacion,
   }) async {
     final uid = Supabase.instance.client.auth.currentUser!.id;
     await _db.from('salida_repuestos').insert({
@@ -224,9 +229,27 @@ class MovimientosRepository {
       'ticket_id':      ticketId,
       'registrado_por': uid,
       'cantidad':       cantidad,
+      'observacion':    observacion,
       'fecha':          DateTime.now().toIso8601String().substring(0, 10),
     });
   }
+
+  Future<void> updateSalida(String id, {
+    required String repuestoId,
+    required int cantidad,
+    String? ticketId,
+    String? observacion,
+  }) async {
+    await _db.from('salida_repuestos').update({
+      'repuesto_id': repuestoId,
+      'ticket_id':   ticketId,
+      'cantidad':    cantidad,
+      'observacion': observacion,
+    }).eq('id', id);
+  }
+
+  Future<void> deleteSalida(String id) async =>
+      _db.from('salida_repuestos').delete().eq('id', id);
 }
 
 // Agregar en lib/repositories/repositories.dart

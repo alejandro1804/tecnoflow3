@@ -251,37 +251,41 @@ class IngresoRepuesto {
 }
 
 // ── Salida de repuesto ────────────────────────────────────────
+
 class SalidaRepuesto {
   final String id;
   final String repuestoId;
   final String? repuestoCodigo;
   final String? repuestoDescripcion;
-  final String ticketId;
+  final String? ticketId;
   final String registradoPor;
   final int cantidad;
   final String fecha;
+  final String? observacion;
 
   const SalidaRepuesto({
     required this.id,
     required this.repuestoId,
     this.repuestoCodigo,
     this.repuestoDescripcion,
-    required this.ticketId,
+    this.ticketId,
     required this.registradoPor,
     required this.cantidad,
     required this.fecha,
+    this.observacion,
   });
 
   factory SalidaRepuesto.fromMap(Map<String, dynamic> m) => SalidaRepuesto(
-        id:                  m['id'],
-        repuestoId:          m['repuesto_id'],
-        repuestoCodigo:      m['repuestos']?['codigo'],
-        repuestoDescripcion: m['repuestos']?['descripcion'],
-        ticketId:            m['ticket_id'],
-        registradoPor:       m['registrado_por'],
-        cantidad:            m['cantidad'] ?? 0,
-        fecha:               m['fecha'] ?? '',
-      );
+    id:                  m['id'],
+    repuestoId:          m['repuesto_id'],
+    repuestoCodigo:      m['repuestos']?['codigo'],
+    repuestoDescripcion: m['repuestos']?['descripcion'],
+    ticketId:            m['ticket_id'],
+    registradoPor:       m['registrado_por'],
+    cantidad:            m['cantidad'] ?? 0,
+    fecha:               m['fecha'] ?? '',
+    observacion:         m['observacion'],
+  );
 }
 // Agregar al final de lib/models/models.dart
 
