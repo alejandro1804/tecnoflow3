@@ -287,15 +287,22 @@ class SalidaRepuesto {
     observacion:         m['observacion'],
   );
 }
-// Agregar al final de lib/models/models.dart
+
+// ── RepuestoMaquina ───────────────────────────────────────────
+// REEMPLAZAR la clase RepuestoMaquina en lib/models/models.dart
 
 // ── RepuestoMaquina ───────────────────────────────────────────
 class RepuestoMaquina {
   final String id;
   final String repuestoId;
   final String maquinaId;
+  // Datos del repuesto (cuando viene desde getByMaquina)
   final String? repuestoCodigo;
   final String? repuestoDescripcion;
+  // Datos de la máquina (cuando viene desde getByRepuesto)
+  final String? maquinaNombre;
+  final String? maquinaCodigo;
+  final String? maquinaEstado;
   final int cantidad;
   final String? ubicacionEnMaquina;
   final String? observacion;
@@ -306,6 +313,9 @@ class RepuestoMaquina {
     required this.maquinaId,
     this.repuestoCodigo,
     this.repuestoDescripcion,
+    this.maquinaNombre,
+    this.maquinaCodigo,
+    this.maquinaEstado,
     required this.cantidad,
     this.ubicacionEnMaquina,
     this.observacion,
@@ -317,6 +327,9 @@ class RepuestoMaquina {
     maquinaId:           m['maquina_id'],
     repuestoCodigo:      m['repuestos']?['codigo'],
     repuestoDescripcion: m['repuestos']?['descripcion'],
+    maquinaNombre:       m['maquinas']?['nombre'],
+    maquinaCodigo:       m['maquinas']?['codigo'],
+    maquinaEstado:       m['maquinas']?['estado'],
     cantidad:            m['cantidad'] ?? 1,
     ubicacionEnMaquina:  m['ubicacion_en_maquina'],
     observacion:         m['observacion'],

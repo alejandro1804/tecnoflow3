@@ -252,8 +252,7 @@ class MovimientosRepository {
       _db.from('salida_repuestos').delete().eq('id', id);
 }
 
-// Agregar en lib/repositories/repositories.dart
-// Pegar ANTES del comentario "// FIN"
+// REEMPLAZAR la clase RepuestosMaquinasRepository en lib/repositories/repositories.dart
 
 // ── RepuestosMaquinas ─────────────────────────────────────────
 class RepuestosMaquinasRepository {
@@ -262,6 +261,16 @@ class RepuestosMaquinasRepository {
         .from('repuestos_maquinas')
         .select('*, repuestos(codigo, descripcion, stock_actual, stock_minimo)')
         .eq('maquina_id', maquinaId)
+        .order('created_at', ascending: true);
+    return (data as List).map((e) => RepuestoMaquina.fromMap(e)).toList();
+  }
+
+  // NUEVO: obtener máquinas que usan un repuesto específico
+  Future<List<RepuestoMaquina>> getByRepuesto(String repuestoId) async {
+    final data = await _db
+        .from('repuestos_maquinas')
+        .select('*, maquinas(nombre, codigo, estado)')
+        .eq('repuesto_id', repuestoId)
         .order('created_at', ascending: true);
     return (data as List).map((e) => RepuestoMaquina.fromMap(e)).toList();
   }

@@ -65,3 +65,12 @@ final repuestosMaquinasProvider =
 FutureProvider.family<List<RepuestoMaquina>, String>(
         (ref, maquinaId) =>
         ref.watch(repuestosMaquinasRepoProvider).getByMaquina(maquinaId));
+
+// AGREGAR en lib/providers/providers.dart
+
+// ── Máquinas que usan un repuesto específico ──────────────────
+final maquinasPorRepuestoProvider =
+FutureProvider.family<List<RepuestoMaquina>, String>(
+        (ref, repuestoId) => ref
+        .watch(repuestosMaquinasRepoProvider)
+        .getByRepuesto(repuestoId));
