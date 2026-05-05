@@ -1,9 +1,11 @@
 // lib/screens/repuestos/repuesto_form_screen.dart
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/widgets.dart';
+import '../../core/imageHelper.dart';
 import '../../models/models.dart';
 import '../../providers/providers.dart';
 
@@ -15,13 +17,19 @@ class RepuestoFormScreen extends ConsumerStatefulWidget {
 }
 
 class _State extends ConsumerState<RepuestoFormScreen> {
-  final _formKey   = GlobalKey<FormState>();
-  final _codCtrl   = TextEditingController();
-  final _descCtrl  = TextEditingController();
-  final _minCtrl   = TextEditingController(text: '0');
-  final _ubicCtrl  = TextEditingController();
-  bool _loading = false, _loadingData = false;
-  String? _error;
+  final _formKey  = GlobalKey<FormState>();
+  final _codCtrl  = TextEditingController();
+  final _descCtrl = TextEditingController();
+  final _minCtrl  = TextEditingController(text: '0');
+  final _ubicCtrl = TextEditingController();
+
+  bool      _loading     = false;
+  bool      _loadingData = false;
+  bool      _subiendoImg = false;
+  String?   _error;
+  String?   _imagenUrl;       // URL actual guardada
+  Uint8List? _imagenBytes;    // Preview de imagen nueva antes de guardar
+
   bool get isEdit => widget.repuestoId != null;
 
   @override
@@ -30,75 +38,324 @@ class _State extends ConsumerState<RepuestoFormScreen> {
   Future<void> _load() async {
     setState(() => _loadingData = true);
     try {
-      final r = await ref.read(repuestosRepoProvider).getAll();
-      final rep = r.firstWhere((r) => r.id == widget.repuestoId);
+      final lista = await ref.read(repuestosRepoProvider).getAll();
+      final rep   = lista.firstWhere((r) => r.id == widget.repuestoId);
       _codCtrl.text  = rep.codigo;
       _descCtrl.text = rep.descripcion;
       _minCtrl.text  = rep.stockMinimo.toString();
       _ubicCtrl.text = rep.ubicacion ?? '';
-    } finally { if (mounted) setState(() => _loadingData = false); }
+      setState(() => _imagenUrl = rep.imagenUrl);
+    } finally {
+      if (mounted) setState(() => _loadingData = false);
+    }
   }
 
+  // ── Seleccionar imagen ────────────────────────────────────
+  Future<void> _seleccionarImagen() async {
+    final bytes = await ImageHelper.elegirImagen(context);
+    if (bytes != null) {
+      setState(() => _imagenBytes = bytes);
+    }
+  }
+
+  // ── Quitar imagen ─────────────────────────────────────────
+  void _quitarImagen() {
+    setState(() {
+      _imagenBytes = null;
+      _imagenUrl   = null;
+    });
+  }
+
+  // ── Guardar ───────────────────────────────────────────────
   Future<void> _submit() async {
+
     if (!_formKey.currentState!.validate()) return;
     setState(() { _loading = true; _error = null; });
     try {
-      final rep = Repuesto(id: widget.repuestoId ?? '',
-          codigo: _codCtrl.text.trim(), descripcion: _descCtrl.text.trim(),
-          stockActual: 0, stockMinimo: int.tryParse(_minCtrl.text) ?? 0,
-          ubicacion: _ubicCtrl.text.trim().isEmpty ? null : _ubicCtrl.text.trim());
-      if (isEdit) await ref.read(repuestosRepoProvider).update(widget.repuestoId!, rep);
-      else        await ref.read(repuestosRepoProvider).create(rep);
+      String? urlFinal = _imagenUrl;
+
+      // Si hay imagen nueva, subirla primero
+     if (_imagenBytes != null) {
+        setState(() => _subiendoImg = true);
+        // Para alta necesitamos un ID temporal hasta crear el registro
+        final tempId = widget.repuestoId ??
+            'temp_${DateTime.now().millisecondsSinceEpoch}';
+        urlFinal = await ImageHelper.subirImagen(_imagenBytes!, tempId);
+        setState(() => _subiendoImg = false);
+      }
+
+
+      // Si quitaron la imagen en edición, eliminar del bucket
+      if (_imagenBytes == null && _imagenUrl == null && isEdit) {
+        await ImageHelper.eliminarImagen(widget.repuestoId!);
+      }
+
+      final rep = Repuesto(
+        id:          widget.repuestoId ?? '',
+        codigo:      _codCtrl.text.trim(),
+        descripcion: _descCtrl.text.trim(),
+        stockActual: 0,
+        stockMinimo: int.tryParse(_minCtrl.text) ?? 0,
+        ubicacion:   _ubicCtrl.text.trim().isEmpty ? null : _ubicCtrl.text.trim(),
+        imagenUrl:   urlFinal,
+      );
+
+      if (isEdit) {
+        await ref.read(repuestosRepoProvider).update(widget.repuestoId!, rep);
+        // Si la imagen era temporal, renombrarla con el ID real
+        if (_imagenBytes != null && urlFinal != null &&
+            urlFinal.contains('temp_')) {
+          final nueva = await ImageHelper.subirImagen(
+              _imagenBytes!, widget.repuestoId!);
+          await ref.read(repuestosRepoProvider).update(
+              widget.repuestoId!, rep);
+          urlFinal = nueva;
+        }
+      } else {
+        await ref.read(repuestosRepoProvider).create(rep);
+        // Si había imagen temporal, buscar el nuevo ID y actualizar URL
+        if (_imagenBytes != null) {
+          final todos  = await ref.read(repuestosRepoProvider).getAll();
+          final nuevo  = todos.firstWhere((r) => r.codigo == rep.codigo);
+          final urlNew = await ImageHelper.subirImagen(
+              _imagenBytes!, nuevo.id);
+          await ref.read(repuestosRepoProvider)
+              .update(nuevo.id, Repuesto(
+                id:          nuevo.id,
+                codigo:      rep.codigo,
+                descripcion: rep.descripcion,
+                stockActual: 0,
+                stockMinimo: rep.stockMinimo,
+                ubicacion:   rep.ubicacion,
+                imagenUrl:   urlNew,
+              ));
+        }
+      }
+
       ref.invalidate(repuestosProvider);
-      if (mounted) { context.pop();
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Guardado'), backgroundColor: Colors.green)); }
-    } catch (e) { setState(() => _error = e.toString()); }
-    finally { if (mounted) setState(() => _loading = false); }
+      if (mounted) {
+        context.pop();
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Guardado'), backgroundColor: Colors.green));
+      }
+    } catch (e) {
+      setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() { _loading = false; _subiendoImg = false; });
+    }
   }
 
   Future<void> _delete() async {
-    final ok = await confirmarEliminacion(context, '¿Eliminar "${_codCtrl.text}"?');
+    final ok = await confirmarEliminacion(
+        context, '¿Eliminar "${_codCtrl.text}"?');
     if (!ok) return;
     setState(() => _loading = true);
     try {
+      await ImageHelper.eliminarImagen(widget.repuestoId!);
       await ref.read(repuestosRepoProvider).delete(widget.repuestoId!);
       ref.invalidate(repuestosProvider);
       if (mounted) context.pop();
-    } catch (e) { setState(() => _error = e.toString()); }
-    finally { if (mounted) setState(() => _loading = false); }
+    } catch (e) {
+      setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   @override
-  void dispose() { _codCtrl.dispose(); _descCtrl.dispose(); _minCtrl.dispose(); _ubicCtrl.dispose(); super.dispose(); }
+  void dispose() {
+    _codCtrl.dispose(); _descCtrl.dispose();
+    _minCtrl.dispose(); _ubicCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
       title: Text(isEdit ? 'Editar repuesto' : 'Nuevo repuesto'),
-      actions: [if (isEdit) IconButton(icon: const Icon(Icons.delete_outline),
-          color: Colors.red[200], onPressed: _loading ? null : _delete)]),
-    body: _loadingData ? const Center(child: CircularProgressIndicator())
-        : SingleChildScrollView(padding: const EdgeInsets.all(20),
-            child: Form(key: _formKey, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              TextFormField(controller: _codCtrl, textCapitalization: TextCapitalization.characters,
-                  decoration: const InputDecoration(labelText: 'Código / SKU', prefixIcon: Icon(Icons.qr_code_outlined)),
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Requerido' : null),
-              const SizedBox(height: 16),
-              TextFormField(controller: _descCtrl, maxLines: 2,
-                  decoration: const InputDecoration(labelText: 'Descripción', prefixIcon: Icon(Icons.description_outlined)),
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Requerido' : null),
-              const SizedBox(height: 16),
-              TextFormField(controller: _minCtrl,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  decoration: const InputDecoration(labelText: 'Stock mínimo', prefixIcon: Icon(Icons.warning_amber_outlined)),
-                  validator: (v) => (v == null || v.isEmpty) ? 'Requerido' : null),
-              const SizedBox(height: 16),
-              TextFormField(controller: _ubicCtrl,
-                  decoration: const InputDecoration(labelText: 'Ubicación / Depósito (opcional)', prefixIcon: Icon(Icons.location_on_outlined))),
-              if (_error != null) ...[const SizedBox(height: 12), ErrorContainer(_error!)],
-              const SizedBox(height: 28),
-              LoadingButton(loading: _loading, onPressed: _submit, label: 'Guardar'),
-            ]))),
+      actions: [
+        if (isEdit)
+          IconButton(
+              icon: const Icon(Icons.delete_outline),
+              color: Colors.red[200],
+              onPressed: _loading ? null : _delete),
+      ],
+    ),
+    body: _loadingData
+        ? const Center(child: CircularProgressIndicator())
+        : SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+
+                  // ── Selector de imagen ────────────────
+                  const Text('IMAGEN', style: TextStyle(
+                      fontSize: 11, fontWeight: FontWeight.w700,
+                      color: Colors.grey, letterSpacing: 1)),
+                  const SizedBox(height: 8),
+                  _ImagenSelector(
+                    imagenBytes: _imagenBytes,
+                    imagenUrl:   _imagenUrl,
+                    subiendoImg: _subiendoImg,
+                    onSeleccionar: _seleccionarImagen,
+                    onQuitar:      _quitarImagen,
+                  ),
+                  const SizedBox(height: 20),
+
+                  // ── Campos del repuesto ───────────────
+                  TextFormField(
+                    controller: _codCtrl,
+                    textCapitalization: TextCapitalization.characters,
+                    decoration: const InputDecoration(
+                        labelText: 'Código / SKU',
+                        prefixIcon: Icon(Icons.qr_code_outlined)),
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Requerido' : null),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _descCtrl,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                        labelText: 'Descripción',
+                        prefixIcon: Icon(Icons.description_outlined)),
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Requerido' : null),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _minCtrl,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: const InputDecoration(
+                        labelText: 'Stock mínimo',
+                        prefixIcon: Icon(Icons.warning_amber_outlined)),
+                    validator: (v) =>
+                        (v == null || v.isEmpty) ? 'Requerido' : null),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _ubicCtrl,
+                    decoration: const InputDecoration(
+                        labelText: 'Ubicación / Depósito (opcional)',
+                        prefixIcon: Icon(Icons.location_on_outlined))),
+
+                  if (_error != null) ...[
+                    const SizedBox(height: 12),
+                    ErrorContainer(_error!),
+                  ],
+                  const SizedBox(height: 28),
+                  LoadingButton(
+                    loading: _loading,
+                    onPressed: _submit,
+                    label: _subiendoImg
+                        ? 'Subiendo imagen...'
+                        : 'Guardar'),
+                ],
+              ),
+            ),
+          ),
   );
+}
+
+// ── Widget selector de imagen ─────────────────────────────────
+class _ImagenSelector extends StatelessWidget {
+  final Uint8List? imagenBytes;
+  final String?    imagenUrl;
+  final bool       subiendoImg;
+  final VoidCallback onSeleccionar;
+  final VoidCallback onQuitar;
+
+  const _ImagenSelector({
+    required this.imagenBytes,
+    required this.imagenUrl,
+    required this.subiendoImg,
+    required this.onSeleccionar,
+    required this.onQuitar,
+  });
+
+  bool get tieneImagen => imagenBytes != null || imagenUrl != null;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 160,
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300)),
+      child: tieneImagen
+          ? Stack(fit: StackFit.expand, children: [
+              // Imagen
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: imagenBytes != null
+                    ? Image.memory(imagenBytes!, fit: BoxFit.cover)
+                    : Image.network(imagenUrl!, fit: BoxFit.cover,
+                        loadingBuilder: (_, child, progress) =>
+                            progress == null
+                                ? child
+                                : const Center(
+                                    child: CircularProgressIndicator())),
+              ),
+              // Botón quitar
+              Positioned(
+                top: 8, right: 8,
+                child: GestureDetector(
+                  onTap: onQuitar,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle),
+                    child: const Icon(Icons.close,
+                        color: Colors.white, size: 18)),
+                )),
+              // Botón cambiar
+              Positioned(
+                bottom: 8, right: 8,
+                child: GestureDetector(
+                  onTap: onSeleccionar,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.6),
+                        borderRadius: BorderRadius.circular(8)),
+                    child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.edit_outlined,
+                          color: Colors.white, size: 14),
+                      SizedBox(width: 4),
+                      Text('Cambiar',
+                          style: TextStyle(
+                              color: Colors.white, fontSize: 12)),
+                    ])),
+                )),
+              if (subiendoImg)
+                Container(
+                  decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.4),
+                      borderRadius: BorderRadius.circular(12)),
+                  child: const Center(
+                      child: CircularProgressIndicator(color: Colors.white))),
+            ])
+          : InkWell(
+              onTap: onSeleccionar,
+              borderRadius: BorderRadius.circular(12),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.add_photo_alternate_outlined,
+                      size: 48, color: Colors.grey[400]),
+                  const SizedBox(height: 8),
+                  Text('Agregar imagen',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+                  const SizedBox(height: 4),
+                  Text('Cámara, galería o archivos',
+                      style: TextStyle(color: Colors.grey[400], fontSize: 11)),
+                ],
+              ),
+            ),
+    );
+  }
 }

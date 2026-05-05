@@ -92,14 +92,17 @@ class Maquina {
       };
 }
 
+// REEMPLAZAR la clase Repuesto en lib/models/models.dart
+
 // ── Repuesto ──────────────────────────────────────────────────
 class Repuesto {
-  final String id;
-  final String codigo;
-  final String descripcion;
-  final int stockActual;
-  final int stockMinimo;
+  final String  id;
+  final String  codigo;
+  final String  descripcion;
+  final int     stockActual;
+  final int     stockMinimo;
   final String? ubicacion;
+  final String? imagenUrl;
 
   const Repuesto({
     required this.id,
@@ -108,29 +111,37 @@ class Repuesto {
     required this.stockActual,
     required this.stockMinimo,
     this.ubicacion,
+    this.imagenUrl,
   });
 
   bool get stockBajo => stockActual <= stockMinimo;
 
   factory Repuesto.fromMap(Map<String, dynamic> m) => Repuesto(
-        id:           m['id'],
-        codigo:       m['codigo'],
-        descripcion:  m['descripcion'],
-        stockActual:  m['stock_actual'] ?? 0,
-        stockMinimo:  m['stock_minimo'] ?? 0,
-        ubicacion:    m['ubicacion'],
-      );
+    id:          m['id'],
+    codigo:      m['codigo'],
+    descripcion: m['descripcion'],
+    stockActual: m['stock_actual'] ?? 0,
+    stockMinimo: m['stock_minimo'] ?? 0,
+    ubicacion:   m['ubicacion'],
+    imagenUrl:   m['imagen_url'],
+  );
 
   Map<String, dynamic> toInsert() => {
-        'codigo': codigo, 'descripcion': descripcion,
-        'stock_actual': stockActual, 'stock_minimo': stockMinimo,
-        'ubicacion': ubicacion,
-      };
+    'codigo':       codigo,
+    'descripcion':  descripcion,
+    'stock_actual': stockActual,
+    'stock_minimo': stockMinimo,
+    'ubicacion':    ubicacion,
+    'imagen_url':   imagenUrl,
+  };
 
   Map<String, dynamic> toUpdate() => {
-        'codigo': codigo, 'descripcion': descripcion,
-        'stock_minimo': stockMinimo, 'ubicacion': ubicacion,
-      };
+    'codigo':      codigo,
+    'descripcion': descripcion,
+    'stock_minimo': stockMinimo,
+    'ubicacion':   ubicacion,
+    'imagen_url':  imagenUrl,
+  };
 }
 
 // ── Ticket ────────────────────────────────────────────────────

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/widgets.dart';
 import '../../core/pdfgenerator.dart';
+import '../../core/image_viewer.dart';
 import '../../providers/providers.dart';
 import '../../models/models.dart';
 
@@ -17,8 +18,8 @@ class RepuestosScreen extends ConsumerStatefulWidget {
 
 class _State extends ConsumerState<RepuestosScreen> {
   late bool _soloStockBajo;
-  String  _busqueda      = '';
-  bool    _generandoPdf  = false;
+  String  _busqueda     = '';
+  bool    _generandoPdf = false;
   final Set<String> _expandidos = {};
 
   @override
@@ -118,7 +119,8 @@ class _State extends ConsumerState<RepuestosScreen> {
                         suffixIcon: _busqueda.isNotEmpty
                             ? IconButton(
                             icon: const Icon(Icons.clear, size: 18),
-                            onPressed: () => setState(() => _busqueda = ''))
+                            onPressed: () =>
+                                setState(() => _busqueda = ''))
                             : null,
                         contentPadding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 10),
@@ -131,7 +133,8 @@ class _State extends ConsumerState<RepuestosScreen> {
                       FilterChip(
                         label: const Text('Todos'),
                         selected: !_soloStockBajo,
-                        onSelected: (_) => setState(() => _soloStockBajo = false),
+                        onSelected: (_) =>
+                            setState(() => _soloStockBajo = false),
                         selectedColor: Theme.of(context)
                             .colorScheme.primary.withOpacity(0.15),
                         labelStyle: TextStyle(
@@ -149,15 +152,20 @@ class _State extends ConsumerState<RepuestosScreen> {
                           Text('Stock bajo ($bajosCount)'),
                         ]),
                         selected: _soloStockBajo,
-                        onSelected: (_) => setState(() => _soloStockBajo = true),
+                        onSelected: (_) =>
+                            setState(() => _soloStockBajo = true),
                         selectedColor: Colors.red.withOpacity(0.12),
                         labelStyle: TextStyle(
                             fontSize: 12, fontWeight: FontWeight.w600,
-                            color: _soloStockBajo ? Colors.red : Colors.grey[700]),
+                            color: _soloStockBajo
+                                ? Colors.red
+                                : Colors.grey[700]),
                       ),
                       const Spacer(),
-                      Text('${repuestos.length} resultado${repuestos.length != 1 ? 's' : ''}',
-                          style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                      Text(
+                          '${repuestos.length} resultado${repuestos.length != 1 ? 's' : ''}',
+                          style: const TextStyle(
+                              fontSize: 11, color: Colors.grey)),
                     ]),
                   ]),
                 ),
@@ -173,8 +181,8 @@ class _State extends ConsumerState<RepuestosScreen> {
                       padding: const EdgeInsets.only(bottom: 80),
                       itemCount: repuestos.length,
                       itemBuilder: (_, i) {
-                        final r          = repuestos[i];
-                        final expandido  = _expandidos.contains(r.id);
+                        final r         = repuestos[i];
+                        final expandido = _expandidos.contains(r.id);
                         return _RepuestoCard(
                           repuesto:  r,
                           isAdmin:   isAdmin,
@@ -198,9 +206,9 @@ class _State extends ConsumerState<RepuestosScreen> {
 
 // ── Card de repuesto con panel expandible ─────────────────────
 class _RepuestoCard extends ConsumerWidget {
-  final Repuesto repuesto;
-  final bool isAdmin;
-  final bool expandido;
+  final Repuesto     repuesto;
+  final bool         isAdmin;
+  final bool         expandido;
   final VoidCallback onToggle;
 
   const _RepuestoCard({
@@ -225,16 +233,28 @@ class _RepuestoCard extends ConsumerWidget {
           ListTile(
             contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16, vertical: 8),
-            leading: CircleAvatar(
-                backgroundColor: repuesto.stockBajo
-                    ? Colors.red.withOpacity(0.1)
-                    : Colors.green.withOpacity(0.1),
-                child: Icon(
-                    repuesto.stockBajo
-                        ? Icons.warning_amber_outlined
-                        : Icons.check_circle_outline,
-                    color: repuesto.stockBajo ? Colors.red : Colors.green)),
-            title: Text('${repuesto.codigo} — ${repuesto.descripcion}',
+            leading: Row(mainAxisSize: MainAxisSize.min, children: [
+              // Thumbnail imagen (si existe)
+              if (repuesto.imagenUrl != null) ...[
+                RepuestoImagenThumb(
+                    imagenUrl: repuesto.imagenUrl, size: 48),
+                const SizedBox(width: 8),
+              ],
+              // Ícono stock
+              CircleAvatar(
+                  backgroundColor: repuesto.stockBajo
+                      ? Colors.red.withOpacity(0.1)
+                      : Colors.green.withOpacity(0.1),
+                  child: Icon(
+                      repuesto.stockBajo
+                          ? Icons.warning_amber_outlined
+                          : Icons.check_circle_outline,
+                      color: repuesto.stockBajo
+                          ? Colors.red
+                          : Colors.green)),
+            ]),
+            title: Text(
+                '${repuesto.codigo} — ${repuesto.descripcion}',
                 style: const TextStyle(
                     fontWeight: FontWeight.w600, fontSize: 13)),
             subtitle: Column(
@@ -305,17 +325,20 @@ class _RepuestoCard extends ConsumerWidget {
               maquinasAsync.when(
                 loading: () => const Padding(
                     padding: EdgeInsets.all(12),
-                    child: Center(child: CircularProgressIndicator(strokeWidth: 2))),
+                    child: Center(
+                        child: CircularProgressIndicator(strokeWidth: 2))),
                 error: (e, _) => Padding(
                     padding: const EdgeInsets.all(12),
                     child: Text('Error: $e',
-                        style: const TextStyle(color: Colors.red, fontSize: 12))),
+                        style: const TextStyle(
+                            color: Colors.red, fontSize: 12))),
                 data: (maquinas) {
                   if (maquinas.isEmpty) {
                     return const Padding(
                         padding: EdgeInsets.fromLTRB(16, 8, 16, 12),
                         child: Text('Sin máquinas asociadas',
-                            style: TextStyle(fontSize: 12, color: Colors.grey)));
+                            style: TextStyle(
+                                fontSize: 12, color: Colors.grey)));
                   }
 
                   final totalUnidades = maquinas.fold<int>(
@@ -336,7 +359,8 @@ class _RepuestoCard extends ConsumerWidget {
                         ...maquinas.map((m) => Padding(
                           padding: const EdgeInsets.only(bottom: 6),
                           child: Row(children: [
-                            const Icon(Icons.precision_manufacturing_outlined,
+                            const Icon(
+                                Icons.precision_manufacturing_outlined,
                                 size: 14, color: Colors.teal),
                             const SizedBox(width: 8),
                             Expanded(child: Column(
@@ -349,7 +373,8 @@ class _RepuestoCard extends ConsumerWidget {
                                 if (m.ubicacionEnMaquina != null)
                                   Text(m.ubicacionEnMaquina!,
                                       style: const TextStyle(
-                                          fontSize: 11, color: Colors.grey)),
+                                          fontSize: 11,
+                                          color: Colors.grey)),
                               ],
                             )),
                             Container(
@@ -357,7 +382,8 @@ class _RepuestoCard extends ConsumerWidget {
                                     horizontal: 10, vertical: 3),
                                 decoration: BoxDecoration(
                                     color: Colors.teal.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(8)),
+                                    borderRadius:
+                                    BorderRadius.circular(8)),
                                 child: Text('x${m.cantidad}',
                                     style: const TextStyle(
                                         fontSize: 12,
@@ -368,7 +394,8 @@ class _RepuestoCard extends ConsumerWidget {
                         const Divider(height: 12),
                         // Total
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          mainAxisAlignment:
+                          MainAxisAlignment.spaceBetween,
                           children: [
                             const Text('Total requerido en máquinas:',
                                 style: TextStyle(
@@ -380,7 +407,8 @@ class _RepuestoCard extends ConsumerWidget {
                                     horizontal: 12, vertical: 4),
                                 decoration: BoxDecoration(
                                     color: Colors.blue.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(8)),
+                                    borderRadius:
+                                    BorderRadius.circular(8)),
                                 child: Text('$totalUnidades uds',
                                     style: const TextStyle(
                                         fontSize: 13,

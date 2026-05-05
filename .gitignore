@@ -46,3 +46,4 @@ app.*.map.json
 
 # Credenciales Supabase — nunca subir
 lib/core/constants.dart
+lib/core/image_helper.dart
