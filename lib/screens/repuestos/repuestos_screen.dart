@@ -34,10 +34,10 @@ class _State extends ConsumerState<RepuestosScreen> {
         : todos.toList();
     if (_busqueda.isNotEmpty) {
       lista = lista.where((r) =>
-      r.codigo.toLowerCase().contains(_busqueda.toLowerCase()) ||
+          r.codigo.toLowerCase().contains(_busqueda.toLowerCase()) ||
           r.descripcion.toLowerCase().contains(_busqueda.toLowerCase()) ||
           (r.ubicacion ?? '').toLowerCase().contains(_busqueda.toLowerCase()))
-          .toList();
+      .toList();
     }
     return lista;
   }
@@ -72,139 +72,139 @@ class _State extends ConsumerState<RepuestosScreen> {
         title: const Text('Repuestos'),
         actions: [
           async.when(
-              loading: () => const SizedBox.shrink(),
-              error:   (_, __) => const SizedBox.shrink(),
-              data: (todos) {
-                final repuestos = _filtrar(todos);
-                return _generandoPdf
-                    ? const Padding(
-                    padding: EdgeInsets.all(14),
-                    child: SizedBox(
-                        width: 20, height: 20,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white)))
-                    : IconButton(
-                    icon: const Icon(Icons.picture_as_pdf_outlined),
-                    tooltip: 'Exportar PDF',
-                    onPressed: repuestos.isEmpty
-                        ? null
-                        : () => _exportarPdf(repuestos));
-              }),
+            loading: () => const SizedBox.shrink(),
+            error:   (_, __) => const SizedBox.shrink(),
+            data: (todos) {
+              final repuestos = _filtrar(todos);
+              return _generandoPdf
+                  ? const Padding(
+                      padding: EdgeInsets.all(14),
+                      child: SizedBox(
+                          width: 20, height: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white)))
+                  : IconButton(
+                      icon: const Icon(Icons.picture_as_pdf_outlined),
+                      tooltip: 'Exportar PDF',
+                      onPressed: repuestos.isEmpty
+                          ? null
+                          : () => _exportarPdf(repuestos));
+            }),
         ],
       ),
       floatingActionButton: isAdmin
           ? FloatingActionButton.extended(
-          icon: const Icon(Icons.add), label: const Text('Nuevo'),
-          onPressed: () => context.push('/repuestos/nuevo'))
+              icon: const Icon(Icons.add), label: const Text('Nuevo'),
+              onPressed: () => context.push('/repuestos/nuevo'))
           : null,
       body: async.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error:   (e, _) => Center(child: Text('Error: $e')),
-          data: (todos) {
-            final repuestos  = _filtrar(todos);
-            final bajosCount = todos.where((r) => r.stockBajo).length;
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error:   (e, _) => Center(child: Text('Error: $e')),
+        data: (todos) {
+          final repuestos  = _filtrar(todos);
+          final bajosCount = todos.where((r) => r.stockBajo).length;
 
-            return RefreshIndicator(
-              onRefresh: () => ref.refresh(repuestosProvider.future),
-              child: Column(children: [
-                // ── Barra de filtros ─────────────────────
-                Container(
-                  color: Colors.white,
-                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
-                  child: Column(children: [
-                    TextField(
-                      decoration: InputDecoration(
-                        hintText: 'Buscar por código, descripción...',
-                        prefixIcon: const Icon(Icons.search, size: 20),
-                        suffixIcon: _busqueda.isNotEmpty
-                            ? IconButton(
-                            icon: const Icon(Icons.clear, size: 18),
-                            onPressed: () =>
-                                setState(() => _busqueda = ''))
-                            : null,
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 10),
-                        isDense: true,
-                      ),
-                      onChanged: (v) => setState(() => _busqueda = v),
+          return RefreshIndicator(
+            onRefresh: () => ref.refresh(repuestosProvider.future),
+            child: Column(children: [
+              // ── Barra de filtros ─────────────────────
+              Container(
+                color: Colors.white,
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+                child: Column(children: [
+                  TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Buscar por código, descripción...',
+                      prefixIcon: const Icon(Icons.search, size: 20),
+                      suffixIcon: _busqueda.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 18),
+                              onPressed: () =>
+                                  setState(() => _busqueda = ''))
+                          : null,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      isDense: true,
                     ),
-                    const SizedBox(height: 8),
-                    Row(children: [
-                      FilterChip(
-                        label: const Text('Todos'),
-                        selected: !_soloStockBajo,
-                        onSelected: (_) =>
-                            setState(() => _soloStockBajo = false),
-                        selectedColor: Theme.of(context)
-                            .colorScheme.primary.withOpacity(0.15),
-                        labelStyle: TextStyle(
-                            fontSize: 12, fontWeight: FontWeight.w600,
-                            color: !_soloStockBajo
-                                ? Theme.of(context).colorScheme.primary
-                                : Colors.grey[700]),
-                      ),
-                      const SizedBox(width: 8),
-                      FilterChip(
-                        label: Row(mainAxisSize: MainAxisSize.min, children: [
-                          const Icon(Icons.warning_amber_outlined,
-                              size: 14, color: Colors.red),
-                          const SizedBox(width: 4),
-                          Text('Stock bajo ($bajosCount)'),
-                        ]),
-                        selected: _soloStockBajo,
-                        onSelected: (_) =>
-                            setState(() => _soloStockBajo = true),
-                        selectedColor: Colors.red.withOpacity(0.12),
-                        labelStyle: TextStyle(
-                            fontSize: 12, fontWeight: FontWeight.w600,
-                            color: _soloStockBajo
-                                ? Colors.red
-                                : Colors.grey[700]),
-                      ),
-                      const Spacer(),
-                      Text(
-                          '${repuestos.length} resultado${repuestos.length != 1 ? 's' : ''}',
-                          style: const TextStyle(
-                              fontSize: 11, color: Colors.grey)),
-                    ]),
+                    onChanged: (v) => setState(() => _busqueda = v),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    FilterChip(
+                      label: const Text('Todos'),
+                      selected: !_soloStockBajo,
+                      onSelected: (_) =>
+                          setState(() => _soloStockBajo = false),
+                      selectedColor: Theme.of(context)
+                          .colorScheme.primary.withOpacity(0.15),
+                      labelStyle: TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w600,
+                          color: !_soloStockBajo
+                              ? Theme.of(context).colorScheme.primary
+                              : Colors.grey[700]),
+                    ),
+                    const SizedBox(width: 8),
+                    FilterChip(
+                      label: Row(mainAxisSize: MainAxisSize.min, children: [
+                        const Icon(Icons.warning_amber_outlined,
+                            size: 14, color: Colors.red),
+                        const SizedBox(width: 4),
+                        Text('Stock bajo ($bajosCount)'),
+                      ]),
+                      selected: _soloStockBajo,
+                      onSelected: (_) =>
+                          setState(() => _soloStockBajo = true),
+                      selectedColor: Colors.red.withOpacity(0.12),
+                      labelStyle: TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w600,
+                          color: _soloStockBajo
+                              ? Colors.red
+                              : Colors.grey[700]),
+                    ),
+                    const Spacer(),
+                    Text(
+                        '${repuestos.length} resultado${repuestos.length != 1 ? 's' : ''}',
+                        style: const TextStyle(
+                            fontSize: 11, color: Colors.grey)),
                   ]),
-                ),
-                const Divider(height: 1),
+                ]),
+              ),
+              const Divider(height: 1),
 
-                // ── Listado ──────────────────────────────
-                Expanded(
-                  child: repuestos.isEmpty
-                      ? Center(child: Text(_soloStockBajo
-                      ? 'No hay repuestos con stock bajo'
-                      : 'Sin repuestos encontrados'))
-                      : ListView.builder(
-                      padding: const EdgeInsets.only(bottom: 80),
-                      itemCount: repuestos.length,
-                      itemBuilder: (_, i) {
-                        final r         = repuestos[i];
-                        final expandido = _expandidos.contains(r.id);
-                        return _RepuestoCard(
-                          repuesto:  r,
-                          isAdmin:   isAdmin,
-                          expandido: expandido,
-                          onToggle:  () => setState(() {
-                            if (expandido) {
-                              _expandidos.remove(r.id);
-                            } else {
-                              _expandidos.add(r.id);
-                            }
-                          }),
-                        );
-                      }),
-                ),
-              ]),
-            );
-          }),
+              // ── Listado ──────────────────────────────
+              Expanded(
+                child: repuestos.isEmpty
+                    ? Center(child: Text(_soloStockBajo
+                        ? 'No hay repuestos con stock bajo'
+                        : 'Sin repuestos encontrados'))
+                    : ListView.builder(
+                        padding: const EdgeInsets.only(bottom: 80),
+                        itemCount: repuestos.length,
+                        itemBuilder: (_, i) {
+                          final r         = repuestos[i];
+                          final expandido = _expandidos.contains(r.id);
+                          return _RepuestoCard(
+                            repuesto:  r,
+                            isAdmin:   isAdmin,
+                            expandido: expandido,
+                            onToggle:  () => setState(() {
+                              if (expandido) {
+                                _expandidos.remove(r.id);
+                              } else {
+                                _expandidos.add(r.id);
+                              }
+                            }),
+                          );
+                        }),
+              ),
+            ]),
+          );
+        }),
     );
   }
 }
 
-// ── Card de repuesto con panel expandible ─────────────────────
+// ── Card de repuesto ──────────────────────────────────────────
 class _RepuestoCard extends ConsumerWidget {
   final Repuesto     repuesto;
   final bool         isAdmin;
@@ -229,96 +229,162 @@ class _RepuestoCard extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Fila principal ───────────────────────
-          ListTile(
-            contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16, vertical: 8),
-            leading: Row(mainAxisSize: MainAxisSize.min, children: [
-              // Thumbnail imagen (si existe)
-              if (repuesto.imagenUrl != null) ...[
-                RepuestoImagenThumb(
-                    imagenUrl: repuesto.imagenUrl, size: 48),
-                const SizedBox(width: 8),
-              ],
-              // Ícono stock
-              CircleAvatar(
-                  backgroundColor: repuesto.stockBajo
-                      ? Colors.red.withOpacity(0.1)
-                      : Colors.green.withOpacity(0.1),
-                  child: Icon(
-                      repuesto.stockBajo
-                          ? Icons.warning_amber_outlined
-                          : Icons.check_circle_outline,
-                      color: repuesto.stockBajo
-                          ? Colors.red
-                          : Colors.green)),
-            ]),
-            title: Text(
-                '${repuesto.codigo} — ${repuesto.descripcion}',
-                style: const TextStyle(
-                    fontWeight: FontWeight.w600, fontSize: 13)),
-            subtitle: Column(
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (repuesto.ubicacion != null)
-                  Text(repuesto.ubicacion!,
-                      style: const TextStyle(fontSize: 12)),
-                const SizedBox(height: 4),
+
+                // ── FILA 1: Descripción a ancho completo ──
                 Row(children: [
-                  StockBadge(
-                      stock: repuesto.stockActual,
-                      minimo: repuesto.stockMinimo),
-                  const SizedBox(width: 6),
-                  Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                          color: Colors.grey.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8)),
-                      child: Text('Mín: ${repuesto.stockMinimo}',
-                          style: const TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey,
-                              fontWeight: FontWeight.w600))),
+                  CircleAvatar(
+                    radius: 10,
+                    backgroundColor: repuesto.stockBajo
+                        ? Colors.red.withOpacity(0.15)
+                        : Colors.green.withOpacity(0.15),
+                    child: Icon(
+                        repuesto.stockBajo
+                            ? Icons.warning_amber_outlined
+                            : Icons.check_circle_outline,
+                        size: 13,
+                        color: repuesto.stockBajo
+                            ? Colors.red : Colors.green)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(repuesto.descripcion,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w400, fontSize: 11),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis),
+                  ),
                 ]),
+                const SizedBox(height: 10),
+
+                // ── FILAS 2 y 3: Foto (1/3) + Info (2/3) ──
+                IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+
+                      // ── Columna izquierda: FOTO ──────────
+                      SizedBox(
+                        width: 90,
+                        child: repuesto.imagenUrl != null
+                            ? RepuestoImagenThumb(
+                                imagenUrl: repuesto.imagenUrl,
+                                size: 90)
+                            : Container(
+                                height: 80,
+                                decoration: BoxDecoration(
+                                    color: Colors.grey.withOpacity(0.08),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                        color: Colors.grey.withOpacity(0.2))),
+                                child: Icon(Icons.image_outlined,
+                                    color: Colors.grey[300], size: 32)),
+                      ),
+                      const SizedBox(width: 12),
+
+                      // ── Columna derecha: Info + Acciones ─
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+
+                            // FILA 2: Ubicación + Stock
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (repuesto.ubicacion != null)
+                                  Row(children: [
+                                    const Icon(Icons.location_on_outlined,
+                                        size: 12, color: Colors.grey),
+                                    const SizedBox(width: 4),
+                                    Expanded(
+                                      child: Text(repuesto.ubicacion!,
+                                          style: const TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.grey)),
+                                    ),
+                                  ]),
+                                const SizedBox(height: 6),
+                                Wrap(spacing: 6, runSpacing: 4, children: [
+                                  StockBadge(
+                                      stock: repuesto.stockActual,
+                                      minimo: repuesto.stockMinimo),
+                                  Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 2),
+                                      decoration: BoxDecoration(
+                                          color: Colors.grey.withOpacity(0.1),
+                                          borderRadius:
+                                              BorderRadius.circular(8)),
+                                      child: Text('Mín: ${repuesto.stockMinimo}',
+                                          style: const TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.grey,
+                                              fontWeight: FontWeight.w600))),
+                                ]),
+                              ],
+                            ),
+
+                            // FILA 3: Solo íconos
+                            Row(children: [
+                              if (isAdmin) ...[
+                                InkWell(
+                                  onTap: () => context
+                                      .push('/repuestos/${repuesto.id}'),
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                        color: Colors.grey.withOpacity(0.08),
+                                        borderRadius:
+                                            BorderRadius.circular(6)),
+                                    child: const Icon(Icons.edit_outlined,
+                                        size: 18, color: Colors.grey),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                              ],
+                              InkWell(
+                                onTap: onToggle,
+                                borderRadius: BorderRadius.circular(6),
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                      color: Colors.blue.withOpacity(0.08),
+                                      borderRadius: BorderRadius.circular(6)),
+                                  child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                            Icons.precision_manufacturing_outlined,
+                                            size: 18, color: Colors.blue),
+                                        const SizedBox(width: 2),
+                                        Icon(
+                                            expandido
+                                                ? Icons.keyboard_arrow_up
+                                                : Icons.keyboard_arrow_down,
+                                            size: 14, color: Colors.blue),
+                                      ]),
+                                ),
+                              ),
+                            ]),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
-            trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-              // Botón expandir máquinas
-              InkWell(
-                onTap: onToggle,
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(8)),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    const Icon(Icons.precision_manufacturing_outlined,
-                        size: 14, color: Colors.blue),
-                    const SizedBox(width: 4),
-                    Icon(
-                        expandido
-                            ? Icons.keyboard_arrow_up
-                            : Icons.keyboard_arrow_down,
-                        size: 16, color: Colors.blue),
-                  ]),
-                ),
-              ),
-              if (isAdmin) ...[
-                const SizedBox(width: 4),
-                IconButton(
-                    icon: const Icon(Icons.edit_outlined),
-                    onPressed: () =>
-                        context.push('/repuestos/${repuesto.id}')),
-              ],
-            ]),
           ),
 
           // ── Panel expandible: máquinas ────────────
           if (expandido) ...[
-            const Divider(height: 1, indent: 16, endIndent: 16),
+            const Divider(height: 1, indent: 12, endIndent: 12),
             if (maquinasAsync == null)
               const SizedBox.shrink()
             else
@@ -335,7 +401,7 @@ class _RepuestoCard extends ConsumerWidget {
                 data: (maquinas) {
                   if (maquinas.isEmpty) {
                     return const Padding(
-                        padding: EdgeInsets.fromLTRB(16, 8, 16, 12),
+                        padding: EdgeInsets.fromLTRB(12, 8, 12, 12),
                         child: Text('Sin máquinas asociadas',
                             style: TextStyle(
                                 fontSize: 12, color: Colors.grey)));
@@ -345,7 +411,7 @@ class _RepuestoCard extends ConsumerWidget {
                       0, (sum, m) => sum + m.cantidad);
 
                   return Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -382,8 +448,7 @@ class _RepuestoCard extends ConsumerWidget {
                                     horizontal: 10, vertical: 3),
                                 decoration: BoxDecoration(
                                     color: Colors.teal.withOpacity(0.1),
-                                    borderRadius:
-                                    BorderRadius.circular(8)),
+                                    borderRadius: BorderRadius.circular(8)),
                                 child: Text('x${m.cantidad}',
                                     style: const TextStyle(
                                         fontSize: 12,
@@ -392,10 +457,8 @@ class _RepuestoCard extends ConsumerWidget {
                           ]),
                         )),
                         const Divider(height: 12),
-                        // Total
                         Row(
-                          mainAxisAlignment:
-                          MainAxisAlignment.spaceBetween,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             const Text('Total requerido en máquinas:',
                                 style: TextStyle(
@@ -407,8 +470,7 @@ class _RepuestoCard extends ConsumerWidget {
                                     horizontal: 12, vertical: 4),
                                 decoration: BoxDecoration(
                                     color: Colors.blue.withOpacity(0.1),
-                                    borderRadius:
-                                    BorderRadius.circular(8)),
+                                    borderRadius: BorderRadius.circular(8)),
                                 child: Text('$totalUnidades uds',
                                     style: const TextStyle(
                                         fontSize: 13,

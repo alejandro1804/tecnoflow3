@@ -24,6 +24,7 @@ class RepuestosMaquinaScreen extends ConsumerWidget {
     final canEdit = isAdmin || (profile?.isTecnico ?? false);
 
     return Scaffold(
+      backgroundColor: const Color(0xFFEFF6FF), // fondo azul pastel suave
       appBar: AppBar(title: Text('Repuestos — $maquinaNombre')),
       floatingActionButton: canEdit
           ? FloatingActionButton.extended(
@@ -38,58 +39,126 @@ class RepuestosMaquinaScreen extends ConsumerWidget {
         data: (items) => items.isEmpty
             ? const Center(child: Text('Sin repuestos asociados a esta máquina'))
             : ListView.builder(
-                padding: const EdgeInsets.only(bottom: 80),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
                 itemCount: items.length,
                 itemBuilder: (_, i) {
                   final item = items[i];
                   return Card(
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      leading: CircleAvatar(
-                        backgroundColor: Colors.blue.withOpacity(0.1),
-                        child: const Icon(Icons.settings_outlined, color: Colors.blue)),
-                      title: Text(
-                        '${item.repuestoCodigo ?? ''} — ${item.repuestoDescripcion ?? ''}',
-                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                      subtitle: Column(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const SizedBox(height: 4),
+
+                          // ── FILA 1: Ícono + Descripción ──────
                           Row(children: [
+                            CircleAvatar(
+                              radius: 14,
+                              backgroundColor: Colors.blue.withOpacity(0.1),
+                              child: const Icon(Icons.settings_outlined,
+                                  color: Colors.blue, size: 16)),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                item.repuestoDescripcion ?? '',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 11),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis),
+                            ),
+                          ]),
+                          const SizedBox(height: 6),
+
+                          // ── FILA 2: Código | Cantidad | Ubicación ──
+                          Row(children: [
+                            // Código
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                  color: Colors.grey.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(6)),
+                              child: Text(item.repuestoCodigo ?? '',
+                                  style: const TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.grey,
+                                      fontWeight: FontWeight.w600)),
+                            ),
+                            const SizedBox(width: 6),
+                            // Cantidad
                             _InfoChip('Cant: ${item.cantidad}', Colors.blue),
                             if (item.ubicacionEnMaquina != null) ...[
                               const SizedBox(width: 6),
                               _InfoChip(item.ubicacionEnMaquina!, Colors.teal),
                             ],
                           ]),
+
+                          // Observación (si existe)
                           if (item.observacion != null) ...[
                             const SizedBox(height: 4),
-                            Text(item.observacion!,
-                                style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                            Row(children: [
+                              const Icon(Icons.notes_outlined,
+                                  size: 12, color: Colors.grey),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(item.observacion!,
+                                    style: const TextStyle(
+                                        fontSize: 11, color: Colors.grey)),
+                              ),
+                            ]),
+                          ],
+
+                          // ── FILA 3: Acciones ──────────────────
+                          if (canEdit) ...[
+                            const SizedBox(height: 8),
+                            Row(children: [
+                              const Spacer(),
+                              // Ícono editar
+                              InkWell(
+                                onTap: () => _mostrarModal(
+                                    context, ref, maquinaId, isAdmin,
+                                    repuestoMaquina: item),
+                                borderRadius: BorderRadius.circular(6),
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                      color: Colors.grey.withOpacity(0.08),
+                                      borderRadius: BorderRadius.circular(6)),
+                                  child: const Icon(Icons.edit_outlined,
+                                      size: 18, color: Colors.grey),
+                                ),
+                              ),
+                              if (isAdmin) ...[
+                                const SizedBox(width: 8),
+                                // Ícono eliminar
+                                InkWell(
+                                  onTap: () => _eliminar(
+                                      context, ref, item.id, maquinaId),
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                        color: Colors.red.withOpacity(0.08),
+                                        borderRadius: BorderRadius.circular(6)),
+                                    child: const Icon(Icons.delete_outline,
+                                        size: 18, color: Colors.red),
+                                  ),
+                                ),
+                              ],
+                            ]),
                           ],
                         ],
                       ),
-                      trailing: canEdit
-                          ? Row(mainAxisSize: MainAxisSize.min, children: [
-                              IconButton(
-                                icon: const Icon(Icons.edit_outlined, size: 20),
-                                onPressed: () => _mostrarModal(
-                                    context, ref, maquinaId, isAdmin,
-                                    repuestoMaquina: item)),
-                              if (isAdmin)
-                                IconButton(
-                                  icon: const Icon(Icons.delete_outline,
-                                      size: 20, color: Colors.red),
-                                  onPressed: () => _eliminar(context, ref, item.id, maquinaId)),
-                            ])
-                          : null,
                     ),
                   );
                 },
-              ),
+            ),
       ),
     );
   }
+
 
   Future<void> _eliminar(BuildContext context, WidgetRef ref,
       String id, String maquinaId) async {
@@ -122,8 +191,8 @@ class RepuestosMaquinaScreen extends ConsumerWidget {
       builder: (_) => ProviderScope(
         parent: ProviderScope.containerOf(context),
         child: _RepuestoMaquinaModal(
-          maquinaId:      maquinaId,
-          isAdmin:        isAdmin,
+          maquinaId:       maquinaId,
+          isAdmin:         isAdmin,
           repuestoMaquina: repuestoMaquina,
           onSaved: () => ref.invalidate(repuestosMaquinasProvider(maquinaId)),
         ),
@@ -151,16 +220,14 @@ class _RepuestoMaquinaModal extends ConsumerStatefulWidget {
 }
 
 class _ModalState extends ConsumerState<_RepuestoMaquinaModal> {
-  final _formKey    = GlobalKey<FormState>();
-  final _cantCtrl   = TextEditingController(text: '1');
-  final _ubicCtrl   = TextEditingController();
-  final _obsCtrl    = TextEditingController();
-  final _busqCtrl   = TextEditingController();
-
-  // Para repuesto nuevo
-  final _codCtrl    = TextEditingController();
-  final _descCtrl   = TextEditingController();
-  final _minCtrl    = TextEditingController(text: '0');
+  final _formKey     = GlobalKey<FormState>();
+  final _cantCtrl    = TextEditingController(text: '1');
+  final _ubicCtrl    = TextEditingController();
+  final _obsCtrl     = TextEditingController();
+  final _busqCtrl    = TextEditingController();
+  final _codCtrl     = TextEditingController();
+  final _descCtrl    = TextEditingController();
+  final _minCtrl     = TextEditingController(text: '0');
   final _ubicRepCtrl = TextEditingController();
 
   bool _crearNuevo   = false;
@@ -196,19 +263,16 @@ class _ModalState extends ConsumerState<_RepuestoMaquinaModal> {
     setState(() { _loading = true; _error = null; });
     try {
       String repId = _repuestoSelId ?? '';
-
-      // Si es repuesto nuevo: primero crearlo
       if (_crearNuevo) {
         final nuevoRep = Repuesto(
-          id:           '',
-          codigo:       _codCtrl.text.trim(),
-          descripcion:  _descCtrl.text.trim(),
-          stockActual:  0,
-          stockMinimo:  int.tryParse(_minCtrl.text) ?? 0,
-          ubicacion:    _ubicRepCtrl.text.trim().isEmpty ? null : _ubicRepCtrl.text.trim(),
+          id:          '',
+          codigo:      _codCtrl.text.trim(),
+          descripcion: _descCtrl.text.trim(),
+          stockActual: 0,
+          stockMinimo: int.tryParse(_minCtrl.text) ?? 0,
+          ubicacion:   _ubicRepCtrl.text.trim().isEmpty ? null : _ubicRepCtrl.text.trim(),
         );
         await ref.read(repuestosRepoProvider).create(nuevoRep);
-        // Buscar el id del repuesto recién creado
         final todos = await ref.read(repuestosRepoProvider).getAll();
         repId = todos.firstWhere((r) => r.codigo == nuevoRep.codigo).id;
         ref.invalidate(repuestosProvider);
@@ -224,7 +288,8 @@ class _ModalState extends ConsumerState<_RepuestoMaquinaModal> {
       );
 
       if (isEdit) {
-        await ref.read(repuestosMaquinasRepoProvider).update(widget.repuestoMaquina!.id, rm);
+        await ref.read(repuestosMaquinasRepoProvider).update(
+            widget.repuestoMaquina!.id, rm);
       } else {
         await ref.read(repuestosMaquinasRepoProvider).create(rm, widget.maquinaId);
       }
@@ -233,7 +298,8 @@ class _ModalState extends ConsumerState<_RepuestoMaquinaModal> {
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(isEdit ? 'Asociación actualizada' : 'Repuesto agregado a la máquina'),
+            content: Text(
+                isEdit ? 'Asociación actualizada' : 'Repuesto agregado a la máquina'),
             backgroundColor: Colors.green));
       }
     } catch (e) {
@@ -259,8 +325,8 @@ class _ModalState extends ConsumerState<_RepuestoMaquinaModal> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       padding: EdgeInsets.only(
-        left: 20, right: 20, top: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 20),
+          left: 20, right: 20, top: 20,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 20),
       child: SingleChildScrollView(
         child: Form(
           key: _formKey,
@@ -268,56 +334,54 @@ class _ModalState extends ConsumerState<_RepuestoMaquinaModal> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Handle
               Center(child: Container(width: 40, height: 4,
                   decoration: BoxDecoration(color: Colors.grey[300],
                       borderRadius: BorderRadius.circular(2)))),
               const SizedBox(height: 16),
-
               Text(isEdit ? 'Editar asociación' : 'Agregar repuesto a máquina',
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
               const SizedBox(height: 20),
 
-              // Toggle crear nuevo (solo si no es edición)
               if (!isEdit) ...[
                 Row(children: [
                   const Text('¿El repuesto no existe aún?'),
                   const Spacer(),
                   Switch(
                     value: _crearNuevo,
-                    onChanged: (v) => setState(() { _crearNuevo = v; _repuestoSelId = null; })),
+                    onChanged: (v) => setState(
+                        () { _crearNuevo = v; _repuestoSelId = null; })),
                 ]),
                 const SizedBox(height: 8),
               ],
 
-              // ── Seleccionar repuesto existente ────────────
               if (!_crearNuevo) ...[
                 if (!isEdit) ...[
                   TextFormField(
                     controller: _busqCtrl,
                     decoration: const InputDecoration(
-                      labelText: 'Buscar repuesto',
-                      prefixIcon: Icon(Icons.search),
-                      hintText: 'Código o descripción...'),
+                        labelText: 'Buscar repuesto',
+                        prefixIcon: Icon(Icons.search),
+                        hintText: 'Código o descripción...'),
                     onChanged: (v) => setState(() => _busqueda = v)),
                   const SizedBox(height: 8),
                   if (_busqueda.isNotEmpty)
                     Container(
                       constraints: const BoxConstraints(maxHeight: 200),
                       decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(10)),
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(10)),
                       child: ListView.builder(
                         shrinkWrap: true,
                         itemCount: filtrados.length,
                         itemBuilder: (_, i) {
-                          final r = filtrados[i];
+                          final r   = filtrados[i];
                           final sel = _repuestoSelId == r.id;
                           return ListTile(
                             dense: true,
                             selected: sel,
                             selectedTileColor: Colors.blue.withOpacity(0.08),
-                            leading: Icon(sel ? Icons.check_circle : Icons.circle_outlined,
+                            leading: Icon(
+                                sel ? Icons.check_circle : Icons.circle_outlined,
                                 color: sel ? Colors.blue : Colors.grey, size: 18),
                             title: Text('${r.codigo} — ${r.descripcion}',
                                 style: const TextStyle(fontSize: 13)),
@@ -333,60 +397,65 @@ class _ModalState extends ConsumerState<_RepuestoMaquinaModal> {
                     ),
                   if (_repuestoSelId == null && !isEdit)
                     const Padding(
-                      padding: EdgeInsets.only(top: 4),
-                      child: Text('Seleccione un repuesto',
-                          style: TextStyle(color: Colors.red, fontSize: 12))),
+                        padding: EdgeInsets.only(top: 4),
+                        child: Text('Seleccione un repuesto',
+                            style: TextStyle(color: Colors.red, fontSize: 12))),
                   const SizedBox(height: 8),
                 ],
-
-                // Mostrar repuesto seleccionado en edición
                 if (isEdit)
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.05),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.blue.withOpacity(0.2))),
+                        color: Colors.blue.withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.blue.withOpacity(0.2))),
                     child: Row(children: [
-                      const Icon(Icons.inventory_2_outlined, color: Colors.blue, size: 18),
+                      const Icon(Icons.inventory_2_outlined,
+                          color: Colors.blue, size: 18),
                       const SizedBox(width: 8),
                       Expanded(child: Text(
-                        '${widget.repuestoMaquina!.repuestoCodigo} — ${widget.repuestoMaquina!.repuestoDescripcion}',
-                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
+                          '${widget.repuestoMaquina!.repuestoCodigo} — ${widget.repuestoMaquina!.repuestoDescripcion}',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w600, fontSize: 13))),
                     ])),
               ],
 
-              // ── Crear repuesto nuevo ──────────────────────
               if (_crearNuevo) ...[
                 const Text('DATOS DEL NUEVO REPUESTO',
                     style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
                         color: Colors.grey, letterSpacing: 1)),
                 const SizedBox(height: 12),
                 TextFormField(
-                  controller: _codCtrl,
-                  textCapitalization: TextCapitalization.characters,
-                  decoration: const InputDecoration(
-                      labelText: 'Código / SKU', prefixIcon: Icon(Icons.qr_code_outlined)),
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Requerido' : null),
+                    controller: _codCtrl,
+                    textCapitalization: TextCapitalization.characters,
+                    decoration: const InputDecoration(
+                        labelText: 'Código / SKU',
+                        prefixIcon: Icon(Icons.qr_code_outlined)),
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Requerido' : null),
                 const SizedBox(height: 12),
                 TextFormField(
-                  controller: _descCtrl,
-                  decoration: const InputDecoration(
-                      labelText: 'Descripción', prefixIcon: Icon(Icons.description_outlined)),
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Requerido' : null),
+                    controller: _descCtrl,
+                    decoration: const InputDecoration(
+                        labelText: 'Descripción',
+                        prefixIcon: Icon(Icons.description_outlined)),
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Requerido' : null),
                 const SizedBox(height: 12),
                 Row(children: [
                   Expanded(child: TextFormField(
-                    controller: _minCtrl,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    decoration: const InputDecoration(
-                        labelText: 'Stock mínimo', prefixIcon: Icon(Icons.warning_amber_outlined)))),
+                      controller: _minCtrl,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      decoration: const InputDecoration(
+                          labelText: 'Stock mínimo',
+                          prefixIcon: Icon(Icons.warning_amber_outlined)))),
                   const SizedBox(width: 12),
                   Expanded(child: TextFormField(
-                    controller: _ubicRepCtrl,
-                    decoration: const InputDecoration(
-                        labelText: 'Ubicación depósito', prefixIcon: Icon(Icons.location_on_outlined)))),
+                      controller: _ubicRepCtrl,
+                      decoration: const InputDecoration(
+                          labelText: 'Ubicación depósito',
+                          prefixIcon: Icon(Icons.location_on_outlined)))),
                 ]),
                 const SizedBox(height: 16),
                 const Divider(),
@@ -396,32 +465,34 @@ class _ModalState extends ConsumerState<_RepuestoMaquinaModal> {
                 const SizedBox(height: 12),
               ],
 
-              // ── Campos comunes (cantidad, ubicación, obs) ─
               if (!_crearNuevo) const SizedBox(height: 8),
               Row(children: [
                 Expanded(child: TextFormField(
-                  controller: _cantCtrl,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  decoration: const InputDecoration(
-                      labelText: 'Cantidad', prefixIcon: Icon(Icons.numbers_outlined)),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Requerido';
-                    if ((int.tryParse(v) ?? 0) <= 0) return 'Debe ser > 0';
-                    return null;
-                  })),
+                    controller: _cantCtrl,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: const InputDecoration(
+                        labelText: 'Cantidad',
+                        prefixIcon: Icon(Icons.numbers_outlined)),
+                    validator: (v) {
+                      if (v == null || v.isEmpty) return 'Requerido';
+                      if ((int.tryParse(v) ?? 0) <= 0) return 'Debe ser > 0';
+                      return null;
+                    })),
                 const SizedBox(width: 12),
                 Expanded(child: TextFormField(
-                  controller: _ubicCtrl,
-                  decoration: const InputDecoration(
-                      labelText: 'Ubicación en máquina', prefixIcon: Icon(Icons.place_outlined)))),
+                    controller: _ubicCtrl,
+                    decoration: const InputDecoration(
+                        labelText: 'Ubicación en máquina',
+                        prefixIcon: Icon(Icons.place_outlined)))),
               ]),
               const SizedBox(height: 12),
               TextFormField(
-                controller: _obsCtrl,
-                maxLines: 2,
-                decoration: const InputDecoration(
-                    labelText: 'Observación (opcional)', prefixIcon: Icon(Icons.notes_outlined))),
+                  controller: _obsCtrl,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                      labelText: 'Observación (opcional)',
+                      prefixIcon: Icon(Icons.notes_outlined))),
 
               if (_error != null) ...[
                 const SizedBox(height: 12),
@@ -430,11 +501,11 @@ class _ModalState extends ConsumerState<_RepuestoMaquinaModal> {
 
               const SizedBox(height: 20),
               LoadingButton(
-                loading: _loading,
-                onPressed: (!_crearNuevo && _repuestoSelId == null && !isEdit)
-                    ? null
-                    : _submit,
-                label: isEdit ? 'Guardar cambios' : 'Agregar a máquina'),
+                  loading: _loading,
+                  onPressed: (!_crearNuevo && _repuestoSelId == null && !isEdit)
+                      ? null
+                      : _submit,
+                  label: isEdit ? 'Guardar cambios' : 'Agregar a máquina'),
               const SizedBox(height: 8),
             ],
           ),
@@ -447,7 +518,7 @@ class _ModalState extends ConsumerState<_RepuestoMaquinaModal> {
 // ── Chip de info ──────────────────────────────────────────────
 class _InfoChip extends StatelessWidget {
   final String label;
-  final Color color;
+  final Color  color;
   const _InfoChip(this.label, this.color);
   @override
   Widget build(BuildContext context) => Container(
@@ -455,5 +526,6 @@ class _InfoChip extends StatelessWidget {
     decoration: BoxDecoration(
         color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
     child: Text(label,
-        style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)));
+        style: TextStyle(
+            fontSize: 11, color: color, fontWeight: FontWeight.w600)));
 }
