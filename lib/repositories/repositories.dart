@@ -81,7 +81,7 @@ class MaquinasRepository {
 // ── Repuestos ─────────────────────────────────────────────────
 class RepuestosRepository {
   Future<List<Repuesto>> getAll() async {
-    final data = await _db.from('repuestos').select().order('codigo');
+    final data = await _db.from('repuestos').select().order('descripcion', ascending: true);
     return (data as List).map((e) => Repuesto.fromMap(e)).toList();
   }
 
@@ -89,7 +89,7 @@ class RepuestosRepository {
     final data = await _db.from('repuestos')
         .select()
         .filter('stock_actual', 'lte', 'stock_minimo')
-        .order('codigo');
+        .order('descripcion', ascending: true);
     return (data as List).map((e) => Repuesto.fromMap(e)).toList();
   }
 
@@ -183,6 +183,8 @@ class TicketsRepository {
 // ── Movimientos ───────────────────────────────────────────────
 // REEMPLAZAR la clase MovimientosRepository en lib/repositories/repositories.dart
 
+// REEMPLAZAR la clase MovimientosRepository en lib/repositories/repositories.dart
+
 class MovimientosRepository {
   // ── INGRESOS ────────────────────────────────────────────────
   Future<List<IngresoRepuesto>> getIngresos() async {
@@ -208,6 +210,23 @@ class MovimientosRepository {
       'fecha':          DateTime.now().toIso8601String().substring(0, 10),
     });
   }
+
+  Future<void> updateIngreso(String id, {
+    required String repuestoId,
+    required int cantidad,
+    required String quienEntrega,
+    String? descripcion,
+  }) async {
+    await _db.from('ingreso_repuestos').update({
+      'repuesto_id':   repuestoId,
+      'cantidad':      cantidad,
+      'quien_entrega': quienEntrega,
+      'descripcion':   descripcion,
+    }).eq('id', id);
+  }
+
+  Future<void> deleteIngreso(String id) async =>
+      _db.from('ingreso_repuestos').delete().eq('id', id);
 
   // ── SALIDAS ─────────────────────────────────────────────────
   Future<List<SalidaRepuesto>> getSalidas() async {
@@ -251,7 +270,6 @@ class MovimientosRepository {
   Future<void> deleteSalida(String id) async =>
       _db.from('salida_repuestos').delete().eq('id', id);
 }
-
 // REEMPLAZAR la clase RepuestosMaquinasRepository en lib/repositories/repositories.dart
 
 // ── RepuestosMaquinas ─────────────────────────────────────────

@@ -129,6 +129,7 @@ class _State extends ConsumerState<RepuestosScreen> {
                     onChanged: (v) => setState(() => _busqueda = v),
                   ),
                   const SizedBox(height: 8),
+                  // Chips en una línea
                   Row(children: [
                     FilterChip(
                       label: const Text('Todos'),
@@ -138,7 +139,7 @@ class _State extends ConsumerState<RepuestosScreen> {
                       selectedColor: Theme.of(context)
                           .colorScheme.primary.withOpacity(0.15),
                       labelStyle: TextStyle(
-                          fontSize: 12, fontWeight: FontWeight.w600,
+                          fontSize: 11, fontWeight: FontWeight.w600,
                           color: !_soloStockBajo
                               ? Theme.of(context).colorScheme.primary
                               : Colors.grey[700]),
@@ -147,26 +148,29 @@ class _State extends ConsumerState<RepuestosScreen> {
                     FilterChip(
                       label: Row(mainAxisSize: MainAxisSize.min, children: [
                         const Icon(Icons.warning_amber_outlined,
-                            size: 14, color: Colors.red),
+                            size: 13, color: Colors.red),
                         const SizedBox(width: 4),
-                        Text('Stock bajo ($bajosCount)'),
+                        Text('Stock bajo ($bajosCount)',
+                            style: const TextStyle(fontSize: 11)),
                       ]),
                       selected: _soloStockBajo,
                       onSelected: (_) =>
                           setState(() => _soloStockBajo = true),
                       selectedColor: Colors.red.withOpacity(0.12),
                       labelStyle: TextStyle(
-                          fontSize: 12, fontWeight: FontWeight.w600,
+                          fontSize: 11, fontWeight: FontWeight.w600,
                           color: _soloStockBajo
                               ? Colors.red
                               : Colors.grey[700]),
                     ),
-                    const Spacer(),
-                    Text(
-                        '${repuestos.length} resultado${repuestos.length != 1 ? 's' : ''}',
-                        style: const TextStyle(
-                            fontSize: 11, color: Colors.grey)),
                   ]),
+                  // Contador en línea separada
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                        '${repuestos.length} resultado${repuestos.length != 1 ? 's' : ''}',
+                        style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                  ),
                 ]),
               ),
               const Divider(height: 1),

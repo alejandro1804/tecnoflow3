@@ -41,7 +41,7 @@ class _State extends ConsumerState<SalidaFormScreen> {
       _conTicket     = s.ticketId != null;
       _cantCtrl.text = s.cantidad.toString();
       _obsCtrl.text  = s.observacion ?? '';
-      _busqCtrl.text = '${s.repuestoCodigo ?? ''} — ${s.repuestoDescripcion ?? ''}';
+      _busqCtrl.text = s.repuestoDescripcion ?? '';
     } else if (widget.ticketIdInicial != null) {
       _ticketId  = widget.ticketIdInicial;
       _conTicket = true;
@@ -118,15 +118,12 @@ class _State extends ConsumerState<SalidaFormScreen> {
     final profile   = ref.watch(myProfileProvider).valueOrNull;
     final isAdmin   = profile?.isAdmin ?? false;
 
-    // Técnico solo ve sus tickets asignados
     var ticketsFiltrados = isAdmin
         ? tickets.where((t) => t.estado != 'cerrado').toList()
         : tickets.where((t) =>
             t.tecnicoId == profile?.id &&
             t.estado != 'cerrado').toList();
 
-    // En edición: asegurar que el ticket original esté en la lista
-    // aunque esté cerrado o no sea del técnico actual
     if (isEdit && _ticketId != null) {
       final yaEsta = ticketsFiltrados.any((t) => t.id == _ticketId);
       if (!yaEsta) {
@@ -135,7 +132,6 @@ class _State extends ConsumerState<SalidaFormScreen> {
       }
     }
 
-    // Filtro buscador de repuestos ordenado alfabéticamente
     final repuestosFiltrados = (_busqueda.isEmpty
         ? repuestos
         : repuestos.where((r) =>
@@ -148,6 +144,7 @@ class _State extends ConsumerState<SalidaFormScreen> {
       appBar: AppBar(
           title: Text(isEdit ? 'Editar salida' : 'Nueva salida de repuesto')),
       body: SingleChildScrollView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: const EdgeInsets.all(20),
         child: Form(
           key: _formKey,
@@ -162,10 +159,12 @@ class _State extends ConsumerState<SalidaFormScreen> {
               const SizedBox(height: 8),
               TextFormField(
                 controller: _busqCtrl,
+                style: const TextStyle(fontSize: 11),
                 decoration: InputDecoration(
                     labelText: 'Buscar repuesto',
                     prefixIcon: const Icon(Icons.search),
                     hintText: 'Código o descripción...',
+                    labelStyle: const TextStyle(fontSize: 11),
                     suffixIcon: _repuestoId != null
                         ? const Icon(Icons.check_circle, color: Colors.green)
                         : null),
@@ -190,27 +189,27 @@ class _State extends ConsumerState<SalidaFormScreen> {
                           shrinkWrap: true,
                           itemCount: repuestosFiltrados.length,
                           itemBuilder: (_, i) {
-                            final r = repuestosFiltrados[i];
+                            final r        = repuestosFiltrados[i];
                             final sinStock = r.stockActual == 0;
                             return ListTile(
                               dense: true,
                               enabled: !sinStock,
                               leading: StockBadge(
                                   stock: r.stockActual, minimo: r.stockMinimo),
-                              title: Text('${r.codigo} — ${r.descripcion}',
+                              title: Text(r.descripcion,
                                   style: TextStyle(
-                                      fontSize: 13,
+                                      fontSize: 10,
                                       color: sinStock ? Colors.grey : null)),
                               subtitle: Text(
                                   sinStock
                                       ? 'Sin stock disponible'
                                       : 'Stock disponible: ${r.stockActual}',
                                   style: TextStyle(
-                                      fontSize: 11,
+                                      fontSize: 10,
                                       color: sinStock ? Colors.red : null)),
                               onTap: sinStock ? null : () => setState(() {
                                 _repuestoId    = r.id;
-                                _busqCtrl.text = '${r.codigo} — ${r.descripcion}';
+                                _busqCtrl.text = r.descripcion;
                                 _busqueda      = '';
                               }),
                             );
@@ -221,17 +220,19 @@ class _State extends ConsumerState<SalidaFormScreen> {
 
               // ── Cantidad ───────────────────────────────
               TextFormField(
-                  controller: _cantCtrl,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  decoration: const InputDecoration(
-                      labelText: 'Cantidad',
-                      prefixIcon: Icon(Icons.numbers_outlined)),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Requerido';
-                    if ((int.tryParse(v) ?? 0) <= 0) return 'Debe ser mayor a 0';
-                    return null;
-                  }),
+                controller: _cantCtrl,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                style: const TextStyle(fontSize: 12),
+                decoration: const InputDecoration(
+                    labelText: 'Cantidad',
+                    prefixIcon: Icon(Icons.numbers_outlined),
+                    labelStyle: TextStyle(fontSize: 12)),
+                validator: (v) {
+                  if (v == null || v.isEmpty) return 'Requerido';
+                  if ((int.tryParse(v) ?? 0) <= 0) return 'Debe ser mayor a 0';
+                  return null;
+                }),
               const SizedBox(height: 16),
 
               // ── Asociar ticket (opcional) ──────────────
@@ -241,7 +242,7 @@ class _State extends ConsumerState<SalidaFormScreen> {
               const SizedBox(height: 8),
               Row(children: [
                 const Text('¿Asociar a un ticket?',
-                    style: TextStyle(fontSize: 13)),
+                    style: TextStyle(fontSize: 12)),
                 const Spacer(),
                 Switch(
                     value: _conTicket,
@@ -253,30 +254,35 @@ class _State extends ConsumerState<SalidaFormScreen> {
               if (_conTicket) ...[
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
-                    value: _ticketId,
-                    decoration: const InputDecoration(
-                        labelText: 'Seleccionar ticket',
-                        prefixIcon: Icon(Icons.confirmation_number_outlined)),
-                    items: ticketsFiltrados.map((t) => DropdownMenuItem(
-                      value: t.id,
-                      child: Text(
-                          '${t.maquinaNombre ?? 'Sin máquina'} — ${t.estado}',
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 13)),
-                    )).toList(),
-                    onChanged: (v) => setState(() => _ticketId = v),
-                    validator: (v) => (_conTicket && (v == null || v.isEmpty))
-                        ? 'Seleccione un ticket' : null),
+                  isExpanded: true,
+                  value: _ticketId,
+                  decoration: const InputDecoration(
+                      labelText: 'Seleccionar ticket',
+                      prefixIcon: Icon(Icons.confirmation_number_outlined),
+                      labelStyle: TextStyle(fontSize: 12)),
+                  items: ticketsFiltrados.map((t) => DropdownMenuItem(
+                    value: t.id,
+                    child: Text(
+                        '${t.maquinaNombre ?? 'Sin máquina'} — ${t.estado}',
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                        style: const TextStyle(fontSize: 12)),
+                  )).toList(),
+                  onChanged: (v) => setState(() => _ticketId = v),
+                  validator: (v) => (_conTicket && (v == null || v.isEmpty))
+                      ? 'Seleccione un ticket' : null),
               ],
               const SizedBox(height: 16),
 
               // ── Observación ────────────────────────────
               TextFormField(
-                  controller: _obsCtrl,
-                  maxLines: 2,
-                  decoration: const InputDecoration(
-                      labelText: 'Observación (opcional)',
-                      prefixIcon: Icon(Icons.notes_outlined))),
+                controller: _obsCtrl,
+                maxLines: 2,
+                style: const TextStyle(fontSize: 12),
+                decoration: const InputDecoration(
+                    labelText: 'Observación (opcional)',
+                    prefixIcon: Icon(Icons.notes_outlined),
+                    labelStyle: TextStyle(fontSize: 12))),
 
               if (_error != null) ...[
                 const SizedBox(height: 12),
