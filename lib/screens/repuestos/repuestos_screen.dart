@@ -195,7 +195,8 @@ class _State extends ConsumerState<RepuestosScreen> {
                                 _expandidos.remove(r.id);
                               } else {
                                 _expandidos.add(r.id);
-                                ref.invalidate(maquinasPorRepuestoProvider(r.id));
+                                ref.invalidate(
+                                    maquinasPorRepuestoProvider(r.id));
                               }
                             }),
                           );
@@ -222,12 +223,131 @@ class _RepuestoCard extends ConsumerWidget {
     required this.onToggle,
   });
 
+  void _verDetalle(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.6,
+        maxChildSize: 0.92,
+        minChildSize: 0.35,
+        builder: (_, ctrl) => SingleChildScrollView(
+          controller: ctrl,
+          padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Handle
+              Center(child: Container(width: 40, height: 4,
+                  decoration: BoxDecoration(color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2)))),
+              const SizedBox(height: 16),
+
+              const Text('DETALLE DE REPUESTO', style: TextStyle(
+                  fontSize: 11, fontWeight: FontWeight.w700,
+                  color: Colors.grey, letterSpacing: 1)),
+              const SizedBox(height: 12),
+
+              // ── Foto ─────────────────────────────────
+              if (repuesto.imagenUrl != null) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    repuesto.imagenUrl!,
+                    width: double.infinity,
+                    height: 200,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (_, child, progress) => progress == null
+                        ? child
+                        : Container(
+                            height: 200,
+                            decoration: BoxDecoration(
+                                color: Colors.grey[100],
+                                borderRadius: BorderRadius.circular(12)),
+                            child: const Center(
+                                child: CircularProgressIndicator())),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ] else ...[
+                Container(
+                  width: double.infinity,
+                  height: 120,
+                  decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade200)),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.image_outlined,
+                          size: 40, color: Colors.grey[300]),
+                      const SizedBox(height: 6),
+                      Text('Sin imagen',
+                          style: TextStyle(
+                              fontSize: 12, color: Colors.grey[400])),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+
+              // ── Campos ────────────────────────────────
+              _DetalleRow(Icons.qr_code_outlined, 'Código', repuesto.codigo),
+              _DetalleRow(Icons.description_outlined, 'Descripción',
+                  repuesto.descripcion),
+              _DetalleRow(Icons.location_on_outlined, 'Ubicación',
+                  repuesto.ubicacion ?? '—'),
+              const Divider(height: 20),
+              _DetalleRow(Icons.inventory_2_outlined, 'Stock actual',
+                  repuesto.stockActual.toString(),
+                  color: repuesto.stockBajo ? Colors.red : Colors.green),
+              _DetalleRow(Icons.warning_amber_outlined, 'Stock mínimo',
+                  repuesto.stockMinimo.toString()),
+              const SizedBox(height: 8),
+              // Badge estado stock
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                    color: repuesto.stockBajo
+                        ? Colors.red.withOpacity(0.1)
+                        : Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8)),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(
+                      repuesto.stockBajo
+                          ? Icons.warning_amber_outlined
+                          : Icons.check_circle_outline,
+                      size: 14,
+                      color: repuesto.stockBajo
+                          ? Colors.red : Colors.green),
+                  const SizedBox(width: 6),
+                  Text(
+                      repuesto.stockBajo
+                          ? 'Stock bajo — requiere reposición'
+                          : 'Stock OK',
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: repuesto.stockBajo
+                              ? Colors.red : Colors.green)),
+                ]),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final maquinasAsync = expandido
         ? ref.watch(maquinasPorRepuestoProvider(repuesto.id))
-        //? ref.watch(maquinasPorRepuestoProvider(repuesto.id).future).asStream()
-
         : null;
 
     return Card(
@@ -355,6 +475,7 @@ class _RepuestoCard extends ConsumerWidget {
                                 ),
                                 const SizedBox(width: 8),
                               ],
+                              // ── Ícono brazo robótico ──
                               InkWell(
                                 onTap: onToggle,
                                 borderRadius: BorderRadius.circular(6),
@@ -367,8 +488,7 @@ class _RepuestoCard extends ConsumerWidget {
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         const Icon(
-                                            Icons
-                                                .precision_manufacturing_outlined,
+                                            Icons.precision_manufacturing_outlined,
                                             size: 18, color: Colors.blue),
                                         const SizedBox(width: 2),
                                         Icon(
@@ -377,6 +497,21 @@ class _RepuestoCard extends ConsumerWidget {
                                                 : Icons.keyboard_arrow_down,
                                             size: 14, color: Colors.blue),
                                       ]),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              // ── Ícono ojo ─────────────
+                              InkWell(
+                                onTap: () => _verDetalle(context),
+                                borderRadius: BorderRadius.circular(6),
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                      color: Colors.teal.withOpacity(0.08),
+                                      borderRadius: BorderRadius.circular(6)),
+                                  child: const Icon(
+                                      Icons.visibility_outlined,
+                                      size: 18, color: Colors.teal),
                                 ),
                               ),
                             ]),
@@ -465,7 +600,6 @@ class _RepuestoCard extends ConsumerWidget {
                           ]),
                         )),
                         const Divider(height: 12),
-                        // Total — usando Wrap para evitar overflow
                         Wrap(
                           alignment: WrapAlignment.spaceBetween,
                           crossAxisAlignment: WrapCrossAlignment.center,
@@ -499,5 +633,30 @@ class _RepuestoCard extends ConsumerWidget {
       ),
     );
   }
+}
+
+// ── Widget fila de detalle ────────────────────────────────────
+class _DetalleRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color? color;
+  const _DetalleRow(this.icon, this.label, this.value, {this.color});
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 5),
+    child: Row(children: [
+      Icon(icon, size: 16, color: Colors.grey),
+      const SizedBox(width: 10),
+      Text('$label: ',
+          style: const TextStyle(fontSize: 12, color: Colors.grey)),
+      Expanded(child: Text(value,
+          style: TextStyle(
+              fontSize: 12, fontWeight: FontWeight.w600,
+              color: color ?? Colors.black87),
+          overflow: TextOverflow.ellipsis)),
+    ]),
+  );
 }
 

@@ -1,3 +1,4 @@
+
 // lib/core/widgets.dart
 import 'package:flutter/material.dart';
 import 'constants.dart';
@@ -39,7 +40,8 @@ class EstadoBadge extends StatelessWidget {
         border: Border.all(color: color.withOpacity(0.4)),
       ),
       child: Text(label,
-          style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600)),
+          style: TextStyle(
+              color: color, fontSize: 12, fontWeight: FontWeight.w600)),
     );
   }
 }
@@ -54,6 +56,7 @@ class RolBadge extends StatelessWidget {
       case AppRoles.admin:     return Colors.deepPurple;
       case AppRoles.encargado: return Colors.teal;
       case AppRoles.tecnico:   return Colors.blue;
+      case AppRoles.paniolero: return Colors.orange;
       default:                 return Colors.grey;
     }
   }
@@ -67,7 +70,8 @@ class RolBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(rol,
-          style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
+          style: TextStyle(
+              color: color, fontSize: 11, fontWeight: FontWeight.w600)),
     );
   }
 }
@@ -80,7 +84,7 @@ class StockBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bajo = stock <= minimo;
+    final bajo  = stock <= minimo;
     final color = bajo ? Colors.red : Colors.green;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -89,7 +93,8 @@ class StockBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text('Stock: $stock',
-          style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600)),
+          style: TextStyle(
+              color: color, fontSize: 12, fontWeight: FontWeight.w600)),
     );
   }
 }
@@ -121,15 +126,22 @@ class LoadingButton extends StatelessWidget {
   final bool loading;
   final VoidCallback? onPressed;
   final String label;
-  const LoadingButton({super.key, required this.loading, required this.onPressed, required this.label});
+  const LoadingButton({
+    super.key,
+    required this.loading,
+    required this.onPressed,
+    required this.label,
+  });
 
   @override
   Widget build(BuildContext context) {
     return ElevatedButton(
       onPressed: loading ? null : onPressed,
       child: loading
-          ? const SizedBox(height: 22, width: 22,
-              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+          ? const SizedBox(
+              height: 22, width: 22,
+              child: CircularProgressIndicator(
+                  strokeWidth: 2, color: Colors.white))
           : Text(label),
     );
   }
@@ -139,6 +151,7 @@ class LoadingButton extends StatelessWidget {
 class ErrorContainer extends StatelessWidget {
   final String message;
   const ErrorContainer(this.message, {super.key});
+
   @override
   Widget build(BuildContext context) {
     return Container(

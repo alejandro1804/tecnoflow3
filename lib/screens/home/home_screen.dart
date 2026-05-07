@@ -34,8 +34,9 @@ class HomeScreen extends ConsumerWidget {
         error:   (e, _) => Center(child: Text('Error: $e')),
         data: (profile) {
           if (profile == null) return const Center(child: Text('Sin perfil'));
-          final isAdmin   = profile.isAdmin;
-          final isTecnico = profile.isTecnico;
+          final isAdmin     = profile.isAdmin;
+          final isTecnico   = profile.isTecnico;
+          final isPaniolero = profile.isPaniolero;
 
           final repuestosBajo = repuestosAsync.valueOrNull
               ?.where((r) => r.stockBajo).toList() ?? [];
@@ -67,8 +68,8 @@ class HomeScreen extends ConsumerWidget {
                 ]))),
             const SizedBox(height: 16),
 
-            // ── Alerta stock bajo ─────────────────────
-            if (repuestosBajo.isNotEmpty && isAdmin)
+            // ── Alerta stock bajo — admin y pañolero ──
+            if (repuestosBajo.isNotEmpty && (isAdmin || isPaniolero))
               Card(
                 color: Colors.red[50],
                 margin: const EdgeInsets.only(bottom: 6),
@@ -88,7 +89,7 @@ class HomeScreen extends ConsumerWidget {
                           child: const RepuestosScreen(soloStockBajo: true)))),
                 )),
 
-            // ── Alerta tickets sin asignar ────────────
+            // ── Alerta tickets sin asignar — solo admin
             if (ticketsAbiertos.isNotEmpty && isAdmin)
               Card(
                 color: Colors.orange[50],
@@ -110,34 +111,43 @@ class HomeScreen extends ConsumerWidget {
 
             const SizedBox(height: 8),
 
-            // ── Repuestos — admin y técnico ───────────
-            if (isAdmin || isTecnico)
+            // ── Repuestos — admin, técnico y pañolero ─
+            if (isAdmin || isTecnico || isPaniolero)
               _MenuCard(
                   icon: Icons.inventory_2_outlined, title: 'Repuestos',
                   subtitle: 'Stock y catálogo de repuestos', color: Colors.blue,
                   onTap: () => context.push('/repuestos')),
 
-            // ── Máquinas — admin y técnico ────────────
-            if (isAdmin || isTecnico)
+            // ── Máquinas — admin, técnico y pañolero ──
+            if (isAdmin || isTecnico || isPaniolero)
               _MenuCard(
                   icon: Icons.precision_manufacturing_outlined, title: 'Máquinas',
                   subtitle: 'Máquinas y sus repuestos', color: Colors.teal,
                   onTap: () => context.push('/maquinas')),
 
-            // ── Solo admin ────────────────────────────
-            if (isAdmin) ...[
+            // ── Ingresos — admin y pañolero ───────────
+            if (isAdmin || isPaniolero)
               _MenuCard(
                   icon: Icons.input_outlined, title: 'Ingresos',
                   subtitle: 'Ingresos de repuestos', color: Colors.green,
                   onTap: () => context.push('/ingresos')),
+
+            // ── Salidas — admin y pañolero ────────────
+            if (isAdmin || isPaniolero)
               _MenuCard(
                   icon: Icons.output_outlined, title: 'Salidas',
                   subtitle: 'Salidas de repuestos', color: Colors.red,
                   onTap: () => context.push('/salidas')),
+
+            // ── Tickets — admin, técnico, encargado y pañolero ──
+            if (isAdmin)
               _MenuCard(
                   icon: Icons.confirmation_number_outlined, title: 'Tickets',
                   subtitle: 'Gestión de órdenes de trabajo', color: Colors.orange,
                   onTap: () => context.push('/tickets')),
+
+            // ── Sectores y Usuarios — solo admin ──────
+            if (isAdmin) ...[
               _MenuCard(
                   icon: Icons.domain_outlined, title: 'Sectores',
                   subtitle: 'Sectores de la planta', color: Colors.indigo,
@@ -148,7 +158,7 @@ class HomeScreen extends ConsumerWidget {
                   onTap: () => context.push('/usuarios')),
             ],
 
-            // ── Tickets — visible para técnico y encargado ──
+            // ── Tickets — técnico, encargado y pañolero ──
             if (!isAdmin)
               _MenuCard(
                   icon: Icons.confirmation_number_outlined, title: 'Tickets',

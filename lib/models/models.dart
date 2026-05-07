@@ -30,6 +30,7 @@ class Usuario {
   bool get isAdmin     => rolNombre == 'administrador';
   bool get isTecnico   => rolNombre == 'tecnico';
   bool get isEncargado => rolNombre == 'encargado';
+  bool get isPaniolero => rolNombre == 'paniolero'; // ← agregar
 
   factory Usuario.fromMap(Map<String, dynamic> m) => Usuario(
         id:         m['id'],

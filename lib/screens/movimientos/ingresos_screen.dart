@@ -113,11 +113,50 @@ class _State extends ConsumerState<IngresosScreen> {
     }
   }
 
+  void _verDetalle(BuildContext context, IngresoRepuesto ing) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(child: Container(width: 40, height: 4,
+                decoration: BoxDecoration(color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2)))),
+            const SizedBox(height: 16),
+            const Text('DETALLE DE INGRESO', style: TextStyle(
+                fontSize: 11, fontWeight: FontWeight.w700,
+                color: Colors.grey, letterSpacing: 1)),
+            const SizedBox(height: 12),
+            _DetalleRow(Icons.inventory_2_outlined, 'Repuesto',
+                ing.repuestoDescripcion ?? '—'),
+            _DetalleRow(Icons.qr_code_outlined, 'Código',
+                ing.repuestoCodigo ?? '—'),
+            _DetalleRow(Icons.numbers_outlined, 'Cantidad',
+                '+${ing.cantidad}', color: Colors.green),
+            _DetalleRow(Icons.calendar_today_outlined, 'Fecha', ing.fecha),
+            _DetalleRow(Icons.person_outline, 'Quien entrega',
+                ing.quienEntrega),
+            if (ing.descripcion != null)
+              _DetalleRow(Icons.notes_outlined, 'Nota', ing.descripcion!),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final async   = ref.watch(ingresosProvider);
     final profile = ref.watch(myProfileProvider).valueOrNull;
-    final isAdmin = profile?.isAdmin ?? false;
+    final isAdmin     = profile?.isAdmin ?? false;
+    final isPaniolero = profile?.isPaniolero ?? false;
+    final canEdit     = isAdmin || isPaniolero;
 
     return Scaffold(
       appBar: AppBar(
@@ -144,7 +183,7 @@ class _State extends ConsumerState<IngresosScreen> {
             }),
         ],
       ),
-      floatingActionButton: isAdmin
+      floatingActionButton: canEdit
           ? FloatingActionButton.extended(
               icon: const Icon(Icons.add),
               label: const Text('Registrar ingreso'),
@@ -208,11 +247,9 @@ class _State extends ConsumerState<IngresosScreen> {
                             margin: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 5),
                             child: Padding(
-                              padding: const EdgeInsets.fromLTRB(
-                                  12, 10, 12, 10),
+                              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
                               child: Row(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
 
                                   // ── Ícono ───────────────
@@ -226,51 +263,37 @@ class _State extends ConsumerState<IngresosScreen> {
                                   // ── Contenido ───────────
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-
-                                        // FILA 1: Descripción
-                                        Text(
-                                          '${ing.repuestoDescripcion ?? ''}',
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.w500,
-                                              fontSize: 10),
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis),
+                                        Text(ing.repuestoDescripcion ?? '',
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.w500,
+                                                fontSize: 10),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis),
                                         const SizedBox(height: 4),
-
-                                        // FILA 2: Cantidad + Fecha
                                         Row(children: [
                                           Container(
-                                            padding: const EdgeInsets
-                                                .symmetric(
+                                            padding: const EdgeInsets.symmetric(
                                                 horizontal: 8, vertical: 2),
                                             decoration: BoxDecoration(
-                                                color: Colors.green
-                                                    .withOpacity(0.1),
-                                                borderRadius:
-                                                    BorderRadius.circular(6)),
+                                                color: Colors.green.withOpacity(0.1),
+                                                borderRadius: BorderRadius.circular(6)),
                                             child: Text('+${ing.cantidad}',
                                                 style: const TextStyle(
                                                     fontSize: 12,
                                                     color: Colors.green,
-                                                    fontWeight:
-                                                        FontWeight.w700)),
+                                                    fontWeight: FontWeight.w700)),
                                           ),
                                           const SizedBox(width: 8),
-                                          const Icon(
-                                              Icons.calendar_today_outlined,
+                                          const Icon(Icons.calendar_today_outlined,
                                               size: 12, color: Colors.grey),
                                           const SizedBox(width: 4),
                                           Text(ing.fecha,
                                               style: const TextStyle(
-                                                  fontSize: 12,
-                                                  color: Colors.grey)),
+                                                  fontSize: 12, color: Colors.grey)),
                                         ]),
                                         const SizedBox(height: 4),
-
-                                        // FILA 3: Quien entrega
                                         Row(children: [
                                           const Icon(Icons.person_outline,
                                               size: 12, color: Colors.grey),
@@ -278,15 +301,11 @@ class _State extends ConsumerState<IngresosScreen> {
                                           Expanded(
                                             child: Text(ing.quienEntrega,
                                                 style: const TextStyle(
-                                                    fontSize: 12,
-                                                    color: Colors.grey),
+                                                    fontSize: 12, color: Colors.grey),
                                                 maxLines: 1,
-                                                overflow:
-                                                    TextOverflow.ellipsis),
+                                                overflow: TextOverflow.ellipsis),
                                           ),
                                         ]),
-
-                                        // Nota
                                         if (ing.descripcion != null) ...[
                                           const SizedBox(height: 4),
                                           Row(children: [
@@ -296,11 +315,9 @@ class _State extends ConsumerState<IngresosScreen> {
                                             Expanded(
                                               child: Text(ing.descripcion!,
                                                   style: const TextStyle(
-                                                      fontSize: 11,
-                                                      color: Colors.grey),
+                                                      fontSize: 11, color: Colors.grey),
                                                   maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis),
+                                                  overflow: TextOverflow.ellipsis),
                                             ),
                                           ]),
                                         ],
@@ -308,49 +325,62 @@ class _State extends ConsumerState<IngresosScreen> {
                                     ),
                                   ),
 
-                                  // ── Acciones (solo admin) ─
-                                  if (isAdmin) ...[
-                                    const SizedBox(width: 8),
-                                    PopupMenuButton<String>(
-                                      icon: const Icon(Icons.more_vert,
-                                          size: 18),
-                                      onSelected: (v) {
-                                        if (v == 'editar') {
-                                          Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                  builder: (_) => ProviderScope(
-                                                      parent: ProviderScope
-                                                          .containerOf(context),
-                                                      child: IngresoFormScreen(
-                                                          ingreso: ing))));
-                                        } else if (v == 'eliminar') {
-                                          _eliminar(context, ref, ing);
-                                        }
-                                      },
-                                      itemBuilder: (_) => [
-                                        const PopupMenuItem(
-                                            value: 'editar',
-                                            child: Row(children: [
-                                              Icon(Icons.edit_outlined,
-                                                  size: 16),
-                                              SizedBox(width: 8),
-                                              Text('Editar'),
-                                            ])),
-                                        const PopupMenuItem(
-                                            value: 'eliminar',
-                                            child: Row(children: [
-                                              Icon(Icons.delete_outline,
-                                                  size: 16,
-                                                  color: Colors.red),
-                                              SizedBox(width: 8),
-                                              Text('Eliminar',
-                                                  style: TextStyle(
-                                                      color: Colors.red)),
-                                            ])),
+                                  // ── Acciones ────────────
+                                  const SizedBox(width: 8),
+                                  Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      // Tres puntitos — admin
+                                      if (isAdmin|| isPaniolero) ...[
+                                        PopupMenuButton<String>(
+                                          icon: const Icon(Icons.more_vert, size: 18),
+                                          onSelected: (v) {
+                                            if (v == 'editar') {
+                                              Navigator.push(context,
+                                                  MaterialPageRoute(
+                                                      builder: (_) => ProviderScope(
+                                                          parent: ProviderScope.containerOf(context),
+                                                          child: IngresoFormScreen(ingreso: ing))));
+                                            } else if (v == 'eliminar') {
+                                              _eliminar(context, ref, ing);
+                                            }
+                                          },
+                                          itemBuilder: (_) => [
+                                            const PopupMenuItem(
+                                                value: 'editar',
+                                                child: Row(children: [
+                                                  Icon(Icons.edit_outlined, size: 16),
+                                                  SizedBox(width: 8),
+                                                  Text('Editar'),
+                                                ])),
+                                            const PopupMenuItem(
+                                                value: 'eliminar',
+                                                child: Row(children: [
+                                                  Icon(Icons.delete_outline,
+                                                      size: 16, color: Colors.red),
+                                                  SizedBox(width: 8),
+                                                  Text('Eliminar',
+                                                      style: TextStyle(color: Colors.red)),
+                                                ])),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 4),
                                       ],
-                                    ),
-                                  ],
+                                      // Ícono ver detalle — todos
+                                      InkWell(
+                                        onTap: () => _verDetalle(context, ing),
+                                        borderRadius: BorderRadius.circular(6),
+                                        child: Container(
+                                          padding: const EdgeInsets.all(6),
+                                          decoration: BoxDecoration(
+                                              color: Colors.teal.withOpacity(0.08),
+                                              borderRadius: BorderRadius.circular(6)),
+                                          child: const Icon(Icons.visibility_outlined,
+                                              size: 18, color: Colors.teal),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ],
                               ),
                             ),
@@ -362,4 +392,28 @@ class _State extends ConsumerState<IngresosScreen> {
         }),
     );
   }
+}
+
+// ── Widget fila de detalle ────────────────────────────────────
+class _DetalleRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color? color;
+  const _DetalleRow(this.icon, this.label, this.value, {this.color});
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 5),
+    child: Row(children: [
+      Icon(icon, size: 16, color: Colors.grey),
+      const SizedBox(width: 10),
+      Text('$label: ', style: const TextStyle(
+          fontSize: 12, color: Colors.grey)),
+      Expanded(child: Text(value, style: TextStyle(
+          fontSize: 12, fontWeight: FontWeight.w600,
+          color: color ?? Colors.black87),
+          overflow: TextOverflow.ellipsis)),
+    ]),
+  );
 }
