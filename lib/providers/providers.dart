@@ -55,22 +55,20 @@ final ingresosProvider  = FutureProvider<List<IngresoRepuesto>>(
 
 final salidasProvider   = FutureProvider<List<SalidaRepuesto>>(
     (ref) => ref.watch(movimientosRepoProvider).getSalidas());
-// Agregar en lib/providers/providers.dart
 
 // ── RepuestosMaquinas ─────────────────────────────────────────
 final repuestosMaquinasRepoProvider =
-Provider((_) => RepuestosMaquinasRepository());
+    Provider((_) => RepuestosMaquinasRepository());
 
 final repuestosMaquinasProvider =
-FutureProvider.family<List<RepuestoMaquina>, String>(
+    FutureProvider.family<List<RepuestoMaquina>, String>(
         (ref, maquinaId) =>
-        ref.watch(repuestosMaquinasRepoProvider).getByMaquina(maquinaId));
-
-// AGREGAR en lib/providers/providers.dart
+            ref.watch(repuestosMaquinasRepoProvider).getByMaquina(maquinaId));
 
 // ── Máquinas que usan un repuesto específico ──────────────────
+// autoDispose evita que Riverpod cachee los datos entre expansiones
 final maquinasPorRepuestoProvider =
-FutureProvider.family<List<RepuestoMaquina>, String>(
+    FutureProvider.family<List<RepuestoMaquina>, String>(
         (ref, repuestoId) => ref
-        .watch(repuestosMaquinasRepoProvider)
-        .getByRepuesto(repuestoId));
+            .read(repuestosMaquinasRepoProvider)
+            .getByRepuesto(repuestoId));

@@ -165,7 +165,7 @@ class _State extends ConsumerState<SalidasScreen> {
 
                                         // FILA 1: Descripción
                                         Text(
-                                          '${s.repuestoCodigo ?? ''} — ${s.repuestoDescripcion ?? ''}',
+                                          '${s.repuestoDescripcion ?? ''}',
                                           style: const TextStyle(
                                               fontWeight: FontWeight.w500,
                                               fontSize: 10),

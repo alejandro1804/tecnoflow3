@@ -22,9 +22,9 @@ class _State extends ConsumerState<MaquinasScreen> {
     setState(() => _generandoPdf = true);
     try {
       await PdfGenerator.generarMaquinas(
-        maquinas:      maquinas,
-        busqueda:      _busqueda,
-        sectorNombre:  sectorNombre,
+        maquinas:     maquinas,
+        busqueda:     _busqueda,
+        sectorNombre: sectorNombre,
       );
     } catch (e) {
       if (mounted) {
@@ -109,14 +109,21 @@ class _State extends ConsumerState<MaquinasScreen> {
                       .contains(_busqueda.toLowerCase()))
               .toList();
 
+          final sectorNombre = _sectorId.isEmpty
+              ? 'Todos los sectores'
+              : sectores.firstWhere((s) => s.id == _sectorId,
+                  orElse: () => sectores.first).nombre;
+
           return RefreshIndicator(
             onRefresh: () => ref.refresh(maquinasProvider.future),
             child: Column(children: [
-              // ── Buscadores ────────────────────────────
+              // ── Barra de filtros ──────────────────────
               Container(
                 color: Colors.white,
                 padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
                 child: Column(children: [
+
+                  // Buscador
                   TextField(
                     decoration: InputDecoration(
                       hintText: 'Buscar por nombre o código...',
@@ -134,55 +141,67 @@ class _State extends ConsumerState<MaquinasScreen> {
                     onChanged: (v) => setState(() => _busqueda = v),
                   ),
                   const SizedBox(height: 8),
-                  SizedBox(
-                    height: 36,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.only(right: 6),
-                          child: FilterChip(
-                            label: const Text('Todos'),
-                            selected: _sectorId.isEmpty,
-                            onSelected: (_) =>
-                                setState(() => _sectorId = ''),
-                            selectedColor: Theme.of(context)
-                                .colorScheme.primary.withOpacity(0.15),
-                            labelStyle: TextStyle(
-                                fontSize: 10, fontWeight: FontWeight.w500,
-                                color: _sectorId.isEmpty
-                                    ? Theme.of(context).colorScheme.primary
-                                    : Colors.grey[700]),
+
+                  // Dropdown de sectores
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.grey.withOpacity(0.2)),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        isExpanded: true,
+                        value: _sectorId.isEmpty ? '' : _sectorId,
+                        icon: const Icon(Icons.keyboard_arrow_down,
+                            size: 18, color: Colors.grey),
+                        style: const TextStyle(
+                            fontSize: 12, color: Colors.black87),
+                        items: [
+                          // Opción "Todos"
+                          DropdownMenuItem<String>(
+                            value: '',
+                            child: Row(children: [
+                              const Icon(Icons.domain_outlined,
+                                  size: 16, color: Colors.grey),
+                              const SizedBox(width: 8),
+                              const Text('Todos los sectores',
+                                  style: TextStyle(fontSize: 12)),
+                            ]),
                           ),
-                        ),
-                        ...sectores.map((s) => Padding(
-                          padding: const EdgeInsets.only(right: 6),
-                          child: FilterChip(
-                            label: Text(s.nombre),
-                            selected: _sectorId == s.id,
-                            onSelected: (_) =>
-                                setState(() => _sectorId = s.id),
-                            selectedColor: Theme.of(context)
-                                .colorScheme.primary.withOpacity(0.15),
-                            labelStyle: TextStyle(
-                                fontSize: 12, fontWeight: FontWeight.w600,
-                                color: _sectorId == s.id
-                                    ? Theme.of(context).colorScheme.primary
-                                    : Colors.grey[700]),
-                          ),
-                        )),
-                      ],
+                          // Sectores
+                          ...([...sectores]..sort((a, b) => a.nombre.toLowerCase().compareTo(b.nombre.toLowerCase()))).map((s) => DropdownMenuItem<String>(
+                            value: s.id,
+                            child: Row(children: [
+                              Icon(Icons.domain_outlined,
+                                  size: 16,
+                                  color: Theme.of(context).colorScheme.primary),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(s.nombre,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontSize: 12)),
+                              ),
+                            ]),
+                          )),
+                        ],
+                        onChanged: (v) =>
+                            setState(() => _sectorId = v ?? ''),
+                      ),
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                          '${filtradas.length} máquina${filtradas.length != 1 ? 's' : ''}',
-                          style: const TextStyle(
-                              fontSize: 11, color: Colors.grey)),
-                    ),
+                  const SizedBox(height: 6),
+
+                  // Contador
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                        '${filtradas.length} máquina${filtradas.length != 1 ? 's' : ''}'
+                        '${_sectorId.isNotEmpty ? ' en $sectorNombre' : ''}',
+                        style: const TextStyle(
+                            fontSize: 11, color: Colors.grey)),
                   ),
                 ]),
               ),
@@ -207,8 +226,7 @@ class _State extends ConsumerState<MaquinasScreen> {
                             margin: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 5),
                             child: Padding(
-                              padding: const EdgeInsets.fromLTRB(
-                                  12, 10, 12, 10),
+                              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -217,11 +235,9 @@ class _State extends ConsumerState<MaquinasScreen> {
                                   Row(children: [
                                     CircleAvatar(
                                       radius: 16,
-                                      backgroundColor:
-                                          color.withOpacity(0.1),
+                                      backgroundColor: color.withOpacity(0.1),
                                       child: Icon(
-                                          Icons
-                                              .precision_manufacturing_outlined,
+                                          Icons.precision_manufacturing_outlined,
                                           color: color, size: 18)),
                                     const SizedBox(width: 10),
                                     Expanded(
@@ -241,8 +257,7 @@ class _State extends ConsumerState<MaquinasScreen> {
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 8, vertical: 2),
                                       decoration: BoxDecoration(
-                                          color:
-                                              Colors.grey.withOpacity(0.1),
+                                          color: Colors.grey.withOpacity(0.1),
                                           borderRadius:
                                               BorderRadius.circular(6)),
                                       child: Text(m.codigo,
@@ -274,8 +289,7 @@ class _State extends ConsumerState<MaquinasScreen> {
                                           borderRadius:
                                               BorderRadius.circular(6),
                                           border: Border.all(
-                                              color:
-                                                  color.withOpacity(0.3))),
+                                              color: color.withOpacity(0.3))),
                                       child: Text(
                                           m.estado == 'en_reparacion'
                                               ? 'En reparación'
@@ -289,42 +303,37 @@ class _State extends ConsumerState<MaquinasScreen> {
                                     ),
                                     const Spacer(),
                                     InkWell(
-                                      onTap: () => context
-                                          .push('/maquinas/${m.id}'),
+                                      onTap: () =>
+                                          context.push('/maquinas/${m.id}'),
                                       borderRadius: BorderRadius.circular(6),
                                       child: Container(
                                         padding: const EdgeInsets.all(6),
                                         decoration: BoxDecoration(
-                                            color: Colors.grey
-                                                .withOpacity(0.08),
+                                            color: Colors.grey.withOpacity(0.08),
                                             borderRadius:
                                                 BorderRadius.circular(6)),
-                                        child: const Icon(
-                                            Icons.edit_outlined,
+                                        child: const Icon(Icons.edit_outlined,
                                             size: 18, color: Colors.grey),
                                       ),
                                     ),
                                     const SizedBox(width: 8),
                                     InkWell(
-                                      onTap: () => Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => ProviderScope(
-                                            parent: ProviderScope
-                                                .containerOf(context),
-                                            child: RepuestosMaquinaScreen(
-                                                maquinaId:     m.id,
-                                                maquinaNombre: m.nombre)))),
+                                      onTap: () => Navigator.push(context,
+                                          MaterialPageRoute(
+                                              builder: (_) => ProviderScope(
+                                                  parent: ProviderScope
+                                                      .containerOf(context),
+                                                  child: RepuestosMaquinaScreen(
+                                                      maquinaId:     m.id,
+                                                      maquinaNombre: m.nombre)))),
                                       borderRadius: BorderRadius.circular(6),
                                       child: Container(
                                         padding: const EdgeInsets.all(6),
                                         decoration: BoxDecoration(
-                                            color: Colors.blue
-                                                .withOpacity(0.08),
+                                            color: Colors.blue.withOpacity(0.08),
                                             borderRadius:
                                                 BorderRadius.circular(6)),
-                                        child: const Icon(
-                                            Icons.settings_outlined,
+                                        child: const Icon(Icons.settings_outlined,
                                             size: 18, color: Colors.blue),
                                       ),
                                     ),

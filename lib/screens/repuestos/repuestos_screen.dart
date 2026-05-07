@@ -129,7 +129,6 @@ class _State extends ConsumerState<RepuestosScreen> {
                     onChanged: (v) => setState(() => _busqueda = v),
                   ),
                   const SizedBox(height: 8),
-                  // Chips en una línea
                   Row(children: [
                     FilterChip(
                       label: const Text('Todos'),
@@ -164,12 +163,12 @@ class _State extends ConsumerState<RepuestosScreen> {
                               : Colors.grey[700]),
                     ),
                   ]),
-                  // Contador en línea separada
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(
                         '${repuestos.length} resultado${repuestos.length != 1 ? 's' : ''}',
-                        style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                        style: const TextStyle(
+                            fontSize: 11, color: Colors.grey)),
                   ),
                 ]),
               ),
@@ -196,6 +195,7 @@ class _State extends ConsumerState<RepuestosScreen> {
                                 _expandidos.remove(r.id);
                               } else {
                                 _expandidos.add(r.id);
+                                ref.invalidate(maquinasPorRepuestoProvider(r.id));
                               }
                             }),
                           );
@@ -226,6 +226,8 @@ class _RepuestoCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final maquinasAsync = expandido
         ? ref.watch(maquinasPorRepuestoProvider(repuesto.id))
+        //? ref.watch(maquinasPorRepuestoProvider(repuesto.id).future).asStream()
+
         : null;
 
     return Card(
@@ -239,7 +241,7 @@ class _RepuestoCard extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
 
-                // ── FILA 1: Descripción a ancho completo ──
+                // ── FILA 1: Descripción ───────────────
                 Row(children: [
                   CircleAvatar(
                     radius: 10,
@@ -264,13 +266,13 @@ class _RepuestoCard extends ConsumerWidget {
                 ]),
                 const SizedBox(height: 10),
 
-                // ── FILAS 2 y 3: Foto (1/3) + Info (2/3) ──
+                // ── FILAS 2 y 3: Foto + Info ──────────
                 IntrinsicHeight(
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
 
-                      // ── Columna izquierda: FOTO ──────────
+                      // Columna izquierda: FOTO
                       SizedBox(
                         width: 90,
                         child: repuesto.imagenUrl != null
@@ -289,7 +291,7 @@ class _RepuestoCard extends ConsumerWidget {
                       ),
                       const SizedBox(width: 12),
 
-                      // ── Columna derecha: Info + Acciones ─
+                      // Columna derecha: Info + Acciones
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -324,7 +326,8 @@ class _RepuestoCard extends ConsumerWidget {
                                           color: Colors.grey.withOpacity(0.1),
                                           borderRadius:
                                               BorderRadius.circular(8)),
-                                      child: Text('Mín: ${repuesto.stockMinimo}',
+                                      child: Text(
+                                          'Mín: ${repuesto.stockMinimo}',
                                           style: const TextStyle(
                                               fontSize: 11,
                                               color: Colors.grey,
@@ -333,7 +336,7 @@ class _RepuestoCard extends ConsumerWidget {
                               ],
                             ),
 
-                            // FILA 3: Solo íconos
+                            // FILA 3: Íconos
                             Row(children: [
                               if (isAdmin) ...[
                                 InkWell(
@@ -364,7 +367,8 @@ class _RepuestoCard extends ConsumerWidget {
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         const Icon(
-                                            Icons.precision_manufacturing_outlined,
+                                            Icons
+                                                .precision_manufacturing_outlined,
                                             size: 18, color: Colors.blue),
                                         const SizedBox(width: 2),
                                         Icon(
@@ -401,14 +405,14 @@ class _RepuestoCard extends ConsumerWidget {
                     padding: const EdgeInsets.all(12),
                     child: Text('Error: $e',
                         style: const TextStyle(
-                            color: Colors.red, fontSize: 12))),
+                            color: Colors.red, fontSize: 10))),
                 data: (maquinas) {
                   if (maquinas.isEmpty) {
                     return const Padding(
                         padding: EdgeInsets.fromLTRB(12, 8, 12, 12),
                         child: Text('Sin máquinas asociadas',
                             style: TextStyle(
-                                fontSize: 12, color: Colors.grey)));
+                                fontSize: 10, color: Colors.grey)));
                   }
 
                   final totalUnidades = maquinas.fold<int>(
@@ -421,7 +425,7 @@ class _RepuestoCard extends ConsumerWidget {
                       children: [
                         const Text('MÁQUINAS QUE USAN ESTE REPUESTO',
                             style: TextStyle(
-                                fontSize: 10,
+                                fontSize: 9,
                                 fontWeight: FontWeight.w700,
                                 color: Colors.grey,
                                 letterSpacing: 0.5)),
@@ -431,53 +435,56 @@ class _RepuestoCard extends ConsumerWidget {
                           child: Row(children: [
                             const Icon(
                                 Icons.precision_manufacturing_outlined,
-                                size: 14, color: Colors.teal),
+                                size: 13, color: Colors.teal),
                             const SizedBox(width: 8),
                             Expanded(child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(m.maquinaNombre ?? '—',
                                     style: const TextStyle(
-                                        fontSize: 12,
+                                        fontSize: 10,
                                         fontWeight: FontWeight.w600)),
                                 if (m.ubicacionEnMaquina != null)
                                   Text(m.ubicacionEnMaquina!,
                                       style: const TextStyle(
-                                          fontSize: 11,
+                                          fontSize: 9,
                                           color: Colors.grey)),
                               ],
                             )),
                             Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 10, vertical: 3),
+                                    horizontal: 8, vertical: 2),
                                 decoration: BoxDecoration(
                                     color: Colors.teal.withOpacity(0.1),
                                     borderRadius: BorderRadius.circular(8)),
                                 child: Text('x${m.cantidad}',
                                     style: const TextStyle(
-                                        fontSize: 12,
+                                        fontSize: 10,
                                         fontWeight: FontWeight.w700,
                                         color: Colors.teal))),
                           ]),
                         )),
                         const Divider(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        // Total — usando Wrap para evitar overflow
+                        Wrap(
+                          alignment: WrapAlignment.spaceBetween,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             const Text('Total requerido en máquinas:',
                                 style: TextStyle(
-                                    fontSize: 12,
+                                    fontSize: 10,
                                     fontWeight: FontWeight.w600,
                                     color: Colors.grey)),
+                            const SizedBox(width: 8),
                             Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 4),
+                                    horizontal: 10, vertical: 3),
                                 decoration: BoxDecoration(
                                     color: Colors.blue.withOpacity(0.1),
                                     borderRadius: BorderRadius.circular(8)),
                                 child: Text('$totalUnidades uds',
                                     style: const TextStyle(
-                                        fontSize: 13,
+                                        fontSize: 11,
                                         fontWeight: FontWeight.w700,
                                         color: Colors.blue))),
                           ],

@@ -232,7 +232,7 @@ class _State extends ConsumerState<IngresosScreen> {
 
                                         // FILA 1: Descripción
                                         Text(
-                                          '${ing.repuestoCodigo ?? ''} — ${ing.repuestoDescripcion ?? ''}',
+                                          '${ing.repuestoDescripcion ?? ''}',
                                           style: const TextStyle(
                                               fontWeight: FontWeight.w500,
                                               fontSize: 10),
