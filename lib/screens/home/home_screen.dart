@@ -44,6 +44,13 @@ class HomeScreen extends ConsumerWidget {
           final ticketsAbiertos = ticketsAsync.valueOrNull
               ?.where((t) => t.estado == TicketEstados.abierto).toList() ?? [];
 
+          // Tickets asignados al técnico logueado
+          final ticketsAsignados = ticketsAsync.valueOrNull
+              ?.where((t) =>
+                  t.tecnicoId == profile.id &&
+                  t.estado == TicketEstados.asignado)
+              .toList() ?? [];
+
           return ListView(padding: const EdgeInsets.all(16), children: [
 
             // ── Tarjeta bienvenida ────────────────────
@@ -89,7 +96,7 @@ class HomeScreen extends ConsumerWidget {
                           child: const RepuestosScreen(soloStockBajo: true)))),
                 )),
 
-            // ── Alerta tickets sin asignar — solo admin
+            // ── Alerta tickets sin asignar — solo admin ──
             if (ticketsAbiertos.isNotEmpty && isAdmin)
               Card(
                 color: Colors.orange[50],
@@ -106,6 +113,29 @@ class HomeScreen extends ConsumerWidget {
                   subtitle: const Text('Pendientes de asignación',
                       style: TextStyle(fontSize: 11)),
                   trailing: const Icon(Icons.chevron_right, color: Colors.orange),
+                  onTap: () => context.push('/tickets'),
+                )),
+
+            // ── Alerta tickets asignados — solo técnico ──
+            if (ticketsAsignados.isNotEmpty && isTecnico)
+              Card(
+                color: Colors.blue[50],
+                margin: const EdgeInsets.only(bottom: 6),
+                child: ListTile(
+                  leading: const Icon(Icons.engineering_outlined,
+                      color: Colors.blue, size: 32),
+                  title: Text(
+                      '${ticketsAsignados.length} ticket(s) asignado(s) a vos',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: Colors.blue,
+                          fontSize: 12)),
+                  subtitle: Text(
+                      ticketsAsignados.length == 1
+                          ? 'Máquina: ${ticketsAsignados.first.maquinaNombre ?? ''}'
+                          : 'Pendientes de ejecución',
+                      style: const TextStyle(fontSize: 11)),
+                  trailing: const Icon(Icons.chevron_right, color: Colors.blue),
                   onTap: () => context.push('/tickets'),
                 )),
 
@@ -139,7 +169,7 @@ class HomeScreen extends ConsumerWidget {
                   subtitle: 'Salidas de repuestos', color: Colors.red,
                   onTap: () => context.push('/salidas')),
 
-            // ── Tickets — admin, técnico, encargado y pañolero ──
+            // ── Tickets — solo admin ──────────────────
             if (isAdmin)
               _MenuCard(
                   icon: Icons.confirmation_number_outlined, title: 'Tickets',
