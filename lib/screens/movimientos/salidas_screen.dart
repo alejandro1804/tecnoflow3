@@ -18,6 +18,12 @@ class _State extends ConsumerState<SalidasScreen> {
   String _busqueda     = '';
   bool   _generandoPdf = false;
 
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() => ref.invalidate(salidasProvider));
+  }
+
   List<SalidaRepuesto> _filtrar(List<SalidaRepuesto> todas) {
     if (_busqueda.isEmpty) return todas;
     return todas.where((s) =>
@@ -246,7 +252,7 @@ class _State extends ConsumerState<SalidasScreen> {
                         itemBuilder: (_, i) {
                           final s       = salidas[i];
                           final esMia   = s.registradoPor == uid;
-                          final canEditItem = isAdmin || isPaniolero || esMia;
+                          final canEditItem = isAdmin || esMia;
 
                           return Card(
                             margin: const EdgeInsets.symmetric(

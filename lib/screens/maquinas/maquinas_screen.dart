@@ -18,6 +18,12 @@ class _State extends ConsumerState<MaquinasScreen> {
   String _sectorId     = '';
   bool   _generandoPdf = false;
 
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() => ref.invalidate(maquinasProvider));
+  }
+
   Future<void> _exportarPdf(List<Maquina> maquinas, String sectorNombre) async {
     setState(() => _generandoPdf = true);
     try {

@@ -1,3 +1,4 @@
+
 // lib/models/models.dart
 // ── Rol ──────────────────────────────────────────────────────
 class Rol {
@@ -30,7 +31,7 @@ class Usuario {
   bool get isAdmin     => rolNombre == 'administrador';
   bool get isTecnico   => rolNombre == 'tecnico';
   bool get isEncargado => rolNombre == 'encargado';
-  bool get isPaniolero => rolNombre == 'paniolero'; // ← agregar
+  bool get isPaniolero => rolNombre == 'paniolero';
 
   factory Usuario.fromMap(Map<String, dynamic> m) => Usuario(
         id:         m['id'],
@@ -93,8 +94,6 @@ class Maquina {
       };
 }
 
-// REEMPLAZAR la clase Repuesto en lib/models/models.dart
-
 // ── Repuesto ──────────────────────────────────────────────────
 class Repuesto {
   final String  id;
@@ -104,6 +103,7 @@ class Repuesto {
   final int     stockMinimo;
   final String? ubicacion;
   final String? imagenUrl;
+  final bool    activo;
 
   const Repuesto({
     required this.id,
@@ -113,6 +113,7 @@ class Repuesto {
     required this.stockMinimo,
     this.ubicacion,
     this.imagenUrl,
+    this.activo = true,
   });
 
   bool get stockBajo => stockActual <= stockMinimo;
@@ -125,6 +126,7 @@ class Repuesto {
     stockMinimo: m['stock_minimo'] ?? 0,
     ubicacion:   m['ubicacion'],
     imagenUrl:   m['imagen_url'],
+    activo:      m['activo'] ?? true,
   );
 
   Map<String, dynamic> toInsert() => {
@@ -134,14 +136,16 @@ class Repuesto {
     'stock_minimo': stockMinimo,
     'ubicacion':    ubicacion,
     'imagen_url':   imagenUrl,
+    'activo':       activo,
   };
 
   Map<String, dynamic> toUpdate() => {
-    'codigo':      codigo,
-    'descripcion': descripcion,
+    'codigo':       codigo,
+    'descripcion':  descripcion,
     'stock_minimo': stockMinimo,
-    'ubicacion':   ubicacion,
-    'imagen_url':  imagenUrl,
+    'ubicacion':    ubicacion,
+    'imagen_url':   imagenUrl,
+    'activo':       activo,
   };
 }
 
@@ -263,7 +267,6 @@ class IngresoRepuesto {
 }
 
 // ── Salida de repuesto ────────────────────────────────────────
-
 class SalidaRepuesto {
   final String id;
   final String repuestoId;
@@ -301,17 +304,12 @@ class SalidaRepuesto {
 }
 
 // ── RepuestoMaquina ───────────────────────────────────────────
-// REEMPLAZAR la clase RepuestoMaquina en lib/models/models.dart
-
-// ── RepuestoMaquina ───────────────────────────────────────────
 class RepuestoMaquina {
   final String id;
   final String repuestoId;
   final String maquinaId;
-  // Datos del repuesto (cuando viene desde getByMaquina)
   final String? repuestoCodigo;
   final String? repuestoDescripcion;
-  // Datos de la máquina (cuando viene desde getByRepuesto)
   final String? maquinaNombre;
   final String? maquinaCodigo;
   final String? maquinaEstado;

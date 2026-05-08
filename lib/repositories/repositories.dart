@@ -80,14 +80,30 @@ class MaquinasRepository {
 
 // ── Repuestos ─────────────────────────────────────────────────
 class RepuestosRepository {
+  // Solo trae repuestos activos
   Future<List<Repuesto>> getAll() async {
-    final data = await _db.from('repuestos').select().order('descripcion', ascending: true);
+    final data = await _db
+        .from('repuestos')
+        .select()
+        .eq('activo', true)
+        .order('descripcion', ascending: true);
+    return (data as List).map((e) => Repuesto.fromMap(e)).toList();
+  }
+
+  // Trae todos incluyendo inactivos (para admin)
+  Future<List<Repuesto>> getAllIncluyendoInactivos() async {
+    final data = await _db
+        .from('repuestos')
+        .select()
+        .order('descripcion', ascending: true);
     return (data as List).map((e) => Repuesto.fromMap(e)).toList();
   }
 
   Future<List<Repuesto>> getStockBajo() async {
-    final data = await _db.from('repuestos')
+    final data = await _db
+        .from('repuestos')
         .select()
+        .eq('activo', true)
         .filter('stock_actual', 'lte', 'stock_minimo')
         .order('descripcion', ascending: true);
     return (data as List).map((e) => Repuesto.fromMap(e)).toList();
@@ -101,6 +117,10 @@ class RepuestosRepository {
 
   Future<void> delete(String id) async =>
       _db.from('repuestos').delete().eq('id', id);
+
+  // Activar / desactivar repuesto
+  Future<void> toggleActivo(String id, bool activo) async =>
+      _db.from('repuestos').update({'activo': activo}).eq('id', id);
 }
 
 // ── Tickets ───────────────────────────────────────────────────
@@ -155,7 +175,8 @@ class TicketsRepository {
     }).eq('id', ticketId);
   }
 
-  Future<void> updateEstado(String ticketId, String estado, {String? comentario}) async {
+  Future<void> updateEstado(String ticketId, String estado,
+      {String? comentario}) async {
     await _db.from('tickets').update({
       'estado':              estado,
       'observacion_tecnico': comentario,
@@ -181,10 +202,6 @@ class TicketsRepository {
 }
 
 // ── Movimientos ───────────────────────────────────────────────
-// REEMPLAZAR la clase MovimientosRepository en lib/repositories/repositories.dart
-
-// REEMPLAZAR la clase MovimientosRepository en lib/repositories/repositories.dart
-
 class MovimientosRepository {
   // ── INGRESOS ────────────────────────────────────────────────
   Future<List<IngresoRepuesto>> getIngresos() async {
@@ -270,7 +287,6 @@ class MovimientosRepository {
   Future<void> deleteSalida(String id) async =>
       _db.from('salida_repuestos').delete().eq('id', id);
 }
-// REEMPLAZAR la clase RepuestosMaquinasRepository en lib/repositories/repositories.dart
 
 // ── RepuestosMaquinas ─────────────────────────────────────────
 class RepuestosMaquinasRepository {
@@ -283,7 +299,6 @@ class RepuestosMaquinasRepository {
     return (data as List).map((e) => RepuestoMaquina.fromMap(e)).toList();
   }
 
-  // NUEVO: obtener máquinas que usan un repuesto específico
   Future<List<RepuestoMaquina>> getByRepuesto(String repuestoId) async {
     final data = await _db
         .from('repuestos_maquinas')

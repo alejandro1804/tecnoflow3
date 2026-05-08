@@ -1,3 +1,4 @@
+
 // lib/screens/movimientos/salida_form_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,9 +9,15 @@ import '../../providers/providers.dart';
 
 class SalidaFormScreen extends ConsumerStatefulWidget {
   final SalidaRepuesto? salida;
-  final String? ticketIdInicial;
+  final String?         ticketIdInicial;
+  final Repuesto?       repuestoPreseleccionado;
 
-  const SalidaFormScreen({super.key, this.salida, this.ticketIdInicial});
+  const SalidaFormScreen({
+    super.key,
+    this.salida,
+    this.ticketIdInicial,
+    this.repuestoPreseleccionado,
+  });
 
   @override
   ConsumerState<SalidaFormScreen> createState() => _State();
@@ -35,13 +42,17 @@ class _State extends ConsumerState<SalidaFormScreen> {
   void initState() {
     super.initState();
     if (isEdit) {
-      final s = widget.salida!;
+      final s        = widget.salida!;
       _repuestoId    = s.repuestoId;
       _ticketId      = s.ticketId;
       _conTicket     = s.ticketId != null;
       _cantCtrl.text = s.cantidad.toString();
       _obsCtrl.text  = s.observacion ?? '';
       _busqCtrl.text = s.repuestoDescripcion ?? '';
+    } else if (widget.repuestoPreseleccionado != null) {
+      final r     = widget.repuestoPreseleccionado!;
+      _repuestoId = r.id;
+      _busqCtrl.text = r.descripcion;
     } else if (widget.ticketIdInicial != null) {
       _ticketId  = widget.ticketIdInicial;
       _conTicket = true;
@@ -86,14 +97,16 @@ class _State extends ConsumerState<SalidaFormScreen> {
           repuestoId:  _repuestoId!,
           cantidad:    int.parse(_cantCtrl.text),
           ticketId:    _conTicket ? _ticketId : null,
-          observacion: _obsCtrl.text.trim().isEmpty ? null : _obsCtrl.text.trim(),
+          observacion: _obsCtrl.text.trim().isEmpty
+              ? null : _obsCtrl.text.trim(),
         );
       } else {
         await ref.read(movimientosRepoProvider).createSalida(
           repuestoId:  _repuestoId!,
           cantidad:    int.parse(_cantCtrl.text),
           ticketId:    _conTicket ? _ticketId : null,
-          observacion: _obsCtrl.text.trim().isEmpty ? null : _obsCtrl.text.trim(),
+          observacion: _obsCtrl.text.trim().isEmpty
+              ? null : _obsCtrl.text.trim(),
         );
       }
       ref.invalidate(salidasProvider);
@@ -101,7 +114,8 @@ class _State extends ConsumerState<SalidaFormScreen> {
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(isEdit ? 'Salida actualizada' : 'Salida registrada'),
+            content: Text(
+                isEdit ? 'Salida actualizada' : 'Salida registrada'),
             backgroundColor: Colors.green));
       }
     } catch (e) {
@@ -127,7 +141,8 @@ class _State extends ConsumerState<SalidaFormScreen> {
     if (isEdit && _ticketId != null) {
       final yaEsta = ticketsFiltrados.any((t) => t.id == _ticketId);
       if (!yaEsta) {
-        final ticketOriginal = tickets.where((t) => t.id == _ticketId).toList();
+        final ticketOriginal =
+            tickets.where((t) => t.id == _ticketId).toList();
         ticketsFiltrados = [...ticketOriginal, ...ticketsFiltrados];
       }
     }
@@ -140,9 +155,12 @@ class _State extends ConsumerState<SalidaFormScreen> {
         .toList())
       ..sort((a, b) => a.descripcion.compareTo(b.descripcion));
 
+    final repuestoFijo = widget.repuestoPreseleccionado;
+
     return Scaffold(
       appBar: AppBar(
-          title: Text(isEdit ? 'Editar salida' : 'Nueva salida de repuesto')),
+          title: Text(
+              isEdit ? 'Editar salida' : 'Nueva salida de repuesto')),
       body: SingleChildScrollView(
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: const EdgeInsets.all(20),
@@ -152,71 +170,110 @@ class _State extends ConsumerState<SalidaFormScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
 
-              // ── Seleccionar repuesto ───────────────────
-              const Text('REPUESTO', style: TextStyle(
-                  fontSize: 11, fontWeight: FontWeight.w700,
-                  color: Colors.grey, letterSpacing: 1)),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _busqCtrl,
-                style: const TextStyle(fontSize: 11),
-                decoration: InputDecoration(
-                    labelText: 'Buscar repuesto',
-                    prefixIcon: const Icon(Icons.search),
-                    hintText: 'Código o descripción...',
-                    labelStyle: const TextStyle(fontSize: 11),
-                    suffixIcon: _repuestoId != null
-                        ? const Icon(Icons.check_circle, color: Colors.green)
-                        : null),
-                onChanged: (v) => setState(() {
-                  _busqueda   = v;
-                  _repuestoId = null;
-                }),
-              ),
-              if (_busqueda.isNotEmpty && _repuestoId == null) ...[
-                const SizedBox(height: 4),
+              // ── Repuesto preseleccionado (solo lectura) ──
+              if (repuestoFijo != null && !isEdit) ...[
                 Container(
-                  constraints: const BoxConstraints(maxHeight: 200),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300),
-                      borderRadius: BorderRadius.circular(10)),
-                  child: repuestosFiltrados.isEmpty
-                      ? const Padding(
-                          padding: EdgeInsets.all(12),
-                          child: Text('Sin resultados',
-                              style: TextStyle(color: Colors.grey)))
-                      : ListView.builder(
-                          shrinkWrap: true,
-                          itemCount: repuestosFiltrados.length,
-                          itemBuilder: (_, i) {
-                            final r        = repuestosFiltrados[i];
-                            final sinStock = r.stockActual == 0;
-                            return ListTile(
-                              dense: true,
-                              enabled: !sinStock,
-                              leading: StockBadge(
-                                  stock: r.stockActual, minimo: r.stockMinimo),
-                              title: Text(r.descripcion,
-                                  style: TextStyle(
-                                      fontSize: 10,
-                                      color: sinStock ? Colors.grey : null)),
-                              subtitle: Text(
-                                  sinStock
-                                      ? 'Sin stock disponible'
-                                      : 'Stock disponible: ${r.stockActual}',
-                                  style: TextStyle(
-                                      fontSize: 10,
-                                      color: sinStock ? Colors.red : null)),
-                              onTap: sinStock ? null : () => setState(() {
-                                _repuestoId    = r.id;
-                                _busqCtrl.text = r.descripcion;
-                                _busqueda      = '';
-                              }),
-                            );
-                          }),
+                      color: Colors.red.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                          color: Colors.red.withOpacity(0.2))),
+                  child: Row(children: [
+                    const Icon(Icons.inventory_2_outlined,
+                        color: Colors.red, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(repuestoFijo.descripcion,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13)),
+                        Text(
+                            'Código: ${repuestoFijo.codigo}  |  Stock actual: ${repuestoFijo.stockActual}',
+                            style: const TextStyle(
+                                fontSize: 11, color: Colors.grey)),
+                      ],
+                    )),
+                  ]),
                 ),
+                const SizedBox(height: 16),
               ],
-              const SizedBox(height: 16),
+
+              // ── Buscador de repuesto (si no hay preseleccionado) ──
+              if (repuestoFijo == null || isEdit) ...[
+                const Text('REPUESTO', style: TextStyle(
+                    fontSize: 11, fontWeight: FontWeight.w700,
+                    color: Colors.grey, letterSpacing: 1)),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _busqCtrl,
+                  style: const TextStyle(fontSize: 11),
+                  decoration: InputDecoration(
+                      labelText: 'Buscar repuesto',
+                      prefixIcon: const Icon(Icons.search),
+                      hintText: 'Código o descripción...',
+                      labelStyle: const TextStyle(fontSize: 11),
+                      suffixIcon: _repuestoId != null
+                          ? const Icon(Icons.check_circle,
+                              color: Colors.green)
+                          : null),
+                  onChanged: (v) => setState(() {
+                    _busqueda   = v;
+                    _repuestoId = null;
+                  }),
+                ),
+                if (_busqueda.isNotEmpty && _repuestoId == null) ...[
+                  const SizedBox(height: 4),
+                  Container(
+                    constraints: const BoxConstraints(maxHeight: 200),
+                    decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(10)),
+                    child: repuestosFiltrados.isEmpty
+                        ? const Padding(
+                            padding: EdgeInsets.all(12),
+                            child: Text('Sin resultados',
+                                style: TextStyle(color: Colors.grey)))
+                        : ListView.builder(
+                            shrinkWrap: true,
+                            itemCount: repuestosFiltrados.length,
+                            itemBuilder: (_, i) {
+                              final r        = repuestosFiltrados[i];
+                              final sinStock = r.stockActual == 0;
+                              return ListTile(
+                                dense: true,
+                                enabled: !sinStock,
+                                leading: StockBadge(
+                                    stock: r.stockActual,
+                                    minimo: r.stockMinimo),
+                                title: Text(r.descripcion,
+                                    style: TextStyle(
+                                        fontSize: 10,
+                                        color: sinStock
+                                            ? Colors.grey : null)),
+                                subtitle: Text(
+                                    sinStock
+                                        ? 'Sin stock disponible'
+                                        : 'Stock disponible: ${r.stockActual}',
+                                    style: TextStyle(
+                                        fontSize: 10,
+                                        color: sinStock
+                                            ? Colors.red : null)),
+                                onTap: sinStock
+                                    ? null
+                                    : () => setState(() {
+                                          _repuestoId    = r.id;
+                                          _busqCtrl.text = r.descripcion;
+                                          _busqueda      = '';
+                                        }),
+                              );
+                            }),
+                  ),
+                ],
+                const SizedBox(height: 16),
+              ],
 
               // ── Cantidad ───────────────────────────────
               TextFormField(
@@ -230,12 +287,13 @@ class _State extends ConsumerState<SalidaFormScreen> {
                     labelStyle: TextStyle(fontSize: 12)),
                 validator: (v) {
                   if (v == null || v.isEmpty) return 'Requerido';
-                  if ((int.tryParse(v) ?? 0) <= 0) return 'Debe ser mayor a 0';
+                  if ((int.tryParse(v) ?? 0) <= 0)
+                    return 'Debe ser mayor a 0';
                   return null;
                 }),
               const SizedBox(height: 16),
 
-              // ── Asociar ticket (opcional) ──────────────
+              // ── Asociar ticket ─────────────────────────
               const Text('TICKET', style: TextStyle(
                   fontSize: 11, fontWeight: FontWeight.w700,
                   color: Colors.grey, letterSpacing: 1)),
@@ -258,7 +316,8 @@ class _State extends ConsumerState<SalidaFormScreen> {
                   value: _ticketId,
                   decoration: const InputDecoration(
                       labelText: 'Seleccionar ticket',
-                      prefixIcon: Icon(Icons.confirmation_number_outlined),
+                      prefixIcon:
+                          Icon(Icons.confirmation_number_outlined),
                       labelStyle: TextStyle(fontSize: 12)),
                   items: ticketsFiltrados.map((t) => DropdownMenuItem(
                     value: t.id,
@@ -269,8 +328,9 @@ class _State extends ConsumerState<SalidaFormScreen> {
                         style: const TextStyle(fontSize: 12)),
                   )).toList(),
                   onChanged: (v) => setState(() => _ticketId = v),
-                  validator: (v) => (_conTicket && (v == null || v.isEmpty))
-                      ? 'Seleccione un ticket' : null),
+                  validator: (v) =>
+                      (_conTicket && (v == null || v.isEmpty))
+                          ? 'Seleccione un ticket' : null),
               ],
               const SizedBox(height: 16),
 

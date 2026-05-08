@@ -25,6 +25,7 @@ class _State extends ConsumerState<TicketsScreen> {
   void initState() {
     super.initState();
     _filtroEstado = widget.filtroInicial ?? 'todos';
+    Future.microtask(() => ref.invalidate(ticketsProvider));
   }
 
   Color _colorEstado(String estado) {
@@ -310,3 +311,4 @@ class _FilterChip extends StatelessWidget {
     );
   }
 }
+

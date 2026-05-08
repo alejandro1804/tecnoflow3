@@ -9,7 +9,13 @@ import '../../providers/providers.dart';
 
 class IngresoFormScreen extends ConsumerStatefulWidget {
   final IngresoRepuesto? ingreso;
-  const IngresoFormScreen({super.key, this.ingreso});
+  final Repuesto?        repuestoPreseleccionado;
+
+  const IngresoFormScreen({
+    super.key,
+    this.ingreso,
+    this.repuestoPreseleccionado,
+  });
 
   @override
   ConsumerState<IngresoFormScreen> createState() => _State();
@@ -35,6 +41,8 @@ class _State extends ConsumerState<IngresoFormScreen> {
       _cantCtrl.text    = ing.cantidad.toString();
       _entregaCtrl.text = ing.quienEntrega;
       _descCtrl.text    = ing.descripcion ?? '';
+    } else if (widget.repuestoPreseleccionado != null) {
+      _repuestoId = widget.repuestoPreseleccionado!.id;
     }
   }
 
@@ -61,8 +69,7 @@ class _State extends ConsumerState<IngresoFormScreen> {
       ref.invalidate(ingresosProvider);
       ref.invalidate(repuestosProvider);
       if (mounted) {
-        if (isEdit) Navigator.pop(context);
-        else context.pop();
+        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(isEdit ? 'Ingreso actualizado' : 'Ingreso registrado'),
             backgroundColor: Colors.green));
@@ -89,6 +96,8 @@ class _State extends ConsumerState<IngresoFormScreen> {
       _repuestoId = repuestos.first.id;
     }
 
+    final repuestoFijo = widget.repuestoPreseleccionado;
+
     return Scaffold(
       appBar: AppBar(
           title: Text(isEdit ? 'Editar ingreso' : 'Registrar ingreso')),
@@ -100,24 +109,57 @@ class _State extends ConsumerState<IngresoFormScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // ── Selector de repuesto ──────────────────
-              DropdownButtonFormField<String>(
-                isExpanded: true,
-                value: _repuestoId.isEmpty ? null : _repuestoId,
-                decoration: const InputDecoration(
-                    labelText: 'Repuesto',
-                    prefixIcon: Icon(Icons.inventory_2_outlined)),
-                items: repuestos.map((r) => DropdownMenuItem(
-                    value: r.id,
-                    child: Text(
-                      '${r.descripcion}',
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w400),
-                    ))).toList(),
-                onChanged: (v) => setState(() => _repuestoId = v!),
-                validator: (v) =>
-                    (v == null || v.isEmpty) ? 'Seleccione un repuesto' : null),
+
+              // ── Repuesto preseleccionado (solo lectura) ──
+              if (repuestoFijo != null && !isEdit)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                          color: Colors.green.withOpacity(0.2))),
+                  child: Row(children: [
+                    const Icon(Icons.inventory_2_outlined,
+                        color: Colors.green, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(repuestoFijo.descripcion,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w600, fontSize: 13)),
+                        Text('Código: ${repuestoFijo.codigo}  |  Stock actual: ${repuestoFijo.stockActual}',
+                            style: const TextStyle(
+                                fontSize: 11, color: Colors.grey)),
+                      ],
+                    )),
+                  ]),
+                ),
+
+              // ── Selector de repuesto (solo si no hay preseleccionado) ──
+              if (repuestoFijo == null || isEdit)
+                DropdownButtonFormField<String>(
+                  isExpanded: true,
+                  value: _repuestoId.isEmpty ? null : _repuestoId,
+                  decoration: const InputDecoration(
+                      labelText: 'Repuesto',
+                      prefixIcon: Icon(Icons.inventory_2_outlined)),
+                  items: repuestos.map((r) => DropdownMenuItem(
+                      value: r.id,
+                      child: Text(
+                        r.descripcion,
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                        style: const TextStyle(
+                            fontSize: 10, fontWeight: FontWeight.w400),
+                      ))).toList(),
+                  onChanged: (v) => setState(() => _repuestoId = v!),
+                  validator: (v) =>
+                      (v == null || v.isEmpty)
+                          ? 'Seleccione un repuesto' : null),
+
               const SizedBox(height: 16),
 
               // ── Cantidad ──────────────────────────────
@@ -130,7 +172,8 @@ class _State extends ConsumerState<IngresoFormScreen> {
                     prefixIcon: Icon(Icons.numbers_outlined)),
                 validator: (v) {
                   if (v == null || v.isEmpty) return 'Requerido';
-                  if ((int.tryParse(v) ?? 0) <= 0) return 'Debe ser mayor a 0';
+                  if ((int.tryParse(v) ?? 0) <= 0)
+                    return 'Debe ser mayor a 0';
                   return null;
                 }),
               const SizedBox(height: 16),
@@ -145,10 +188,12 @@ class _State extends ConsumerState<IngresoFormScreen> {
                     (v == null || v.trim().isEmpty) ? 'Requerido' : null),
               const SizedBox(height: 16),
 
+              // ── Nota opcional ─────────────────────────
               TextFormField(
                 controller: _descCtrl,
                 maxLines: 2,
-                style: const TextStyle(fontWeight: FontWeight.w400, fontSize: 11),
+                style: const TextStyle(
+                    fontWeight: FontWeight.w400, fontSize: 11),
                 decoration: const InputDecoration(
                     labelText: 'Descripción / Nota (opcional)',
                     prefixIcon: Icon(Icons.notes_outlined),

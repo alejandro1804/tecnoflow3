@@ -17,6 +17,12 @@ class _State extends ConsumerState<IngresosScreen> {
   String _busqueda     = '';
   bool   _generandoPdf = false;
 
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() => ref.invalidate(ingresosProvider));
+  }
+
   List<IngresoRepuesto> _filtrar(List<IngresoRepuesto> todos) {
     if (_busqueda.isEmpty) return todos;
     return todos.where((ing) =>
@@ -331,7 +337,7 @@ class _State extends ConsumerState<IngresosScreen> {
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       // Tres puntitos — admin
-                                      if (isAdmin|| isPaniolero) ...[
+                                      if (isAdmin) ...[
                                         PopupMenuButton<String>(
                                           icon: const Icon(Icons.more_vert, size: 18),
                                           onSelected: (v) {

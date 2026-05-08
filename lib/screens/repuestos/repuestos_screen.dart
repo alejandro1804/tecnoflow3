@@ -7,6 +7,8 @@ import '../../core/pdfgenerator.dart';
 import '../../core/image_viewer.dart';
 import '../../providers/providers.dart';
 import '../../models/models.dart';
+import '../movimientos/ingreso_form_screen.dart';
+import '../movimientos/salida_form_screen.dart';
 
 class RepuestosScreen extends ConsumerStatefulWidget {
   final bool soloStockBajo;
@@ -26,6 +28,7 @@ class _State extends ConsumerState<RepuestosScreen> {
   void initState() {
     super.initState();
     _soloStockBajo = widget.soloStockBajo;
+    Future.microtask(() => ref.invalidate(repuestosProvider));
   }
 
   List<Repuesto> _filtrar(List<Repuesto> todos) {
@@ -63,9 +66,11 @@ class _State extends ConsumerState<RepuestosScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final async   = ref.watch(repuestosProvider);
-    final profile = ref.watch(myProfileProvider).valueOrNull;
-    final isAdmin = profile?.isAdmin ?? false;
+    final async       = ref.watch(repuestosProvider);
+    final profile     = ref.watch(myProfileProvider).valueOrNull;
+    final isAdmin     = profile?.isAdmin ?? false;
+    final isPaniolero = profile?.isPaniolero ?? false;
+    final canManage   = isAdmin || isPaniolero;
 
     return Scaffold(
       appBar: AppBar(
@@ -92,7 +97,7 @@ class _State extends ConsumerState<RepuestosScreen> {
             }),
         ],
       ),
-      floatingActionButton: isAdmin
+      floatingActionButton: canManage
           ? FloatingActionButton.extended(
               icon: const Icon(Icons.add), label: const Text('Nuevo'),
               onPressed: () => context.push('/repuestos/nuevo'))
@@ -187,10 +192,11 @@ class _State extends ConsumerState<RepuestosScreen> {
                           final r         = repuestos[i];
                           final expandido = _expandidos.contains(r.id);
                           return _RepuestoCard(
-                            repuesto:  r,
-                            isAdmin:   isAdmin,
-                            expandido: expandido,
-                            onToggle:  () => setState(() {
+                            repuesto:    r,
+                            isAdmin:     isAdmin,
+                            isPaniolero: isPaniolero,
+                            expandido:   expandido,
+                            onToggle:    () => setState(() {
                               if (expandido) {
                                 _expandidos.remove(r.id);
                               } else {
@@ -213,15 +219,19 @@ class _State extends ConsumerState<RepuestosScreen> {
 class _RepuestoCard extends ConsumerWidget {
   final Repuesto     repuesto;
   final bool         isAdmin;
+  final bool         isPaniolero;
   final bool         expandido;
   final VoidCallback onToggle;
 
   const _RepuestoCard({
     required this.repuesto,
     required this.isAdmin,
+    required this.isPaniolero,
     required this.expandido,
     required this.onToggle,
   });
+
+  bool get canManage => isAdmin || isPaniolero;
 
   void _verDetalle(BuildContext context) {
     showModalBottomSheet(
@@ -240,18 +250,14 @@ class _RepuestoCard extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Handle
               Center(child: Container(width: 40, height: 4,
                   decoration: BoxDecoration(color: Colors.grey[300],
                       borderRadius: BorderRadius.circular(2)))),
               const SizedBox(height: 16),
-
               const Text('DETALLE DE REPUESTO', style: TextStyle(
                   fontSize: 11, fontWeight: FontWeight.w700,
                   color: Colors.grey, letterSpacing: 1)),
               const SizedBox(height: 12),
-
-              // ── Foto ─────────────────────────────────
               if (repuesto.imagenUrl != null) ...[
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
@@ -294,8 +300,6 @@ class _RepuestoCard extends ConsumerWidget {
                 ),
                 const SizedBox(height: 16),
               ],
-
-              // ── Campos ────────────────────────────────
               _DetalleRow(Icons.qr_code_outlined, 'Código', repuesto.codigo),
               _DetalleRow(Icons.description_outlined, 'Descripción',
                   repuesto.descripcion),
@@ -308,7 +312,6 @@ class _RepuestoCard extends ConsumerWidget {
               _DetalleRow(Icons.warning_amber_outlined, 'Stock mínimo',
                   repuesto.stockMinimo.toString()),
               const SizedBox(height: 8),
-              // Badge estado stock
               Container(
                 padding: const EdgeInsets.symmetric(
                     horizontal: 12, vertical: 6),
@@ -323,8 +326,7 @@ class _RepuestoCard extends ConsumerWidget {
                           ? Icons.warning_amber_outlined
                           : Icons.check_circle_outline,
                       size: 14,
-                      color: repuesto.stockBajo
-                          ? Colors.red : Colors.green),
+                      color: repuesto.stockBajo ? Colors.red : Colors.green),
                   const SizedBox(width: 6),
                   Text(
                       repuesto.stockBajo
@@ -342,6 +344,50 @@ class _RepuestoCard extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _toggleActivo(BuildContext context, WidgetRef ref) async {
+    final nuevoEstado = !repuesto.activo;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(nuevoEstado ? 'Activar repuesto' : 'Desactivar repuesto'),
+        content: Text(
+            '¿Querés ${nuevoEstado ? 'activar' : 'desactivar'} "${repuesto.descripcion}"?\n\n'
+            '${nuevoEstado ? 'El repuesto volverá a aparecer en el listado.' : 'Dejará de aparecer en el listado pero sus registros históricos se conservan.'}'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar')),
+          ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor:
+                      nuevoEstado ? Colors.green : Colors.orange),
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(nuevoEstado ? 'Activar' : 'Desactivar')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ref
+          .read(repuestosRepoProvider)
+          .toggleActivo(repuesto.id, nuevoEstado);
+      ref.invalidate(repuestosProvider);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(nuevoEstado
+                ? 'Repuesto activado'
+                : 'Repuesto desactivado'),
+            backgroundColor:
+                nuevoEstado ? Colors.green : Colors.orange));
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Error: $e'), backgroundColor: Colors.red));
+      }
+    }
   }
 
   @override
@@ -386,140 +432,146 @@ class _RepuestoCard extends ConsumerWidget {
                 ]),
                 const SizedBox(height: 10),
 
-                // ── FILAS 2 y 3: Foto + Info ──────────
-                IntrinsicHeight(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-
-                      // Columna izquierda: FOTO
-                      SizedBox(
-                        width: 90,
-                        child: repuesto.imagenUrl != null
-                            ? RepuestoImagenThumb(
-                                imagenUrl: repuesto.imagenUrl,
-                                size: 90)
-                            : Container(
-                                height: 80,
-                                decoration: BoxDecoration(
-                                    color: Colors.grey.withOpacity(0.08),
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                        color: Colors.grey.withOpacity(0.2))),
-                                child: Icon(Icons.image_outlined,
-                                    color: Colors.grey[300], size: 32)),
-                      ),
-                      const SizedBox(width: 12),
-
-                      // Columna derecha: Info + Acciones
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-
-                            // FILA 2: Ubicación + Stock
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (repuesto.ubicacion != null)
-                                  Row(children: [
-                                    const Icon(Icons.location_on_outlined,
-                                        size: 12, color: Colors.grey),
-                                    const SizedBox(width: 4),
-                                    Expanded(
-                                      child: Text(repuesto.ubicacion!,
-                                          style: const TextStyle(
-                                              fontSize: 11,
-                                              color: Colors.grey)),
-                                    ),
-                                  ]),
-                                const SizedBox(height: 6),
-                                Wrap(spacing: 6, runSpacing: 4, children: [
-                                  StockBadge(
-                                      stock: repuesto.stockActual,
-                                      minimo: repuesto.stockMinimo),
-                                  Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 8, vertical: 2),
-                                      decoration: BoxDecoration(
-                                          color: Colors.grey.withOpacity(0.1),
-                                          borderRadius:
-                                              BorderRadius.circular(8)),
-                                      child: Text(
-                                          'Mín: ${repuesto.stockMinimo}',
-                                          style: const TextStyle(
-                                              fontSize: 11,
-                                              color: Colors.grey,
-                                              fontWeight: FontWeight.w600))),
-                                ]),
-                              ],
-                            ),
-
-                            // FILA 3: Íconos
+                // ── FILA 2: Foto + Info ───────────────
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Foto
+                    SizedBox(
+                      width: 80,
+                      height: 80,
+                      child: repuesto.imagenUrl != null
+                          ? RepuestoImagenThumb(
+                              imagenUrl: repuesto.imagenUrl,
+                              size: 80)
+                          : Container(
+                              decoration: BoxDecoration(
+                                  color: Colors.grey.withOpacity(0.08),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                      color: Colors.grey.withOpacity(0.2))),
+                              child: Icon(Icons.image_outlined,
+                                  color: Colors.grey[300], size: 28)),
+                    ),
+                    const SizedBox(width: 12),
+                    // Info
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (repuesto.ubicacion != null)
                             Row(children: [
-                              if (isAdmin) ...[
-                                InkWell(
-                                  onTap: () => context
-                                      .push('/repuestos/${repuesto.id}'),
-                                  borderRadius: BorderRadius.circular(6),
-                                  child: Container(
-                                    padding: const EdgeInsets.all(6),
-                                    decoration: BoxDecoration(
-                                        color: Colors.grey.withOpacity(0.08),
-                                        borderRadius:
-                                            BorderRadius.circular(6)),
-                                    child: const Icon(Icons.edit_outlined,
-                                        size: 18, color: Colors.grey),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                              ],
-                              // ── Ícono brazo robótico ──
-                              InkWell(
-                                onTap: onToggle,
-                                borderRadius: BorderRadius.circular(6),
-                                child: Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: BoxDecoration(
-                                      color: Colors.blue.withOpacity(0.08),
-                                      borderRadius: BorderRadius.circular(6)),
-                                  child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(
-                                            Icons.precision_manufacturing_outlined,
-                                            size: 18, color: Colors.blue),
-                                        const SizedBox(width: 2),
-                                        Icon(
-                                            expandido
-                                                ? Icons.keyboard_arrow_up
-                                                : Icons.keyboard_arrow_down,
-                                            size: 14, color: Colors.blue),
-                                      ]),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              // ── Ícono ojo ─────────────
-                              InkWell(
-                                onTap: () => _verDetalle(context),
-                                borderRadius: BorderRadius.circular(6),
-                                child: Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: BoxDecoration(
-                                      color: Colors.teal.withOpacity(0.08),
-                                      borderRadius: BorderRadius.circular(6)),
-                                  child: const Icon(
-                                      Icons.visibility_outlined,
-                                      size: 18, color: Colors.teal),
-                                ),
+                              const Icon(Icons.location_on_outlined,
+                                  size: 12, color: Colors.grey),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(repuesto.ubicacion!,
+                                    style: const TextStyle(
+                                        fontSize: 11, color: Colors.grey)),
                               ),
                             ]),
-                          ],
-                        ),
+                          const SizedBox(height: 6),
+                          Wrap(spacing: 6, runSpacing: 4, children: [
+                            StockBadge(
+                                stock: repuesto.stockActual,
+                                minimo: repuesto.stockMinimo),
+                            Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                    color: Colors.grey.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8)),
+                                child: Text(
+                                    'Mín: ${repuesto.stockMinimo}',
+                                    style: const TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.grey,
+                                        fontWeight: FontWeight.w600))),
+                          ]),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+
+                // ── FILA 3: Íconos — ancho completo ──
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+
+                    // 👁 Ver — todos
+                    _IconBtn(
+                      icon: Icons.visibility_outlined,
+                      color: Colors.teal,
+                      onTap: () => _verDetalle(context),
+                    ),
+
+                    // ✅/⭕ Activar/Desactivar — admin y pañolero
+                    if (canManage)
+                      _IconBtn(
+                        icon: repuesto.activo
+                            ? Icons.toggle_on_outlined
+                            : Icons.toggle_off_outlined,
+                        color: repuesto.activo
+                            ? Colors.green
+                            : Colors.orange,
+                        onTap: () => _toggleActivo(context, ref),
+                      ),
+
+                    // ✏️ Editar — admin y pañolero
+                    if (canManage)
+                      _IconBtn(
+                        icon: Icons.edit_outlined,
+                        color: Colors.grey,
+                        onTap: () =>
+                            context.push('/repuestos/${repuesto.id}'),
+                      ),
+
+                    // ➕ Ingreso rápido — admin y pañolero
+                    if (canManage)
+                      _IconBtn(
+                        icon: Icons.add_circle_outline,
+                        color: Colors.green,
+                        onTap: () => Navigator.push(context,
+                            MaterialPageRoute(
+                                builder: (_) => ProviderScope(
+                                    parent: ProviderScope
+                                        .containerOf(context),
+                                    child: IngresoFormScreen(
+                                        repuestoPreseleccionado:
+                                            repuesto)))),
+                      ),
+
+                    // ➖ Salida rápida — admin y pañolero
+                    if (canManage)
+                      _IconBtn(
+                        icon: Icons.remove_circle_outline,
+                        color: Colors.red,
+                        onTap: () => Navigator.push(context,
+                            MaterialPageRoute(
+                                builder: (_) => ProviderScope(
+                                    parent: ProviderScope
+                                        .containerOf(context),
+                                    child: SalidaFormScreen(
+                                        repuestoPreseleccionado:
+                                            repuesto)))),
+                      ),
+
+                    // 🔧 Máquinas — todos
+                    _IconBtn(
+                      icon: expandido
+                          ? Icons.precision_manufacturing
+                          : Icons.precision_manufacturing_outlined,
+                      color: Colors.blue,
+                      onTap: onToggle,
+                      trailing: Icon(
+                          expandido
+                              ? Icons.keyboard_arrow_up
+                              : Icons.keyboard_arrow_down,
+                          size: 12, color: Colors.blue),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -549,10 +601,8 @@ class _RepuestoCard extends ConsumerWidget {
                             style: TextStyle(
                                 fontSize: 10, color: Colors.grey)));
                   }
-
                   final totalUnidades = maquinas.fold<int>(
                       0, (sum, m) => sum + m.cantidad);
-
                   return Padding(
                     padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
                     child: Column(
@@ -560,10 +610,8 @@ class _RepuestoCard extends ConsumerWidget {
                       children: [
                         const Text('MÁQUINAS QUE USAN ESTE REPUESTO',
                             style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.grey,
-                                letterSpacing: 0.5)),
+                                fontSize: 9, fontWeight: FontWeight.w700,
+                                color: Colors.grey, letterSpacing: 0.5)),
                         const SizedBox(height: 8),
                         ...maquinas.map((m) => Padding(
                           padding: const EdgeInsets.only(bottom: 6),
@@ -633,6 +681,38 @@ class _RepuestoCard extends ConsumerWidget {
       ),
     );
   }
+}
+
+// ── Ícono botón reutilizable ──────────────────────────────────
+class _IconBtn extends StatelessWidget {
+  final IconData     icon;
+  final Color        color;
+  final VoidCallback onTap;
+  final Widget?      trailing;
+  const _IconBtn({
+    required this.icon,
+    required this.color,
+    required this.onTap,
+    this.trailing,
+  });
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(6),
+    child: Container(
+      padding: const EdgeInsets.all(7),
+      decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(6)),
+      child: trailing == null
+          ? Icon(icon, size: 20, color: color)
+          : Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(icon, size: 20, color: color),
+              trailing!,
+            ]),
+    ),
+  );
 }
 
 // ── Widget fila de detalle ────────────────────────────────────

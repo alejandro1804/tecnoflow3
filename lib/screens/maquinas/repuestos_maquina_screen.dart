@@ -18,13 +18,14 @@ class RepuestosMaquinaScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final async   = ref.watch(repuestosMaquinasProvider(maquinaId));
-    final profile = ref.watch(myProfileProvider).valueOrNull;
-    final isAdmin = profile?.isAdmin ?? false;
-    final canEdit = isAdmin || (profile?.isTecnico ?? false);
+    final async       = ref.watch(repuestosMaquinasProvider(maquinaId));
+    final profile     = ref.watch(myProfileProvider).valueOrNull;
+    final isAdmin     = profile?.isAdmin ?? false;
+    final isPaniolero = profile?.isPaniolero ?? false;
+    final canEdit     = isAdmin || (profile?.isTecnico ?? false) || isPaniolero;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFEFF6FF), // fondo azul pastel suave
+      backgroundColor: const Color(0xFFEFF6FF),
       appBar: AppBar(title: Text('Repuestos — $maquinaNombre')),
       floatingActionButton: canEdit
           ? FloatingActionButton.extended(
@@ -73,7 +74,6 @@ class RepuestosMaquinaScreen extends ConsumerWidget {
 
                           // ── FILA 2: Código | Cantidad | Ubicación ──
                           Row(children: [
-                            // Código
                             Container(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 8, vertical: 2),
@@ -87,7 +87,6 @@ class RepuestosMaquinaScreen extends ConsumerWidget {
                                       fontWeight: FontWeight.w600)),
                             ),
                             const SizedBox(width: 6),
-                            // Cantidad
                             _InfoChip('Cant: ${item.cantidad}', Colors.blue),
                             if (item.ubicacionEnMaquina != null) ...[
                               const SizedBox(width: 6),
@@ -95,7 +94,7 @@ class RepuestosMaquinaScreen extends ConsumerWidget {
                             ],
                           ]),
 
-                          // Observación (si existe)
+                          // Observación
                           if (item.observacion != null) ...[
                             const SizedBox(height: 4),
                             Row(children: [
@@ -115,7 +114,6 @@ class RepuestosMaquinaScreen extends ConsumerWidget {
                             const SizedBox(height: 8),
                             Row(children: [
                               const Spacer(),
-                              // Ícono editar
                               InkWell(
                                 onTap: () => _mostrarModal(
                                     context, ref, maquinaId, isAdmin,
@@ -130,9 +128,8 @@ class RepuestosMaquinaScreen extends ConsumerWidget {
                                       size: 18, color: Colors.grey),
                                 ),
                               ),
-                              if (isAdmin) ...[
+                              if (isAdmin || isPaniolero) ...[
                                 const SizedBox(width: 8),
-                                // Ícono eliminar
                                 InkWell(
                                   onTap: () => _eliminar(
                                       context, ref, item.id, maquinaId),
@@ -158,7 +155,6 @@ class RepuestosMaquinaScreen extends ConsumerWidget {
       ),
     );
   }
-
 
   Future<void> _eliminar(BuildContext context, WidgetRef ref,
       String id, String maquinaId) async {
@@ -270,7 +266,8 @@ class _ModalState extends ConsumerState<_RepuestoMaquinaModal> {
           descripcion: _descCtrl.text.trim(),
           stockActual: 0,
           stockMinimo: int.tryParse(_minCtrl.text) ?? 0,
-          ubicacion:   _ubicRepCtrl.text.trim().isEmpty ? null : _ubicRepCtrl.text.trim(),
+          ubicacion:   _ubicRepCtrl.text.trim().isEmpty
+              ? null : _ubicRepCtrl.text.trim(),
         );
         await ref.read(repuestosRepoProvider).create(nuevoRep);
         final todos = await ref.read(repuestosRepoProvider).getAll();
@@ -283,23 +280,27 @@ class _ModalState extends ConsumerState<_RepuestoMaquinaModal> {
         repuestoId:         repId,
         maquinaId:          widget.maquinaId,
         cantidad:           int.tryParse(_cantCtrl.text) ?? 1,
-        ubicacionEnMaquina: _ubicCtrl.text.trim().isEmpty ? null : _ubicCtrl.text.trim(),
-        observacion:        _obsCtrl.text.trim().isEmpty ? null : _obsCtrl.text.trim(),
+        ubicacionEnMaquina: _ubicCtrl.text.trim().isEmpty
+            ? null : _ubicCtrl.text.trim(),
+        observacion:        _obsCtrl.text.trim().isEmpty
+            ? null : _obsCtrl.text.trim(),
       );
 
       if (isEdit) {
         await ref.read(repuestosMaquinasRepoProvider).update(
             widget.repuestoMaquina!.id, rm);
       } else {
-        await ref.read(repuestosMaquinasRepoProvider).create(rm, widget.maquinaId);
+        await ref.read(repuestosMaquinasRepoProvider).create(
+            rm, widget.maquinaId);
       }
 
       widget.onSaved();
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(
-                isEdit ? 'Asociación actualizada' : 'Repuesto agregado a la máquina'),
+            content: Text(isEdit
+                ? 'Asociación actualizada'
+                : 'Repuesto agregado a la máquina'),
             backgroundColor: Colors.green));
       }
     } catch (e) {
@@ -338,8 +339,11 @@ class _ModalState extends ConsumerState<_RepuestoMaquinaModal> {
                   decoration: BoxDecoration(color: Colors.grey[300],
                       borderRadius: BorderRadius.circular(2)))),
               const SizedBox(height: 16),
-              Text(isEdit ? 'Editar asociación' : 'Agregar repuesto a máquina',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+              Text(isEdit
+                  ? 'Editar asociación'
+                  : 'Agregar repuesto a máquina',
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.w700)),
               const SizedBox(height: 20),
 
               if (!isEdit) ...[
@@ -382,14 +386,16 @@ class _ModalState extends ConsumerState<_RepuestoMaquinaModal> {
                             selectedTileColor: Colors.blue.withOpacity(0.08),
                             leading: Icon(
                                 sel ? Icons.check_circle : Icons.circle_outlined,
-                                color: sel ? Colors.blue : Colors.grey, size: 18),
+                                color: sel ? Colors.blue : Colors.grey,
+                                size: 18),
                             title: Text('${r.codigo} — ${r.descripcion}',
                                 style: const TextStyle(fontSize: 13)),
                             subtitle: Text('Stock: ${r.stockActual}',
                                 style: const TextStyle(fontSize: 11)),
                             onTap: () => setState(() {
                               _repuestoSelId = r.id;
-                              _busqCtrl.text = '${r.codigo} — ${r.descripcion}';
+                              _busqCtrl.text =
+                                  '${r.codigo} — ${r.descripcion}';
                               _busqueda = '';
                             }),
                           );
@@ -399,7 +405,8 @@ class _ModalState extends ConsumerState<_RepuestoMaquinaModal> {
                     const Padding(
                         padding: EdgeInsets.only(top: 4),
                         child: Text('Seleccione un repuesto',
-                            style: TextStyle(color: Colors.red, fontSize: 12))),
+                            style: TextStyle(
+                                color: Colors.red, fontSize: 12))),
                   const SizedBox(height: 8),
                 ],
                 if (isEdit)
@@ -408,13 +415,15 @@ class _ModalState extends ConsumerState<_RepuestoMaquinaModal> {
                     decoration: BoxDecoration(
                         color: Colors.blue.withOpacity(0.05),
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.blue.withOpacity(0.2))),
+                        border: Border.all(
+                            color: Colors.blue.withOpacity(0.2))),
                     child: Row(children: [
                       const Icon(Icons.inventory_2_outlined,
                           color: Colors.blue, size: 18),
                       const SizedBox(width: 8),
                       Expanded(child: Text(
-                          '${widget.repuestoMaquina!.repuestoCodigo} — ${widget.repuestoMaquina!.repuestoDescripcion}',
+                          '${widget.repuestoMaquina!.repuestoCodigo} — '
+                          '${widget.repuestoMaquina!.repuestoDescripcion}',
                           style: const TextStyle(
                               fontWeight: FontWeight.w600, fontSize: 13))),
                     ])),
@@ -502,10 +511,14 @@ class _ModalState extends ConsumerState<_RepuestoMaquinaModal> {
               const SizedBox(height: 20),
               LoadingButton(
                   loading: _loading,
-                  onPressed: (!_crearNuevo && _repuestoSelId == null && !isEdit)
+                  onPressed: (!_crearNuevo &&
+                          _repuestoSelId == null &&
+                          !isEdit)
                       ? null
                       : _submit,
-                  label: isEdit ? 'Guardar cambios' : 'Agregar a máquina'),
+                  label: isEdit
+                      ? 'Guardar cambios'
+                      : 'Agregar a máquina'),
               const SizedBox(height: 8),
             ],
           ),
@@ -524,7 +537,8 @@ class _InfoChip extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
     decoration: BoxDecoration(
-        color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8)),
     child: Text(label,
         style: TextStyle(
             fontSize: 11, color: color, fontWeight: FontWeight.w600)));

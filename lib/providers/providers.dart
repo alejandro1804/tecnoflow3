@@ -47,6 +47,14 @@ final maquinasProvider  = FutureProvider<List<Maquina>>(
 final repuestosProvider = FutureProvider<List<Repuesto>>(
     (ref) => ref.watch(repuestosRepoProvider).getAll());
 
+final repuestosInactivosProvider = FutureProvider<List<Repuesto>>(
+    (ref) async {
+      final todos = await ref.read(repuestosRepoProvider).getAllIncluyendoInactivos();
+      return todos.where((r) => !r.activo).toList()
+        ..sort((a, b) => a.descripcion.toLowerCase()
+            .compareTo(b.descripcion.toLowerCase()));
+    });
+
 final ticketsProvider   = FutureProvider<List<Ticket>>(
     (ref) => ref.watch(ticketsRepoProvider).getAll());
 
