@@ -192,6 +192,7 @@ class _State extends ConsumerState<SalidasScreen> {
             }),
         ],
       ),
+      // FAB solo para admin y pañolero
       floatingActionButton: canEdit
           ? FloatingActionButton.extended(
               icon: const Icon(Icons.add),
@@ -236,7 +237,8 @@ class _State extends ConsumerState<SalidasScreen> {
                     alignment: Alignment.centerLeft,
                     child: Text(
                         '${salidas.length} resultado${salidas.length != 1 ? 's' : ''}',
-                        style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                        style: const TextStyle(
+                            fontSize: 11, color: Colors.grey)),
                   ),
                 ]),
               ),
@@ -250,15 +252,17 @@ class _State extends ConsumerState<SalidasScreen> {
                         padding: const EdgeInsets.only(bottom: 80),
                         itemCount: salidas.length,
                         itemBuilder: (_, i) {
-                          final s       = salidas[i];
-                          final esMia   = s.registradoPor == uid;
-                          final canEditItem = isAdmin || esMia;
+                          final s          = salidas[i];
+                          final esMia      = s.registradoPor == uid;
+                          // tres puntitos: admin, pañolero, o quien registró
+                          final canEditItem = isAdmin || isPaniolero || esMia;
 
                           return Card(
                             margin: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 5),
                             child: Padding(
-                              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                              padding: const EdgeInsets.fromLTRB(
+                                  12, 10, 12, 10),
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
@@ -274,7 +278,8 @@ class _State extends ConsumerState<SalidasScreen> {
                                   // ── Contenido ───────────
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(s.repuestoDescripcion ?? '',
                                             style: const TextStyle(
@@ -288,35 +293,45 @@ class _State extends ConsumerState<SalidasScreen> {
                                             padding: const EdgeInsets.symmetric(
                                                 horizontal: 8, vertical: 2),
                                             decoration: BoxDecoration(
-                                                color: Colors.red.withOpacity(0.1),
-                                                borderRadius: BorderRadius.circular(6)),
+                                                color: Colors.red
+                                                    .withOpacity(0.1),
+                                                borderRadius:
+                                                    BorderRadius.circular(6)),
                                             child: Text('-${s.cantidad}',
                                                 style: const TextStyle(
                                                     fontSize: 12,
                                                     color: Colors.red,
-                                                    fontWeight: FontWeight.w700)),
+                                                    fontWeight:
+                                                        FontWeight.w700)),
                                           ),
                                           const SizedBox(width: 8),
-                                          const Icon(Icons.calendar_today_outlined,
+                                          const Icon(
+                                              Icons.calendar_today_outlined,
                                               size: 12, color: Colors.grey),
                                           const SizedBox(width: 4),
                                           Text(s.fecha,
                                               style: const TextStyle(
-                                                  fontSize: 12, color: Colors.grey)),
+                                                  fontSize: 12,
+                                                  color: Colors.grey)),
                                         ]),
                                         const SizedBox(height: 4),
                                         Row(children: [
-                                          const Icon(Icons.confirmation_number_outlined,
+                                          const Icon(
+                                              Icons
+                                                  .confirmation_number_outlined,
                                               size: 12, color: Colors.grey),
                                           const SizedBox(width: 4),
                                           s.ticketId != null
                                               ? Text(
                                                   'Ticket: ${s.ticketId!.substring(0, 8)}...',
                                                   style: const TextStyle(
-                                                      fontSize: 12, color: Colors.grey))
-                                              : const Text('Sin ticket asociado',
+                                                      fontSize: 12,
+                                                      color: Colors.grey))
+                                              : const Text(
+                                                  'Sin ticket asociado',
                                                   style: TextStyle(
-                                                      fontSize: 12, color: Colors.orange)),
+                                                      fontSize: 12,
+                                                      color: Colors.orange)),
                                         ]),
                                         if (s.observacion != null) ...[
                                           const SizedBox(height: 4),
@@ -327,9 +342,11 @@ class _State extends ConsumerState<SalidasScreen> {
                                             Expanded(
                                               child: Text(s.observacion!,
                                                   style: const TextStyle(
-                                                      fontSize: 11, color: Colors.grey),
+                                                      fontSize: 11,
+                                                      color: Colors.grey),
                                                   maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis),
+                                                  overflow:
+                                                      TextOverflow.ellipsis),
                                             ),
                                           ]),
                                         ],
@@ -342,30 +359,42 @@ class _State extends ConsumerState<SalidasScreen> {
                                   Column(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      // Ícono ver detalle
+                                      // Ícono ver detalle — todos
                                       InkWell(
-                                        onTap: () => _verDetalle(context, s),
+                                        onTap: () =>
+                                            _verDetalle(context, s),
                                         borderRadius: BorderRadius.circular(6),
                                         child: Container(
                                           padding: const EdgeInsets.all(6),
                                           decoration: BoxDecoration(
-                                              color: Colors.teal.withOpacity(0.08),
-                                              borderRadius: BorderRadius.circular(6)),
-                                          child: const Icon(Icons.visibility_outlined,
+                                              color: Colors.teal
+                                                  .withOpacity(0.08),
+                                              borderRadius:
+                                                  BorderRadius.circular(6)),
+                                          child: const Icon(
+                                              Icons.visibility_outlined,
                                               size: 18, color: Colors.teal),
                                         ),
                                       ),
+                                      // Tres puntitos — admin, pañolero o quien registró
                                       if (canEditItem) ...[
                                         const SizedBox(height: 4),
                                         PopupMenuButton<String>(
-                                          icon: const Icon(Icons.more_vert, size: 18),
+                                          icon: const Icon(Icons.more_vert,
+                                              size: 18),
                                           onSelected: (v) {
                                             if (v == 'editar') {
                                               Navigator.push(context,
                                                   MaterialPageRoute(
-                                                      builder: (_) => ProviderScope(
-                                                          parent: ProviderScope.containerOf(context),
-                                                          child: SalidaFormScreen(salida: s))));
+                                                      builder: (_) =>
+                                                          ProviderScope(
+                                                              parent: ProviderScope
+                                                                  .containerOf(
+                                                                      context),
+                                                              child:
+                                                                  SalidaFormScreen(
+                                                                      salida:
+                                                                          s))));
                                             } else if (v == 'eliminar') {
                                               _eliminar(context, ref, s);
                                             }
@@ -374,7 +403,8 @@ class _State extends ConsumerState<SalidasScreen> {
                                             const PopupMenuItem(
                                                 value: 'editar',
                                                 child: Row(children: [
-                                                  Icon(Icons.edit_outlined, size: 16),
+                                                  Icon(Icons.edit_outlined,
+                                                      size: 16),
                                                   SizedBox(width: 8),
                                                   Text('Editar'),
                                                 ])),
@@ -382,10 +412,12 @@ class _State extends ConsumerState<SalidasScreen> {
                                                 value: 'eliminar',
                                                 child: Row(children: [
                                                   Icon(Icons.delete_outline,
-                                                      size: 16, color: Colors.red),
+                                                      size: 16,
+                                                      color: Colors.red),
                                                   SizedBox(width: 8),
                                                   Text('Eliminar',
-                                                      style: TextStyle(color: Colors.red)),
+                                                      style: TextStyle(
+                                                          color: Colors.red)),
                                                 ])),
                                           ],
                                         ),

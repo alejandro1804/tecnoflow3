@@ -47,6 +47,10 @@ class _State extends ConsumerState<MaquinasScreen> {
   Widget build(BuildContext context) {
     final maquinasAsync = ref.watch(maquinasProvider);
     final sectores      = ref.watch(sectoresProvider).valueOrNull ?? [];
+    final profile       = ref.watch(myProfileProvider).valueOrNull;
+    final isAdmin       = profile?.isAdmin ?? false;
+    final isPaniolero   = profile?.isPaniolero ?? false;
+    final canManage     = isAdmin || isPaniolero;
 
     return Scaffold(
       appBar: AppBar(
@@ -91,9 +95,11 @@ class _State extends ConsumerState<MaquinasScreen> {
             }),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-          icon: const Icon(Icons.add), label: const Text('Nueva'),
-          onPressed: () => context.push('/maquinas/nuevo')),
+      floatingActionButton: canManage
+          ? FloatingActionButton.extended(
+              icon: const Icon(Icons.add), label: const Text('Nueva'),
+              onPressed: () => context.push('/maquinas/nuevo'))
+          : null,
       body: maquinasAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error:   (e, _) => Center(child: Text('Error: $e')),
@@ -128,8 +134,6 @@ class _State extends ConsumerState<MaquinasScreen> {
                 color: Colors.white,
                 padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
                 child: Column(children: [
-
-                  // Buscador
                   TextField(
                     decoration: InputDecoration(
                       hintText: 'Buscar por nombre o código...',
@@ -166,7 +170,6 @@ class _State extends ConsumerState<MaquinasScreen> {
                         style: const TextStyle(
                             fontSize: 12, color: Colors.black87),
                         items: [
-                          // Opción "Todos"
                           DropdownMenuItem<String>(
                             value: '',
                             child: Row(children: [
@@ -177,21 +180,24 @@ class _State extends ConsumerState<MaquinasScreen> {
                                   style: TextStyle(fontSize: 12)),
                             ]),
                           ),
-                          // Sectores
-                          ...([...sectores]..sort((a, b) => a.nombre.toLowerCase().compareTo(b.nombre.toLowerCase()))).map((s) => DropdownMenuItem<String>(
-                            value: s.id,
-                            child: Row(children: [
-                              Icon(Icons.domain_outlined,
-                                  size: 16,
-                                  color: Theme.of(context).colorScheme.primary),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(s.nombre,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(fontSize: 12)),
-                              ),
-                            ]),
-                          )),
+                          ...([...sectores]..sort((a, b) => a.nombre
+                                  .toLowerCase()
+                                  .compareTo(b.nombre.toLowerCase())))
+                              .map((s) => DropdownMenuItem<String>(
+                                value: s.id,
+                                child: Row(children: [
+                                  Icon(Icons.domain_outlined,
+                                      size: 16,
+                                      color: Theme.of(context)
+                                          .colorScheme.primary),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(s.nombre,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(fontSize: 12)),
+                                  ),
+                                ]),
+                              )),
                         ],
                         onChanged: (v) =>
                             setState(() => _sectorId = v ?? ''),
@@ -200,7 +206,6 @@ class _State extends ConsumerState<MaquinasScreen> {
                   ),
                   const SizedBox(height: 6),
 
-                  // Contador
                   Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
@@ -232,7 +237,8 @@ class _State extends ConsumerState<MaquinasScreen> {
                             margin: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 5),
                             child: Padding(
-                              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                              padding: const EdgeInsets.fromLTRB(
+                                  12, 10, 12, 10),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -308,21 +314,26 @@ class _State extends ConsumerState<MaquinasScreen> {
                                               fontWeight: FontWeight.w600)),
                                     ),
                                     const Spacer(),
-                                    InkWell(
-                                      onTap: () =>
-                                          context.push('/maquinas/${m.id}'),
-                                      borderRadius: BorderRadius.circular(6),
-                                      child: Container(
-                                        padding: const EdgeInsets.all(6),
-                                        decoration: BoxDecoration(
-                                            color: Colors.grey.withOpacity(0.08),
-                                            borderRadius:
-                                                BorderRadius.circular(6)),
-                                        child: const Icon(Icons.edit_outlined,
-                                            size: 18, color: Colors.grey),
+                                    // Editar — solo admin y pañolero
+                                    if (canManage)
+                                      InkWell(
+                                        onTap: () => context
+                                            .push('/maquinas/${m.id}'),
+                                        borderRadius: BorderRadius.circular(6),
+                                        child: Container(
+                                          padding: const EdgeInsets.all(6),
+                                          decoration: BoxDecoration(
+                                              color: Colors.grey
+                                                  .withOpacity(0.08),
+                                              borderRadius:
+                                                  BorderRadius.circular(6)),
+                                          child: const Icon(
+                                              Icons.edit_outlined,
+                                              size: 18, color: Colors.grey),
+                                        ),
                                       ),
-                                    ),
                                     const SizedBox(width: 8),
+                                    // Repuestos — todos
                                     InkWell(
                                       onTap: () => Navigator.push(context,
                                           MaterialPageRoute(
@@ -336,10 +347,12 @@ class _State extends ConsumerState<MaquinasScreen> {
                                       child: Container(
                                         padding: const EdgeInsets.all(6),
                                         decoration: BoxDecoration(
-                                            color: Colors.blue.withOpacity(0.08),
+                                            color: Colors.blue
+                                                .withOpacity(0.08),
                                             borderRadius:
                                                 BorderRadius.circular(6)),
-                                        child: const Icon(Icons.settings_outlined,
+                                        child: const Icon(
+                                            Icons.settings_outlined,
                                             size: 18, color: Colors.blue),
                                       ),
                                     ),

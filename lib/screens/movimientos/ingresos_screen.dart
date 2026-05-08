@@ -158,8 +158,8 @@ class _State extends ConsumerState<IngresosScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final async   = ref.watch(ingresosProvider);
-    final profile = ref.watch(myProfileProvider).valueOrNull;
+    final async       = ref.watch(ingresosProvider);
+    final profile     = ref.watch(myProfileProvider).valueOrNull;
     final isAdmin     = profile?.isAdmin ?? false;
     final isPaniolero = profile?.isPaniolero ?? false;
     final canEdit     = isAdmin || isPaniolero;
@@ -189,6 +189,7 @@ class _State extends ConsumerState<IngresosScreen> {
             }),
         ],
       ),
+      // FAB solo para admin y pañolero
       floatingActionButton: canEdit
           ? FloatingActionButton.extended(
               icon: const Icon(Icons.add),
@@ -253,7 +254,8 @@ class _State extends ConsumerState<IngresosScreen> {
                             margin: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 5),
                             child: Padding(
-                              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                              padding: const EdgeInsets.fromLTRB(
+                                  12, 10, 12, 10),
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
@@ -269,7 +271,8 @@ class _State extends ConsumerState<IngresosScreen> {
                                   // ── Contenido ───────────
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(ing.repuestoDescripcion ?? '',
                                             style: const TextStyle(
@@ -283,21 +286,26 @@ class _State extends ConsumerState<IngresosScreen> {
                                             padding: const EdgeInsets.symmetric(
                                                 horizontal: 8, vertical: 2),
                                             decoration: BoxDecoration(
-                                                color: Colors.green.withOpacity(0.1),
-                                                borderRadius: BorderRadius.circular(6)),
+                                                color: Colors.green
+                                                    .withOpacity(0.1),
+                                                borderRadius:
+                                                    BorderRadius.circular(6)),
                                             child: Text('+${ing.cantidad}',
                                                 style: const TextStyle(
                                                     fontSize: 12,
                                                     color: Colors.green,
-                                                    fontWeight: FontWeight.w700)),
+                                                    fontWeight:
+                                                        FontWeight.w700)),
                                           ),
                                           const SizedBox(width: 8),
-                                          const Icon(Icons.calendar_today_outlined,
+                                          const Icon(
+                                              Icons.calendar_today_outlined,
                                               size: 12, color: Colors.grey),
                                           const SizedBox(width: 4),
                                           Text(ing.fecha,
                                               style: const TextStyle(
-                                                  fontSize: 12, color: Colors.grey)),
+                                                  fontSize: 12,
+                                                  color: Colors.grey)),
                                         ]),
                                         const SizedBox(height: 4),
                                         Row(children: [
@@ -307,9 +315,11 @@ class _State extends ConsumerState<IngresosScreen> {
                                           Expanded(
                                             child: Text(ing.quienEntrega,
                                                 style: const TextStyle(
-                                                    fontSize: 12, color: Colors.grey),
+                                                    fontSize: 12,
+                                                    color: Colors.grey),
                                                 maxLines: 1,
-                                                overflow: TextOverflow.ellipsis),
+                                                overflow:
+                                                    TextOverflow.ellipsis),
                                           ),
                                         ]),
                                         if (ing.descripcion != null) ...[
@@ -321,9 +331,11 @@ class _State extends ConsumerState<IngresosScreen> {
                                             Expanded(
                                               child: Text(ing.descripcion!,
                                                   style: const TextStyle(
-                                                      fontSize: 11, color: Colors.grey),
+                                                      fontSize: 11,
+                                                      color: Colors.grey),
                                                   maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis),
+                                                  overflow:
+                                                      TextOverflow.ellipsis),
                                             ),
                                           ]),
                                         ],
@@ -336,17 +348,24 @@ class _State extends ConsumerState<IngresosScreen> {
                                   Column(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      // Tres puntitos — admin
-                                      if (isAdmin) ...[
+                                      // Tres puntitos — admin y pañolero
+                                      if (canEdit) ...[
                                         PopupMenuButton<String>(
-                                          icon: const Icon(Icons.more_vert, size: 18),
+                                          icon: const Icon(Icons.more_vert,
+                                              size: 18),
                                           onSelected: (v) {
                                             if (v == 'editar') {
                                               Navigator.push(context,
                                                   MaterialPageRoute(
-                                                      builder: (_) => ProviderScope(
-                                                          parent: ProviderScope.containerOf(context),
-                                                          child: IngresoFormScreen(ingreso: ing))));
+                                                      builder: (_) =>
+                                                          ProviderScope(
+                                                              parent: ProviderScope
+                                                                  .containerOf(
+                                                                      context),
+                                                              child:
+                                                                  IngresoFormScreen(
+                                                                      ingreso:
+                                                                          ing))));
                                             } else if (v == 'eliminar') {
                                               _eliminar(context, ref, ing);
                                             }
@@ -355,7 +374,8 @@ class _State extends ConsumerState<IngresosScreen> {
                                             const PopupMenuItem(
                                                 value: 'editar',
                                                 child: Row(children: [
-                                                  Icon(Icons.edit_outlined, size: 16),
+                                                  Icon(Icons.edit_outlined,
+                                                      size: 16),
                                                   SizedBox(width: 8),
                                                   Text('Editar'),
                                                 ])),
@@ -363,10 +383,12 @@ class _State extends ConsumerState<IngresosScreen> {
                                                 value: 'eliminar',
                                                 child: Row(children: [
                                                   Icon(Icons.delete_outline,
-                                                      size: 16, color: Colors.red),
+                                                      size: 16,
+                                                      color: Colors.red),
                                                   SizedBox(width: 8),
                                                   Text('Eliminar',
-                                                      style: TextStyle(color: Colors.red)),
+                                                      style: TextStyle(
+                                                          color: Colors.red)),
                                                 ])),
                                           ],
                                         ),
@@ -374,14 +396,18 @@ class _State extends ConsumerState<IngresosScreen> {
                                       ],
                                       // Ícono ver detalle — todos
                                       InkWell(
-                                        onTap: () => _verDetalle(context, ing),
+                                        onTap: () =>
+                                            _verDetalle(context, ing),
                                         borderRadius: BorderRadius.circular(6),
                                         child: Container(
                                           padding: const EdgeInsets.all(6),
                                           decoration: BoxDecoration(
-                                              color: Colors.teal.withOpacity(0.08),
-                                              borderRadius: BorderRadius.circular(6)),
-                                          child: const Icon(Icons.visibility_outlined,
+                                              color: Colors.teal
+                                                  .withOpacity(0.08),
+                                              borderRadius:
+                                                  BorderRadius.circular(6)),
+                                          child: const Icon(
+                                              Icons.visibility_outlined,
                                               size: 18, color: Colors.teal),
                                         ),
                                       ),
@@ -414,11 +440,12 @@ class _DetalleRow extends StatelessWidget {
     child: Row(children: [
       Icon(icon, size: 16, color: Colors.grey),
       const SizedBox(width: 10),
-      Text('$label: ', style: const TextStyle(
-          fontSize: 12, color: Colors.grey)),
-      Expanded(child: Text(value, style: TextStyle(
-          fontSize: 12, fontWeight: FontWeight.w600,
-          color: color ?? Colors.black87),
+      Text('$label: ',
+          style: const TextStyle(fontSize: 12, color: Colors.grey)),
+      Expanded(child: Text(value,
+          style: TextStyle(
+              fontSize: 12, fontWeight: FontWeight.w600,
+              color: color ?? Colors.black87),
           overflow: TextOverflow.ellipsis)),
     ]),
   );
