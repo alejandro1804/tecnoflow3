@@ -71,26 +71,27 @@ class _State extends ConsumerState<SalidaFormScreen> {
   }
 
   Future<void> _cargarRepuestosMaquina() async {
-    setState(() => _cargandoRepuestos = true);
-    try {
-      final items = await ref
-          .read(repuestosMaquinasRepoProvider)
-          .getByMaquina(widget.maquinaId!);
-      // Obtener los repuestos completos filtrando por los IDs de la máquina
-      final todosRepuestos =
-          ref.read(repuestosProvider).valueOrNull ?? [];
-      final idsEnMaquina = items.map((m) => m.repuestoId).toSet();
-      setState(() {
-        _repuestosMaquina = todosRepuestos
+      setState(() => _cargandoRepuestos = true);
+      try {
+        final items = await ref
+            .read(repuestosMaquinasRepoProvider)
+            .getByMaquina(widget.maquinaId!);
+        final todosRepuestos =
+            ref.read(repuestosProvider).valueOrNull ?? [];
+        final idsEnMaquina = items.map((m) => m.repuestoId).toSet();
+        final filtrados = todosRepuestos
             .where((r) => idsEnMaquina.contains(r.id))
             .toList()
           ..sort((a, b) => a.descripcion.compareTo(b.descripcion));
-        _cargandoRepuestos = false;
-      });
-    } catch (e) {
-      setState(() => _cargandoRepuestos = false);
+        setState(() {
+          // Si la máquina no tiene repuestos asociados → mostrar todos
+          _repuestosMaquina = filtrados.isEmpty ? null : filtrados;
+          _cargandoRepuestos = false;
+        });
+      } catch (e) {
+        setState(() => _cargandoRepuestos = false);
+      }
     }
-  }
 
   @override
   void dispose() {
