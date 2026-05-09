@@ -90,7 +90,7 @@ class RepuestosRepository {
     return (data as List).map((e) => Repuesto.fromMap(e)).toList();
   }
 
-  // Trae todos incluyendo inactivos (para admin)
+  // Trae todos incluyendo inactivos (para admin y pañolero)
   Future<List<Repuesto>> getAllIncluyendoInactivos() async {
     final data = await _db
         .from('repuestos')
@@ -118,7 +118,6 @@ class RepuestosRepository {
   Future<void> delete(String id) async =>
       _db.from('repuestos').delete().eq('id', id);
 
-  // Activar / desactivar repuesto
   Future<void> toggleActivo(String id, bool activo) async =>
       _db.from('repuestos').update({'activo': activo}).eq('id', id);
 }
@@ -153,8 +152,9 @@ class TicketsRepository {
     return (data as List).map((e) => TicketHistorial.fromMap(e)).toList();
   }
 
+  // maquinaId es nullable — permite tickets sin máquina asociada
   Future<void> create({
-    required String maquinaId,
+    String? maquinaId,
     required String descripcion,
     String? observacion,
   }) async {

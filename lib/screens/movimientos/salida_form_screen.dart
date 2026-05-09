@@ -1,4 +1,3 @@
-
 // lib/screens/movimientos/salida_form_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,12 +9,14 @@ import '../../providers/providers.dart';
 class SalidaFormScreen extends ConsumerStatefulWidget {
   final SalidaRepuesto? salida;
   final String?         ticketIdInicial;
+  final String?         maquinaId;
   final Repuesto?       repuestoPreseleccionado;
 
   const SalidaFormScreen({
     super.key,
     this.salida,
     this.ticketIdInicial,
+    this.maquinaId,
     this.repuestoPreseleccionado,
   });
 
@@ -36,7 +37,12 @@ class _State extends ConsumerState<SalidaFormScreen> {
   bool    _loading   = false;
   String? _error;
 
-  bool get isEdit => widget.salida != null;
+  // Repuestos de la máquina del ticket (cuando viene maquinaId)
+  List<Repuesto>? _repuestosMaquina;
+  bool _cargandoRepuestos = false;
+
+  bool get isEdit        => widget.salida != null;
+  bool get desdeTicket   => widget.ticketIdInicial != null;
 
   @override
   void initState() {
@@ -50,12 +56,39 @@ class _State extends ConsumerState<SalidaFormScreen> {
       _obsCtrl.text  = s.observacion ?? '';
       _busqCtrl.text = s.repuestoDescripcion ?? '';
     } else if (widget.repuestoPreseleccionado != null) {
-      final r     = widget.repuestoPreseleccionado!;
-      _repuestoId = r.id;
+      final r        = widget.repuestoPreseleccionado!;
+      _repuestoId    = r.id;
       _busqCtrl.text = r.descripcion;
     } else if (widget.ticketIdInicial != null) {
       _ticketId  = widget.ticketIdInicial;
       _conTicket = true;
+    }
+
+    // Si viene maquinaId cargar repuestos de esa máquina
+    if (widget.maquinaId != null && !isEdit) {
+      Future.microtask(() => _cargarRepuestosMaquina());
+    }
+  }
+
+  Future<void> _cargarRepuestosMaquina() async {
+    setState(() => _cargandoRepuestos = true);
+    try {
+      final items = await ref
+          .read(repuestosMaquinasRepoProvider)
+          .getByMaquina(widget.maquinaId!);
+      // Obtener los repuestos completos filtrando por los IDs de la máquina
+      final todosRepuestos =
+          ref.read(repuestosProvider).valueOrNull ?? [];
+      final idsEnMaquina = items.map((m) => m.repuestoId).toSet();
+      setState(() {
+        _repuestosMaquina = todosRepuestos
+            .where((r) => idsEnMaquina.contains(r.id))
+            .toList()
+          ..sort((a, b) => a.descripcion.compareTo(b.descripcion));
+        _cargandoRepuestos = false;
+      });
+    } catch (e) {
+      setState(() => _cargandoRepuestos = false);
     }
   }
 
@@ -127,10 +160,10 @@ class _State extends ConsumerState<SalidaFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final repuestos = ref.watch(repuestosProvider).valueOrNull ?? [];
-    final tickets   = ref.watch(ticketsProvider).valueOrNull ?? [];
-    final profile   = ref.watch(myProfileProvider).valueOrNull;
-    final isAdmin   = profile?.isAdmin ?? false;
+    final todosRepuestos = ref.watch(repuestosProvider).valueOrNull ?? [];
+    final tickets        = ref.watch(ticketsProvider).valueOrNull ?? [];
+    final profile        = ref.watch(myProfileProvider).valueOrNull;
+    final isAdmin        = profile?.isAdmin ?? false;
 
     var ticketsFiltrados = isAdmin
         ? tickets.where((t) => t.estado != 'cerrado').toList()
@@ -147,15 +180,25 @@ class _State extends ConsumerState<SalidaFormScreen> {
       }
     }
 
+    // Fuente de repuestos: máquina del ticket o todos
+    final fuenteRepuestos = (_repuestosMaquina != null && !isEdit)
+        ? _repuestosMaquina!
+        : todosRepuestos;
+
     final repuestosFiltrados = (_busqueda.isEmpty
-        ? repuestos
-        : repuestos.where((r) =>
+        ? fuenteRepuestos
+        : fuenteRepuestos.where((r) =>
             r.codigo.toLowerCase().contains(_busqueda.toLowerCase()) ||
             r.descripcion.toLowerCase().contains(_busqueda.toLowerCase()))
         .toList())
       ..sort((a, b) => a.descripcion.compareTo(b.descripcion));
 
     final repuestoFijo = widget.repuestoPreseleccionado;
+
+    // Ticket del que viene (para mostrar bloqueado)
+    final ticketFijo = desdeTicket
+        ? tickets.where((t) => t.id == _ticketId).firstOrNull
+        : null;
 
     return Scaffold(
       appBar: AppBar(
@@ -201,76 +244,101 @@ class _State extends ConsumerState<SalidaFormScreen> {
                 const SizedBox(height: 16),
               ],
 
-              // ── Buscador de repuesto (si no hay preseleccionado) ──
+              // ── Buscador de repuesto ──────────────────
               if (repuestoFijo == null || isEdit) ...[
                 const Text('REPUESTO', style: TextStyle(
                     fontSize: 11, fontWeight: FontWeight.w700,
                     color: Colors.grey, letterSpacing: 1)),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _busqCtrl,
-                  style: const TextStyle(fontSize: 11),
-                  decoration: InputDecoration(
-                      labelText: 'Buscar repuesto',
-                      prefixIcon: const Icon(Icons.search),
-                      hintText: 'Código o descripción...',
-                      labelStyle: const TextStyle(fontSize: 11),
-                      suffixIcon: _repuestoId != null
-                          ? const Icon(Icons.check_circle,
-                              color: Colors.green)
-                          : null),
-                  onChanged: (v) => setState(() {
-                    _busqueda   = v;
-                    _repuestoId = null;
-                  }),
-                ),
-                if (_busqueda.isNotEmpty && _repuestoId == null) ...[
-                  const SizedBox(height: 4),
+                const SizedBox(height: 4),
+                // Indicador si se filtran por máquina
+                if (_repuestosMaquina != null && !isEdit)
                   Container(
-                    constraints: const BoxConstraints(maxHeight: 200),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 5),
+                    margin: const EdgeInsets.only(bottom: 8),
                     decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(10)),
-                    child: repuestosFiltrados.isEmpty
-                        ? const Padding(
-                            padding: EdgeInsets.all(12),
-                            child: Text('Sin resultados',
-                                style: TextStyle(color: Colors.grey)))
-                        : ListView.builder(
-                            shrinkWrap: true,
-                            itemCount: repuestosFiltrados.length,
-                            itemBuilder: (_, i) {
-                              final r        = repuestosFiltrados[i];
-                              final sinStock = r.stockActual == 0;
-                              return ListTile(
-                                dense: true,
-                                enabled: !sinStock,
-                                leading: StockBadge(
-                                    stock: r.stockActual,
-                                    minimo: r.stockMinimo),
-                                title: Text(r.descripcion,
-                                    style: TextStyle(
-                                        fontSize: 10,
-                                        color: sinStock
-                                            ? Colors.grey : null)),
-                                subtitle: Text(
-                                    sinStock
-                                        ? 'Sin stock disponible'
-                                        : 'Stock disponible: ${r.stockActual}',
-                                    style: TextStyle(
-                                        fontSize: 10,
-                                        color: sinStock
-                                            ? Colors.red : null)),
-                                onTap: sinStock
-                                    ? null
-                                    : () => setState(() {
-                                          _repuestoId    = r.id;
-                                          _busqCtrl.text = r.descripcion;
-                                          _busqueda      = '';
-                                        }),
-                              );
-                            }),
+                        color: Colors.blue.withOpacity(0.06),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                            color: Colors.blue.withOpacity(0.2))),
+                    child: Row(children: [
+                      const Icon(Icons.precision_manufacturing_outlined,
+                          size: 14, color: Colors.blue),
+                      const SizedBox(width: 6),
+                      Text(
+                          'Mostrando repuestos de la máquina del ticket (${_repuestosMaquina!.length})',
+                          style: const TextStyle(
+                              fontSize: 11, color: Colors.blue)),
+                    ]),
                   ),
+                if (_cargandoRepuestos)
+                  const Center(child: CircularProgressIndicator())
+                else ...[
+                  TextFormField(
+                    controller: _busqCtrl,
+                    style: const TextStyle(fontSize: 11),
+                    decoration: InputDecoration(
+                        labelText: 'Buscar repuesto',
+                        prefixIcon: const Icon(Icons.search),
+                        hintText: 'Código o descripción...',
+                        labelStyle: const TextStyle(fontSize: 11),
+                        suffixIcon: _repuestoId != null
+                            ? const Icon(Icons.check_circle,
+                                color: Colors.green)
+                            : null),
+                    onChanged: (v) => setState(() {
+                      _busqueda   = v;
+                      _repuestoId = null;
+                    }),
+                  ),
+                  if (_busqueda.isNotEmpty && _repuestoId == null) ...[
+                    const SizedBox(height: 4),
+                    Container(
+                      constraints: const BoxConstraints(maxHeight: 200),
+                      decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(10)),
+                      child: repuestosFiltrados.isEmpty
+                          ? const Padding(
+                              padding: EdgeInsets.all(12),
+                              child: Text('Sin resultados',
+                                  style: TextStyle(color: Colors.grey)))
+                          : ListView.builder(
+                              shrinkWrap: true,
+                              itemCount: repuestosFiltrados.length,
+                              itemBuilder: (_, i) {
+                                final r        = repuestosFiltrados[i];
+                                final sinStock = r.stockActual == 0;
+                                return ListTile(
+                                  dense: true,
+                                  enabled: !sinStock,
+                                  leading: StockBadge(
+                                      stock: r.stockActual,
+                                      minimo: r.stockMinimo),
+                                  title: Text(r.descripcion,
+                                      style: TextStyle(
+                                          fontSize: 10,
+                                          color: sinStock
+                                              ? Colors.grey : null)),
+                                  subtitle: Text(
+                                      sinStock
+                                          ? 'Sin stock disponible'
+                                          : 'Stock disponible: ${r.stockActual}',
+                                      style: TextStyle(
+                                          fontSize: 10,
+                                          color: sinStock
+                                              ? Colors.red : null)),
+                                  onTap: sinStock
+                                      ? null
+                                      : () => setState(() {
+                                            _repuestoId    = r.id;
+                                            _busqCtrl.text = r.descripcion;
+                                            _busqueda      = '';
+                                          }),
+                                );
+                              }),
+                    ),
+                  ],
                 ],
                 const SizedBox(height: 16),
               ],
@@ -293,46 +361,84 @@ class _State extends ConsumerState<SalidaFormScreen> {
                 }),
               const SizedBox(height: 16),
 
-              // ── Asociar ticket ─────────────────────────
+              // ── Ticket ────────────────────────────────
               const Text('TICKET', style: TextStyle(
                   fontSize: 11, fontWeight: FontWeight.w700,
                   color: Colors.grey, letterSpacing: 1)),
               const SizedBox(height: 8),
-              Row(children: [
-                const Text('¿Asociar a un ticket?',
-                    style: TextStyle(fontSize: 12)),
-                const Spacer(),
-                Switch(
-                    value: _conTicket,
-                    onChanged: (v) => setState(() {
-                      _conTicket = v;
-                      if (!v) _ticketId = null;
-                    })),
-              ]),
-              if (_conTicket) ...[
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  isExpanded: true,
-                  value: _ticketId,
-                  decoration: const InputDecoration(
-                      labelText: 'Seleccionar ticket',
-                      prefixIcon:
-                          Icon(Icons.confirmation_number_outlined),
-                      labelStyle: TextStyle(fontSize: 12)),
-                  items: ticketsFiltrados.map((t) => DropdownMenuItem(
-                    value: t.id,
-                    child: Text(
-                        '${t.maquinaNombre ?? 'Sin máquina'} — ${t.estado}',
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                        style: const TextStyle(fontSize: 12)),
-                  )).toList(),
-                  onChanged: (v) => setState(() => _ticketId = v),
-                  validator: (v) =>
-                      (_conTicket && (v == null || v.isEmpty))
-                          ? 'Seleccione un ticket' : null),
+
+              // Si viene desde ticket → mostrar bloqueado en gris
+              if (desdeTicket && !isEdit) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                      color: Colors.grey.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                          color: Colors.grey.withOpacity(0.2))),
+                  child: Row(children: [
+                    const Icon(Icons.confirmation_number_outlined,
+                        size: 16, color: Colors.grey),
+                    const SizedBox(width: 8),
+                    Expanded(child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          ticketFijo != null
+                              ? '${ticketFijo.maquinaNombre ?? 'Sin máquina'} — ${ticketFijo.estado}'
+                              : 'Ticket asociado',
+                          style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey,
+                              fontWeight: FontWeight.w600)),
+                        const Text('Ticket vinculado — no modificable',
+                            style: TextStyle(
+                                fontSize: 10, color: Colors.grey)),
+                      ],
+                    )),
+                    const Icon(Icons.lock_outline,
+                        size: 14, color: Colors.grey),
+                  ]),
+                ),
+                const SizedBox(height: 16),
+              ] else ...[
+                // Modo normal: switch + dropdown
+                Row(children: [
+                  const Text('¿Asociar a un ticket?',
+                      style: TextStyle(fontSize: 12)),
+                  const Spacer(),
+                  Switch(
+                      value: _conTicket,
+                      onChanged: (v) => setState(() {
+                        _conTicket = v;
+                        if (!v) _ticketId = null;
+                      })),
+                ]),
+                if (_conTicket) ...[
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    isExpanded: true,
+                    value: _ticketId,
+                    decoration: const InputDecoration(
+                        labelText: 'Seleccionar ticket',
+                        prefixIcon:
+                            Icon(Icons.confirmation_number_outlined),
+                        labelStyle: TextStyle(fontSize: 12)),
+                    items: ticketsFiltrados.map((t) => DropdownMenuItem(
+                      value: t.id,
+                      child: Text(
+                          '${t.maquinaNombre ?? 'Sin máquina'} — ${t.estado}',
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                          style: const TextStyle(fontSize: 12)),
+                    )).toList(),
+                    onChanged: (v) => setState(() => _ticketId = v),
+                    validator: (v) =>
+                        (_conTicket && (v == null || v.isEmpty))
+                            ? 'Seleccione un ticket' : null),
+                ],
+                const SizedBox(height: 16),
               ],
-              const SizedBox(height: 16),
 
               // ── Observación ────────────────────────────
               TextFormField(

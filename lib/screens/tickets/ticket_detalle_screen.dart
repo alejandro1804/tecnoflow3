@@ -178,7 +178,8 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                         MaterialPageRoute(builder: (_) => ProviderScope(
                             parent: ProviderScope.containerOf(context),
                             child: RepuestosMaquinaScreen(
-                                maquinaId:     ticket.maquinaId,
+                               // maquinaId:     ticket.maquinaId,
+                                 maquinaId:     ticket.maquinaId ?? '',
                                 maquinaNombre: ticket.maquinaNombre ?? 'Máquina')))))),
 
             // ── Registrar salida ──────────────────────
@@ -195,7 +196,9 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                         MaterialPageRoute(builder: (_) => ProviderScope(
                             parent: ProviderScope.containerOf(context),
                             child: SalidaFormScreen(
-                                ticketIdInicial: ticket.id)))))),
+                                ticketIdInicial: ticket.id,
+                                maquinaId: ticket.maquinaId,
+                            )))))),
 
             // ── Descripción ───────────────────────────
             Card(child: Padding(
@@ -314,11 +317,11 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    // Badges en Wrap para evitar overflow
                                     Wrap(
                                       spacing: 4,
                                       runSpacing: 4,
-                                      crossAxisAlignment: WrapCrossAlignment.center,
+                                      crossAxisAlignment:
+                                          WrapCrossAlignment.center,
                                       children: [
                                         if (h.estadoAnterior != null) ...[
                                           EstadoBadge(h.estadoAnterior!),

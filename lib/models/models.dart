@@ -1,4 +1,3 @@
-
 // lib/models/models.dart
 // ── Rol ──────────────────────────────────────────────────────
 class Rol {
@@ -151,22 +150,22 @@ class Repuesto {
 
 // ── Ticket ────────────────────────────────────────────────────
 class Ticket {
-  final String id;
-  final String maquinaId;
+  final String  id;
+  final String? maquinaId;       // nullable — tickets sin máquina asociada
   final String? maquinaNombre;
-  final String creadoPor;
+  final String  creadoPor;
   final String? creadoPorNombre;
   final String? tecnicoId;
   final String? tecnicoNombre;
-  final String estado;
-  final String descripcionDesperfecto;
+  final String  estado;
+  final String  descripcionDesperfecto;
   final String? observacionEncargado;
   final String? observacionTecnico;
   final DateTime createdAt;
 
   const Ticket({
     required this.id,
-    required this.maquinaId,
+    this.maquinaId,
     this.maquinaNombre,
     required this.creadoPor,
     this.creadoPorNombre,
@@ -181,7 +180,7 @@ class Ticket {
 
   factory Ticket.fromMap(Map<String, dynamic> m) => Ticket(
         id:                     m['id'],
-        maquinaId:              m['maquina_id'],
+        maquinaId:              m['maquina_id'],       // acepta null
         maquinaNombre:          m['maquinas']?['nombre'],
         creadoPor:              m['creado_por'],
         creadoPorNombre:        m['creador']?['nombre'],
