@@ -29,20 +29,21 @@ class _State extends ConsumerState<SalidaFormScreen> {
   final _cantCtrl = TextEditingController(text: '1');
   final _obsCtrl  = TextEditingController();
   final _busqCtrl = TextEditingController();
+  final _refCtrl  = TextEditingController();
 
   String? _repuestoId;
   String? _ticketId;
-  String  _busqueda  = '';
-  bool    _conTicket = false;
-  bool    _loading   = false;
+  String  _busqueda    = '';
+  String  _busquedaRef = '';
+  bool    _conTicket   = false;
+  bool    _loading     = false;
   String? _error;
 
-  // Repuestos de la máquina del ticket (cuando viene maquinaId)
   List<Repuesto>? _repuestosMaquina;
   bool _cargandoRepuestos = false;
 
-  bool get isEdit        => widget.salida != null;
-  bool get desdeTicket   => widget.ticketIdInicial != null;
+  bool get isEdit      => widget.salida != null;
+  bool get desdeTicket => widget.ticketIdInicial != null;
 
   @override
   void initState() {
@@ -64,52 +65,47 @@ class _State extends ConsumerState<SalidaFormScreen> {
       _conTicket = true;
     }
 
-    // Si viene maquinaId cargar repuestos de esa máquina
     if (widget.maquinaId != null && !isEdit) {
       Future.microtask(() => _cargarRepuestosMaquina());
     }
   }
 
   Future<void> _cargarRepuestosMaquina() async {
-      setState(() => _cargandoRepuestos = true);
-      try {
-        final items = await ref
-            .read(repuestosMaquinasRepoProvider)
-            .getByMaquina(widget.maquinaId!);
-        final todosRepuestos =
-            ref.read(repuestosProvider).valueOrNull ?? [];
-        final idsEnMaquina = items.map((m) => m.repuestoId).toSet();
-        final filtrados = todosRepuestos
-            .where((r) => idsEnMaquina.contains(r.id))
-            .toList()
-          ..sort((a, b) => a.descripcion.compareTo(b.descripcion));
-        setState(() {
-          // Si la máquina no tiene repuestos asociados → mostrar todos
-          _repuestosMaquina = filtrados.isEmpty ? null : filtrados;
-          _cargandoRepuestos = false;
-        });
-      } catch (e) {
-        setState(() => _cargandoRepuestos = false);
-      }
+    setState(() => _cargandoRepuestos = true);
+    try {
+      final items = await ref
+          .read(repuestosMaquinasRepoProvider)
+          .getByMaquina(widget.maquinaId!);
+      final todosRepuestos = ref.read(repuestosProvider).valueOrNull ?? [];
+      final idsEnMaquina   = items.map((m) => m.repuestoId).toSet();
+      final filtrados = todosRepuestos
+          .where((r) => idsEnMaquina.contains(r.id))
+          .toList()
+        ..sort((a, b) => a.descripcion.compareTo(b.descripcion));
+      setState(() {
+        _repuestosMaquina  = filtrados.isEmpty ? null : filtrados;
+        _cargandoRepuestos = false;
+      });
+    } catch (e) {
+      setState(() => _cargandoRepuestos = false);
     }
+  }
 
   @override
   void dispose() {
-    _cantCtrl.dispose(); _obsCtrl.dispose(); _busqCtrl.dispose();
+    _cantCtrl.dispose(); _obsCtrl.dispose();
+    _busqCtrl.dispose(); _refCtrl.dispose();
     super.dispose();
   }
 
   String _mensajeError(Object e) {
     final msg = e.toString();
-    if (msg.contains('Stock insuficiente')) {
-      return 'Stock insuficiente. Verificá la cantidad disponible del repuesto antes de continuar.';
-    }
-    if (msg.contains('violates row-level security')) {
+    if (msg.contains('Stock insuficiente'))
+      return 'Stock insuficiente. Verificá la cantidad disponible.';
+    if (msg.contains('violates row-level security'))
       return 'No tenés permisos para realizar esta operación.';
-    }
-    if (msg.contains('violates foreign key')) {
+    if (msg.contains('violates foreign key'))
       return 'El repuesto o ticket seleccionado no existe.';
-    }
     return 'Ocurrió un error. Intentá nuevamente.';
   }
 
@@ -148,8 +144,7 @@ class _State extends ConsumerState<SalidaFormScreen> {
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(
-                isEdit ? 'Salida actualizada' : 'Salida registrada'),
+            content: Text(isEdit ? 'Salida actualizada' : 'Salida registrada'),
             backgroundColor: Colors.green));
       }
     } catch (e) {
@@ -169,42 +164,45 @@ class _State extends ConsumerState<SalidaFormScreen> {
     var ticketsFiltrados = isAdmin
         ? tickets.where((t) => t.estado != 'cerrado').toList()
         : tickets.where((t) =>
-            t.tecnicoId == profile?.id &&
-            t.estado != 'cerrado').toList();
+            t.tecnicoId == profile?.id && t.estado != 'cerrado').toList();
 
     if (isEdit && _ticketId != null) {
       final yaEsta = ticketsFiltrados.any((t) => t.id == _ticketId);
       if (!yaEsta) {
-        final ticketOriginal =
-            tickets.where((t) => t.id == _ticketId).toList();
-        ticketsFiltrados = [...ticketOriginal, ...ticketsFiltrados];
+        final orig = tickets.where((t) => t.id == _ticketId).toList();
+        ticketsFiltrados = [...orig, ...ticketsFiltrados];
       }
     }
 
-    // Fuente de repuestos: máquina del ticket o todos
     final fuenteRepuestos = (_repuestosMaquina != null && !isEdit)
         ? _repuestosMaquina!
         : todosRepuestos;
 
-    final repuestosFiltrados = (_busqueda.isEmpty
-        ? fuenteRepuestos
-        : fuenteRepuestos.where((r) =>
-            r.codigo.toLowerCase().contains(_busqueda.toLowerCase()) ||
-            r.descripcion.toLowerCase().contains(_busqueda.toLowerCase()))
-        .toList())
-      ..sort((a, b) => a.descripcion.compareTo(b.descripcion));
+    // Filtro por REF tiene prioridad
+    List<Repuesto> repuestosFiltrados;
+    if (_busquedaRef.isNotEmpty) {
+      final refNum = int.tryParse(_busquedaRef);
+      repuestosFiltrados = refNum != null
+          ? fuenteRepuestos.where((r) => r.ref == refNum).toList()
+          : [];
+    } else {
+      repuestosFiltrados = (_busqueda.isEmpty
+          ? fuenteRepuestos
+          : fuenteRepuestos.where((r) =>
+              r.codigo.toLowerCase().contains(_busqueda.toLowerCase()) ||
+              r.descripcion.toLowerCase().contains(_busqueda.toLowerCase()))
+          .toList())
+        ..sort((a, b) => a.descripcion.compareTo(b.descripcion));
+    }
 
     final repuestoFijo = widget.repuestoPreseleccionado;
-
-    // Ticket del que viene (para mostrar bloqueado)
-    final ticketFijo = desdeTicket
+    final ticketFijo   = desdeTicket
         ? tickets.where((t) => t.id == _ticketId).firstOrNull
         : null;
 
     return Scaffold(
       appBar: AppBar(
-          title: Text(
-              isEdit ? 'Editar salida' : 'Nueva salida de repuesto')),
+          title: Text(isEdit ? 'Editar salida' : 'Nueva salida de repuesto')),
       body: SingleChildScrollView(
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: const EdgeInsets.all(20),
@@ -221,8 +219,7 @@ class _State extends ConsumerState<SalidaFormScreen> {
                   decoration: BoxDecoration(
                       color: Colors.red.withOpacity(0.05),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                          color: Colors.red.withOpacity(0.2))),
+                      border: Border.all(color: Colors.red.withOpacity(0.2))),
                   child: Row(children: [
                     const Icon(Icons.inventory_2_outlined,
                         color: Colors.red, size: 18),
@@ -232,10 +229,10 @@ class _State extends ConsumerState<SalidaFormScreen> {
                       children: [
                         Text(repuestoFijo.descripcion,
                             style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13)),
+                                fontWeight: FontWeight.w600, fontSize: 13)),
                         Text(
-                            'Código: ${repuestoFijo.codigo}  |  Stock actual: ${repuestoFijo.stockActual}',
+                            'Código: ${repuestoFijo.codigo}  |  Stock: ${repuestoFijo.stockActual}'
+                            '${repuestoFijo.ref != null ? '  |  REF: ${repuestoFijo.ref}' : ''}',
                             style: const TextStyle(
                                 fontSize: 11, color: Colors.grey)),
                       ],
@@ -251,7 +248,7 @@ class _State extends ConsumerState<SalidaFormScreen> {
                     fontSize: 11, fontWeight: FontWeight.w700,
                     color: Colors.grey, letterSpacing: 1)),
                 const SizedBox(height: 4),
-                // Indicador si se filtran por máquina
+
                 if (_repuestosMaquina != null && !isEdit)
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -267,33 +264,82 @@ class _State extends ConsumerState<SalidaFormScreen> {
                           size: 14, color: Colors.blue),
                       const SizedBox(width: 6),
                       Text(
-                          'Mostrando repuestos de la máquina del ticket (${_repuestosMaquina!.length})',
+                          'Repuestos de la máquina del ticket (${_repuestosMaquina!.length})',
                           style: const TextStyle(
                               fontSize: 11, color: Colors.blue)),
                     ]),
                   ),
+
                 if (_cargandoRepuestos)
                   const Center(child: CircularProgressIndicator())
                 else ...[
+                  // Buscador texto
                   TextFormField(
                     controller: _busqCtrl,
                     style: const TextStyle(fontSize: 11),
                     decoration: InputDecoration(
-                        labelText: 'Buscar repuesto',
+                        labelText: 'Buscar por código o descripción',
                         prefixIcon: const Icon(Icons.search),
-                        hintText: 'Código o descripción...',
                         labelStyle: const TextStyle(fontSize: 11),
                         suffixIcon: _repuestoId != null
                             ? const Icon(Icons.check_circle,
                                 color: Colors.green)
                             : null),
                     onChanged: (v) => setState(() {
-                      _busqueda   = v;
-                      _repuestoId = null;
+                      _busqueda    = v;
+                      _busquedaRef = '';
+                      _refCtrl.clear();
+                      _repuestoId  = null;
                     }),
                   ),
-                  if (_busqueda.isNotEmpty && _repuestoId == null) ...[
-                    const SizedBox(height: 4),
+                  const SizedBox(height: 8),
+
+                  // Buscador REF
+                  TextField(
+                    controller: _refCtrl,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: InputDecoration(
+                      labelText: 'Buscar por N° REF',
+                      prefixIcon: const Icon(Icons.tag,
+                          color: Colors.purple, size: 20),
+                      labelStyle: const TextStyle(
+                          fontSize: 11, color: Colors.purple),
+                      suffixIcon: _busquedaRef.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 18),
+                              onPressed: () {
+                                _refCtrl.clear();
+                                setState(() {
+                                  _busquedaRef = '';
+                                  _repuestoId  = null;
+                                });
+                              })
+                          : null,
+                      enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(
+                              color: Colors.purple.withOpacity(0.3))),
+                      focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide:
+                              const BorderSide(color: Colors.purple)),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      isDense: true,
+                    ),
+                    onChanged: (v) => setState(() {
+                      _busquedaRef = v;
+                      _busqueda    = '';
+                      _busqCtrl.clear();
+                      _repuestoId  = null;
+                    }),
+                  ),
+                  const SizedBox(height: 4),
+
+                  // Lista resultados
+                  if ((_busqueda.isNotEmpty || _busquedaRef.isNotEmpty) &&
+                      _repuestoId == null)
                     Container(
                       constraints: const BoxConstraints(maxHeight: 200),
                       decoration: BoxDecoration(
@@ -323,8 +369,9 @@ class _State extends ConsumerState<SalidaFormScreen> {
                                               ? Colors.grey : null)),
                                   subtitle: Text(
                                       sinStock
-                                          ? 'Sin stock disponible'
-                                          : 'Stock disponible: ${r.stockActual}',
+                                          ? 'Sin stock'
+                                          : 'Stock: ${r.stockActual}'
+                                            '${r.ref != null ? '  •  REF ${r.ref}' : ''}',
                                       style: TextStyle(
                                           fontSize: 10,
                                           color: sinStock
@@ -335,11 +382,12 @@ class _State extends ConsumerState<SalidaFormScreen> {
                                             _repuestoId    = r.id;
                                             _busqCtrl.text = r.descripcion;
                                             _busqueda      = '';
+                                            _busquedaRef   = '';
+                                            _refCtrl.clear();
                                           }),
                                 );
                               }),
                     ),
-                  ],
                 ],
                 const SizedBox(height: 16),
               ],
@@ -356,8 +404,7 @@ class _State extends ConsumerState<SalidaFormScreen> {
                     labelStyle: TextStyle(fontSize: 12)),
                 validator: (v) {
                   if (v == null || v.isEmpty) return 'Requerido';
-                  if ((int.tryParse(v) ?? 0) <= 0)
-                    return 'Debe ser mayor a 0';
+                  if ((int.tryParse(v) ?? 0) <= 0) return 'Debe ser mayor a 0';
                   return null;
                 }),
               const SizedBox(height: 16),
@@ -368,7 +415,6 @@ class _State extends ConsumerState<SalidaFormScreen> {
                   color: Colors.grey, letterSpacing: 1)),
               const SizedBox(height: 8),
 
-              // Si viene desde ticket → mostrar bloqueado en gris
               if (desdeTicket && !isEdit) ...[
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -403,7 +449,6 @@ class _State extends ConsumerState<SalidaFormScreen> {
                 ),
                 const SizedBox(height: 16),
               ] else ...[
-                // Modo normal: switch + dropdown
                 Row(children: [
                   const Text('¿Asociar a un ticket?',
                       style: TextStyle(fontSize: 12)),

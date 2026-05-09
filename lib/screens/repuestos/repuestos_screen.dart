@@ -1,5 +1,6 @@
 // lib/screens/repuestos/repuestos_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/widgets.dart';
@@ -21,8 +22,10 @@ class RepuestosScreen extends ConsumerStatefulWidget {
 class _State extends ConsumerState<RepuestosScreen> {
   late bool _soloStockBajo;
   String  _busqueda     = '';
+  String  _busquedaRef  = '';
   bool    _generandoPdf = false;
   final Set<String> _expandidos = {};
+  final _refCtrl = TextEditingController();
 
   @override
   void initState() {
@@ -31,10 +34,26 @@ class _State extends ConsumerState<RepuestosScreen> {
     Future.microtask(() => ref.invalidate(repuestosProvider));
   }
 
+  @override
+  void dispose() {
+    _refCtrl.dispose();
+    super.dispose();
+  }
+
   List<Repuesto> _filtrar(List<Repuesto> todos) {
     var lista = _soloStockBajo
         ? todos.where((r) => r.stockBajo).toList()
         : todos.toList();
+
+    // Filtro por ref tiene prioridad si está activo
+    if (_busquedaRef.isNotEmpty) {
+      final refNum = int.tryParse(_busquedaRef);
+      if (refNum != null) {
+        lista = lista.where((r) => r.ref == refNum).toList();
+      }
+      return lista;
+    }
+
     if (_busqueda.isNotEmpty) {
       lista = lista.where((r) =>
           r.codigo.toLowerCase().contains(_busqueda.toLowerCase()) ||
@@ -117,6 +136,8 @@ class _State extends ConsumerState<RepuestosScreen> {
                 color: Colors.white,
                 padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
                 child: Column(children: [
+
+                  // Buscador texto
                   TextField(
                     decoration: InputDecoration(
                       hintText: 'Buscar por código, descripción...',
@@ -134,6 +155,40 @@ class _State extends ConsumerState<RepuestosScreen> {
                     onChanged: (v) => setState(() => _busqueda = v),
                   ),
                   const SizedBox(height: 8),
+
+                  // Buscador por REF
+                  TextField(
+                    controller: _refCtrl,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: InputDecoration(
+                      hintText: 'Buscar por N° REF...',
+                      prefixIcon: const Icon(Icons.tag, size: 20,
+                          color: Colors.purple),
+                      suffixIcon: _busquedaRef.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 18),
+                              onPressed: () {
+                                _refCtrl.clear();
+                                setState(() => _busquedaRef = '');
+                              })
+                          : null,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      isDense: true,
+                      enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(
+                              color: Colors.purple.withOpacity(0.3))),
+                      focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(
+                              color: Colors.purple)),
+                    ),
+                    onChanged: (v) => setState(() => _busquedaRef = v),
+                  ),
+                  const SizedBox(height: 8),
+
                   Row(children: [
                     FilterChip(
                       label: const Text('Todos'),
@@ -254,10 +309,35 @@ class _RepuestoCard extends ConsumerWidget {
                   decoration: BoxDecoration(color: Colors.grey[300],
                       borderRadius: BorderRadius.circular(2)))),
               const SizedBox(height: 16),
-              const Text('DETALLE DE REPUESTO', style: TextStyle(
-                  fontSize: 11, fontWeight: FontWeight.w700,
-                  color: Colors.grey, letterSpacing: 1)),
+
+              // Header con REF badge
+              Row(children: [
+                const Text('DETALLE DE REPUESTO', style: TextStyle(
+                    fontSize: 11, fontWeight: FontWeight.w700,
+                    color: Colors.grey, letterSpacing: 1)),
+                const Spacer(),
+                if (repuesto.ref != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                        color: Colors.purple.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                            color: Colors.purple.withOpacity(0.3))),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      const Icon(Icons.tag, size: 12, color: Colors.purple),
+                      const SizedBox(width: 3),
+                      Text('REF ${repuesto.ref}',
+                          style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.purple,
+                              fontWeight: FontWeight.w800)),
+                    ]),
+                  ),
+              ]),
               const SizedBox(height: 12),
+
               if (repuesto.imagenUrl != null) ...[
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
@@ -407,7 +487,7 @@ class _RepuestoCard extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
 
-                // ── FILA 1: Descripción ───────────────
+                // ── FILA 1: Descripción + REF badge ──
                 Row(children: [
                   CircleAvatar(
                     radius: 10,
@@ -429,6 +509,23 @@ class _RepuestoCard extends ConsumerWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis),
                   ),
+                  if (repuesto.ref != null) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                          color: Colors.purple.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                              color: Colors.purple.withOpacity(0.3))),
+                      child: Text('# ${repuesto.ref}',
+                          style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.purple,
+                              fontWeight: FontWeight.w800)),
+                    ),
+                  ],
                 ]),
                 const SizedBox(height: 10),
 
@@ -436,7 +533,6 @@ class _RepuestoCard extends ConsumerWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Foto
                     SizedBox(
                       width: 80,
                       height: 80,
@@ -454,7 +550,6 @@ class _RepuestoCard extends ConsumerWidget {
                                   color: Colors.grey[300], size: 28)),
                     ),
                     const SizedBox(width: 12),
-                    // Info
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -499,15 +594,11 @@ class _RepuestoCard extends ConsumerWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-
-                    // 👁 Ver — todos
                     _IconBtn(
                       icon: Icons.visibility_outlined,
                       color: Colors.teal,
                       onTap: () => _verDetalle(context),
                     ),
-
-                    // ✅/⭕ Activar/Desactivar — admin y pañolero
                     if (canManage)
                       _IconBtn(
                         icon: repuesto.activo
@@ -518,8 +609,6 @@ class _RepuestoCard extends ConsumerWidget {
                             : Colors.orange,
                         onTap: () => _toggleActivo(context, ref),
                       ),
-
-                    // ✏️ Editar — admin y pañolero
                     if (canManage)
                       _IconBtn(
                         icon: Icons.edit_outlined,
@@ -527,8 +616,6 @@ class _RepuestoCard extends ConsumerWidget {
                         onTap: () =>
                             context.push('/repuestos/${repuesto.id}'),
                       ),
-
-                    // ➕ Ingreso rápido — admin y pañolero
                     if (canManage)
                       _IconBtn(
                         icon: Icons.add_circle_outline,
@@ -542,8 +629,6 @@ class _RepuestoCard extends ConsumerWidget {
                                         repuestoPreseleccionado:
                                             repuesto)))),
                       ),
-
-                    // ➖ Salida rápida — admin y pañolero
                     if (canManage)
                       _IconBtn(
                         icon: Icons.remove_circle_outline,
@@ -557,8 +642,6 @@ class _RepuestoCard extends ConsumerWidget {
                                         repuestoPreseleccionado:
                                             repuesto)))),
                       ),
-
-                    // 🔧 Máquinas — todos
                     _IconBtn(
                       icon: expandido
                           ? Icons.precision_manufacturing

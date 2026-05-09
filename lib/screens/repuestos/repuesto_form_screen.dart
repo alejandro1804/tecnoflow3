@@ -23,12 +23,13 @@ class _State extends ConsumerState<RepuestoFormScreen> {
   final _minCtrl  = TextEditingController(text: '0');
   final _ubicCtrl = TextEditingController();
 
-  bool      _loading     = false;
-  bool      _loadingData = false;
-  bool      _subiendoImg = false;
-  String?   _error;
-  String?   _imagenUrl;       // URL actual guardada
-  Uint8List? _imagenBytes;    // Preview de imagen nueva antes de guardar
+  bool       _loading     = false;
+  bool       _loadingData = false;
+  bool       _subiendoImg = false;
+  String?    _error;
+  String?    _imagenUrl;
+  Uint8List? _imagenBytes;
+  int?       _ref;           // campo ref solo lectura
 
   bool get isEdit => widget.repuestoId != null;
 
@@ -44,48 +45,38 @@ class _State extends ConsumerState<RepuestoFormScreen> {
       _descCtrl.text = rep.descripcion;
       _minCtrl.text  = rep.stockMinimo.toString();
       _ubicCtrl.text = rep.ubicacion ?? '';
-      setState(() => _imagenUrl = rep.imagenUrl);
+      setState(() {
+        _imagenUrl = rep.imagenUrl;
+        _ref       = rep.ref;
+      });
     } finally {
       if (mounted) setState(() => _loadingData = false);
     }
   }
 
-  // ── Seleccionar imagen ────────────────────────────────────
   Future<void> _seleccionarImagen() async {
     final bytes = await ImageHelper.elegirImagen(context);
-    if (bytes != null) {
-      setState(() => _imagenBytes = bytes);
-    }
+    if (bytes != null) setState(() => _imagenBytes = bytes);
   }
 
-  // ── Quitar imagen ─────────────────────────────────────────
   void _quitarImagen() {
-    setState(() {
-      _imagenBytes = null;
-      _imagenUrl   = null;
-    });
+    setState(() { _imagenBytes = null; _imagenUrl = null; });
   }
 
-  // ── Guardar ───────────────────────────────────────────────
   Future<void> _submit() async {
-
     if (!_formKey.currentState!.validate()) return;
     setState(() { _loading = true; _error = null; });
     try {
       String? urlFinal = _imagenUrl;
 
-      // Si hay imagen nueva, subirla primero
-     if (_imagenBytes != null) {
+      if (_imagenBytes != null) {
         setState(() => _subiendoImg = true);
-        // Para alta necesitamos un ID temporal hasta crear el registro
         final tempId = widget.repuestoId ??
             'temp_${DateTime.now().millisecondsSinceEpoch}';
         urlFinal = await ImageHelper.subirImagen(_imagenBytes!, tempId);
         setState(() => _subiendoImg = false);
       }
 
-
-      // Si quitaron la imagen en edición, eliminar del bucket
       if (_imagenBytes == null && _imagenUrl == null && isEdit) {
         await ImageHelper.eliminarImagen(widget.repuestoId!);
       }
@@ -96,13 +87,13 @@ class _State extends ConsumerState<RepuestoFormScreen> {
         descripcion: _descCtrl.text.trim(),
         stockActual: 0,
         stockMinimo: int.tryParse(_minCtrl.text) ?? 0,
-        ubicacion:   _ubicCtrl.text.trim().isEmpty ? null : _ubicCtrl.text.trim(),
+        ubicacion:   _ubicCtrl.text.trim().isEmpty
+            ? null : _ubicCtrl.text.trim(),
         imagenUrl:   urlFinal,
       );
 
       if (isEdit) {
         await ref.read(repuestosRepoProvider).update(widget.repuestoId!, rep);
-        // Si la imagen era temporal, renombrarla con el ID real
         if (_imagenBytes != null && urlFinal != null &&
             urlFinal.contains('temp_')) {
           final nueva = await ImageHelper.subirImagen(
@@ -113,14 +104,13 @@ class _State extends ConsumerState<RepuestoFormScreen> {
         }
       } else {
         await ref.read(repuestosRepoProvider).create(rep);
-        // Si había imagen temporal, buscar el nuevo ID y actualizar URL
         if (_imagenBytes != null) {
-          final todos  = await ref.read(repuestosRepoProvider).getAll();
-          final nuevo  = todos.firstWhere((r) => r.codigo == rep.codigo);
+          final todos = await ref.read(repuestosRepoProvider).getAll();
+          final nuevo = todos.firstWhere((r) => r.codigo == rep.codigo);
           final urlNew = await ImageHelper.subirImagen(
               _imagenBytes!, nuevo.id);
-          await ref.read(repuestosRepoProvider)
-              .update(nuevo.id, Repuesto(
+          await ref.read(repuestosRepoProvider).update(
+              nuevo.id, Repuesto(
                 id:          nuevo.id,
                 codigo:      rep.codigo,
                 descripcion: rep.descripcion,
@@ -191,21 +181,49 @@ class _State extends ConsumerState<RepuestoFormScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
 
-                  // ── Selector de imagen ────────────────
+                  // ── REF (solo lectura en edición) ─────
+                  if (isEdit && _ref != null) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                          color: Colors.purple.withOpacity(0.06),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                              color: Colors.purple.withOpacity(0.3))),
+                      child: Row(children: [
+                        const Icon(Icons.tag,
+                            color: Colors.purple, size: 20),
+                        const SizedBox(width: 10),
+                        const Text('N° Referencia',
+                            style: TextStyle(
+                                fontSize: 13, color: Colors.purple)),
+                        const Spacer(),
+                        Text('$_ref',
+                            style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.purple)),
+                      ]),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+
+                  // ── Imagen ────────────────────────────
                   const Text('IMAGEN', style: TextStyle(
                       fontSize: 11, fontWeight: FontWeight.w700,
                       color: Colors.grey, letterSpacing: 1)),
                   const SizedBox(height: 8),
                   _ImagenSelector(
-                    imagenBytes: _imagenBytes,
-                    imagenUrl:   _imagenUrl,
-                    subiendoImg: _subiendoImg,
+                    imagenBytes:   _imagenBytes,
+                    imagenUrl:     _imagenUrl,
+                    subiendoImg:   _subiendoImg,
                     onSeleccionar: _seleccionarImagen,
                     onQuitar:      _quitarImagen,
                   ),
                   const SizedBox(height: 20),
 
-                  // ── Campos del repuesto ───────────────
+                  // ── Campos ────────────────────────────
                   TextFormField(
                     controller: _codCtrl,
                     textCapitalization: TextCapitalization.characters,
@@ -286,7 +304,6 @@ class _ImagenSelector extends StatelessWidget {
         border: Border.all(color: Colors.grey.shade300)),
       child: tieneImagen
           ? Stack(fit: StackFit.expand, children: [
-              // Imagen
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: imagenBytes != null
@@ -298,7 +315,6 @@ class _ImagenSelector extends StatelessWidget {
                                 : const Center(
                                     child: CircularProgressIndicator())),
               ),
-              // Botón quitar
               Positioned(
                 top: 8, right: 8,
                 child: GestureDetector(
@@ -306,12 +322,10 @@ class _ImagenSelector extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.all(4),
                     decoration: const BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle),
+                        color: Colors.red, shape: BoxShape.circle),
                     child: const Icon(Icons.close,
                         color: Colors.white, size: 18)),
                 )),
-              // Botón cambiar
               Positioned(
                 bottom: 8, right: 8,
                 child: GestureDetector(
@@ -337,7 +351,8 @@ class _ImagenSelector extends StatelessWidget {
                       color: Colors.black.withOpacity(0.4),
                       borderRadius: BorderRadius.circular(12)),
                   child: const Center(
-                      child: CircularProgressIndicator(color: Colors.white))),
+                      child: CircularProgressIndicator(
+                          color: Colors.white))),
             ])
           : InkWell(
               onTap: onSeleccionar,
@@ -349,10 +364,12 @@ class _ImagenSelector extends StatelessWidget {
                       size: 48, color: Colors.grey[400]),
                   const SizedBox(height: 8),
                   Text('Agregar imagen',
-                      style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+                      style: TextStyle(
+                          color: Colors.grey[600], fontSize: 13)),
                   const SizedBox(height: 4),
                   Text('Cámara, galería o archivos',
-                      style: TextStyle(color: Colors.grey[400], fontSize: 11)),
+                      style: TextStyle(
+                          color: Colors.grey[400], fontSize: 11)),
                 ],
               ),
             ),

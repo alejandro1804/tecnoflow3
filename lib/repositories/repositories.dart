@@ -80,7 +80,6 @@ class MaquinasRepository {
 
 // ── Repuestos ─────────────────────────────────────────────────
 class RepuestosRepository {
-  // Solo trae repuestos activos
   Future<List<Repuesto>> getAll() async {
     final data = await _db
         .from('repuestos')
@@ -90,7 +89,6 @@ class RepuestosRepository {
     return (data as List).map((e) => Repuesto.fromMap(e)).toList();
   }
 
-  // Trae todos incluyendo inactivos (para admin y pañolero)
   Future<List<Repuesto>> getAllIncluyendoInactivos() async {
     final data = await _db
         .from('repuestos')
@@ -152,7 +150,6 @@ class TicketsRepository {
     return (data as List).map((e) => TicketHistorial.fromMap(e)).toList();
   }
 
-  // maquinaId es nullable — permite tickets sin máquina asociada
   Future<void> create({
     String? maquinaId,
     required String descripcion,
@@ -206,7 +203,7 @@ class MovimientosRepository {
   // ── INGRESOS ────────────────────────────────────────────────
   Future<List<IngresoRepuesto>> getIngresos() async {
     final data = await _db.from('ingreso_repuestos')
-        .select('*, repuestos(codigo, descripcion)')
+        .select('*, repuestos(codigo, descripcion, ref)')
         .order('created_at', ascending: false);
     return (data as List).map((e) => IngresoRepuesto.fromMap(e)).toList();
   }
@@ -248,7 +245,7 @@ class MovimientosRepository {
   // ── SALIDAS ─────────────────────────────────────────────────
   Future<List<SalidaRepuesto>> getSalidas() async {
     final data = await _db.from('salida_repuestos')
-        .select('*, repuestos(codigo, descripcion)')
+        .select('*, repuestos(codigo, descripcion, ref)')
         .order('created_at', ascending: false);
     return (data as List).map((e) => SalidaRepuesto.fromMap(e)).toList();
   }

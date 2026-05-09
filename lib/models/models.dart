@@ -103,6 +103,7 @@ class Repuesto {
   final String? ubicacion;
   final String? imagenUrl;
   final bool    activo;
+  final int?    ref;            // autoincremental desde Postgres, solo lectura
 
   const Repuesto({
     required this.id,
@@ -113,6 +114,7 @@ class Repuesto {
     this.ubicacion,
     this.imagenUrl,
     this.activo = true,
+    this.ref,
   });
 
   bool get stockBajo => stockActual <= stockMinimo;
@@ -126,6 +128,7 @@ class Repuesto {
     ubicacion:   m['ubicacion'],
     imagenUrl:   m['imagen_url'],
     activo:      m['activo'] ?? true,
+    ref:         m['ref'],
   );
 
   Map<String, dynamic> toInsert() => {
@@ -136,6 +139,7 @@ class Repuesto {
     'ubicacion':    ubicacion,
     'imagen_url':   imagenUrl,
     'activo':       activo,
+    // ref no se envía — lo asigna Postgres automáticamente
   };
 
   Map<String, dynamic> toUpdate() => {
@@ -145,13 +149,14 @@ class Repuesto {
     'ubicacion':    ubicacion,
     'imagen_url':   imagenUrl,
     'activo':       activo,
+    // ref no se envía — lo asigna Postgres automáticamente
   };
 }
 
 // ── Ticket ────────────────────────────────────────────────────
 class Ticket {
   final String  id;
-  final String? maquinaId;       // nullable — tickets sin máquina asociada
+  final String? maquinaId;
   final String? maquinaNombre;
   final String  creadoPor;
   final String? creadoPorNombre;
@@ -180,7 +185,7 @@ class Ticket {
 
   factory Ticket.fromMap(Map<String, dynamic> m) => Ticket(
         id:                     m['id'],
-        maquinaId:              m['maquina_id'],       // acepta null
+        maquinaId:              m['maquina_id'],
         maquinaNombre:          m['maquinas']?['nombre'],
         creadoPor:              m['creado_por'],
         creadoPorNombre:        m['creador']?['nombre'],
@@ -234,6 +239,7 @@ class IngresoRepuesto {
   final String repuestoId;
   final String? repuestoCodigo;
   final String? repuestoDescripcion;
+  final int?    repuestoRef;
   final String registradoPor;
   final int cantidad;
   final String quienEntrega;
@@ -245,6 +251,7 @@ class IngresoRepuesto {
     required this.repuestoId,
     this.repuestoCodigo,
     this.repuestoDescripcion,
+    this.repuestoRef,
     required this.registradoPor,
     required this.cantidad,
     required this.quienEntrega,
@@ -257,6 +264,7 @@ class IngresoRepuesto {
         repuestoId:          m['repuesto_id'],
         repuestoCodigo:      m['repuestos']?['codigo'],
         repuestoDescripcion: m['repuestos']?['descripcion'],
+        repuestoRef:         m['repuestos']?['ref'],
         registradoPor:       m['registrado_por'],
         cantidad:            m['cantidad'] ?? 0,
         quienEntrega:        m['quien_entrega'] ?? '',
@@ -271,6 +279,7 @@ class SalidaRepuesto {
   final String repuestoId;
   final String? repuestoCodigo;
   final String? repuestoDescripcion;
+  final int?    repuestoRef;
   final String? ticketId;
   final String registradoPor;
   final int cantidad;
@@ -282,6 +291,7 @@ class SalidaRepuesto {
     required this.repuestoId,
     this.repuestoCodigo,
     this.repuestoDescripcion,
+    this.repuestoRef,
     this.ticketId,
     required this.registradoPor,
     required this.cantidad,
@@ -294,6 +304,7 @@ class SalidaRepuesto {
     repuestoId:          m['repuesto_id'],
     repuestoCodigo:      m['repuestos']?['codigo'],
     repuestoDescripcion: m['repuestos']?['descripcion'],
+    repuestoRef:         m['repuestos']?['ref'],
     ticketId:            m['ticket_id'],
     registradoPor:       m['registrado_por'],
     cantidad:            m['cantidad'] ?? 0,

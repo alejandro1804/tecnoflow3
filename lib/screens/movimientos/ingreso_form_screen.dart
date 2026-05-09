@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../../core/widgets.dart';
 import '../../models/models.dart';
 import '../../providers/providers.dart';
@@ -26,8 +25,13 @@ class _State extends ConsumerState<IngresoFormScreen> {
   final _cantCtrl    = TextEditingController(text: '1');
   final _entregaCtrl = TextEditingController();
   final _descCtrl    = TextEditingController();
-  String _repuestoId = '';
-  bool _loading      = false;
+  final _busqCtrl    = TextEditingController();
+  final _refCtrl     = TextEditingController();
+
+  String  _repuestoId  = '';
+  String  _busqueda    = '';
+  String  _busquedaRef = '';
+  bool    _loading     = false;
   String? _error;
 
   bool get isEdit => widget.ingreso != null;
@@ -41,13 +45,19 @@ class _State extends ConsumerState<IngresoFormScreen> {
       _cantCtrl.text    = ing.cantidad.toString();
       _entregaCtrl.text = ing.quienEntrega;
       _descCtrl.text    = ing.descripcion ?? '';
+      _busqCtrl.text    = ing.repuestoDescripcion ?? '';
     } else if (widget.repuestoPreseleccionado != null) {
-      _repuestoId = widget.repuestoPreseleccionado!.id;
+      _repuestoId    = widget.repuestoPreseleccionado!.id;
+      _busqCtrl.text = widget.repuestoPreseleccionado!.descripcion;
     }
   }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_repuestoId.isEmpty) {
+      setState(() => _error = 'Seleccione un repuesto');
+      return;
+    }
     setState(() { _loading = true; _error = null; });
     try {
       if (isEdit) {
@@ -71,7 +81,8 @@ class _State extends ConsumerState<IngresoFormScreen> {
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(isEdit ? 'Ingreso actualizado' : 'Ingreso registrado'),
+            content: Text(
+                isEdit ? 'Ingreso actualizado' : 'Ingreso registrado'),
             backgroundColor: Colors.green));
       }
     } catch (e) {
@@ -83,20 +94,32 @@ class _State extends ConsumerState<IngresoFormScreen> {
 
   @override
   void dispose() {
-    _cantCtrl.dispose();
-    _entregaCtrl.dispose();
-    _descCtrl.dispose();
+    _cantCtrl.dispose(); _entregaCtrl.dispose();
+    _descCtrl.dispose(); _busqCtrl.dispose(); _refCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final repuestos = ref.watch(repuestosProvider).valueOrNull ?? [];
-    if (_repuestoId.isEmpty && repuestos.isNotEmpty) {
-      _repuestoId = repuestos.first.id;
-    }
-
+    final repuestos    = ref.watch(repuestosProvider).valueOrNull ?? [];
     final repuestoFijo = widget.repuestoPreseleccionado;
+
+    // Filtro por REF tiene prioridad
+    List<Repuesto> repuestosFiltrados;
+    if (_busquedaRef.isNotEmpty) {
+      final refNum = int.tryParse(_busquedaRef);
+      repuestosFiltrados = refNum != null
+          ? repuestos.where((r) => r.ref == refNum).toList()
+          : [];
+    } else if (_busqueda.isNotEmpty) {
+      repuestosFiltrados = repuestos.where((r) =>
+          r.codigo.toLowerCase().contains(_busqueda.toLowerCase()) ||
+          r.descripcion.toLowerCase().contains(_busqueda.toLowerCase()))
+          .toList()
+        ..sort((a, b) => a.descripcion.compareTo(b.descripcion));
+    } else {
+      repuestosFiltrados = [];
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -129,8 +152,11 @@ class _State extends ConsumerState<IngresoFormScreen> {
                       children: [
                         Text(repuestoFijo.descripcion,
                             style: const TextStyle(
-                                fontWeight: FontWeight.w600, fontSize: 13)),
-                        Text('Código: ${repuestoFijo.codigo}  |  Stock actual: ${repuestoFijo.stockActual}',
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13)),
+                        Text(
+                            'Código: ${repuestoFijo.codigo}  |  Stock: ${repuestoFijo.stockActual}'
+                            '${repuestoFijo.ref != null ? '  |  REF: ${repuestoFijo.ref}' : ''}',
                             style: const TextStyle(
                                 fontSize: 11, color: Colors.grey)),
                       ],
@@ -138,29 +164,118 @@ class _State extends ConsumerState<IngresoFormScreen> {
                   ]),
                 ),
 
-              // ── Selector de repuesto (solo si no hay preseleccionado) ──
-              if (repuestoFijo == null || isEdit)
-                DropdownButtonFormField<String>(
-                  isExpanded: true,
-                  value: _repuestoId.isEmpty ? null : _repuestoId,
-                  decoration: const InputDecoration(
-                      labelText: 'Repuesto',
-                      prefixIcon: Icon(Icons.inventory_2_outlined)),
-                  items: repuestos.map((r) => DropdownMenuItem(
-                      value: r.id,
-                      child: Text(
-                        r.descripcion,
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                        style: const TextStyle(
-                            fontSize: 10, fontWeight: FontWeight.w400),
-                      ))).toList(),
-                  onChanged: (v) => setState(() => _repuestoId = v!),
-                  validator: (v) =>
-                      (v == null || v.isEmpty)
-                          ? 'Seleccione un repuesto' : null),
+              // ── Buscador de repuesto ──────────────────
+              if (repuestoFijo == null || isEdit) ...[
+                const Text('REPUESTO', style: TextStyle(
+                    fontSize: 11, fontWeight: FontWeight.w700,
+                    color: Colors.grey, letterSpacing: 1)),
+                const SizedBox(height: 8),
 
-              const SizedBox(height: 16),
+                // Buscador texto
+                TextFormField(
+                  controller: _busqCtrl,
+                  style: const TextStyle(fontSize: 11),
+                  decoration: InputDecoration(
+                      labelText: 'Buscar por código o descripción',
+                      prefixIcon: const Icon(Icons.search),
+                      labelStyle: const TextStyle(fontSize: 11),
+                      suffixIcon: _repuestoId.isNotEmpty
+                          ? const Icon(Icons.check_circle,
+                              color: Colors.green)
+                          : null),
+                  onChanged: (v) => setState(() {
+                    _busqueda    = v;
+                    _busquedaRef = '';
+                    _refCtrl.clear();
+                    _repuestoId  = '';
+                  }),
+                ),
+                const SizedBox(height: 8),
+
+                // Buscador REF
+                TextField(
+                  controller: _refCtrl,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: InputDecoration(
+                    labelText: 'Buscar por N° REF',
+                    prefixIcon: const Icon(Icons.tag,
+                        color: Colors.purple, size: 20),
+                    labelStyle: const TextStyle(
+                        fontSize: 11, color: Colors.purple),
+                    suffixIcon: _busquedaRef.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, size: 18),
+                            onPressed: () {
+                              _refCtrl.clear();
+                              setState(() {
+                                _busquedaRef = '';
+                                _repuestoId  = '';
+                              });
+                            })
+                        : null,
+                    enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(
+                            color: Colors.purple.withOpacity(0.3))),
+                    focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide:
+                            const BorderSide(color: Colors.purple)),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    isDense: true,
+                  ),
+                  onChanged: (v) => setState(() {
+                    _busquedaRef = v;
+                    _busqueda    = '';
+                    _busqCtrl.clear();
+                    _repuestoId  = '';
+                  }),
+                ),
+                const SizedBox(height: 4),
+
+                // Lista resultados
+                if ((_busqueda.isNotEmpty || _busquedaRef.isNotEmpty) &&
+                    _repuestoId.isEmpty)
+                  Container(
+                    constraints: const BoxConstraints(maxHeight: 200),
+                    decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(10)),
+                    child: repuestosFiltrados.isEmpty
+                        ? const Padding(
+                            padding: EdgeInsets.all(12),
+                            child: Text('Sin resultados',
+                                style: TextStyle(color: Colors.grey)))
+                        : ListView.builder(
+                            shrinkWrap: true,
+                            itemCount: repuestosFiltrados.length,
+                            itemBuilder: (_, i) {
+                              final r = repuestosFiltrados[i];
+                              return ListTile(
+                                dense: true,
+                                leading: const Icon(
+                                    Icons.inventory_2_outlined,
+                                    size: 18, color: Colors.green),
+                                title: Text(r.descripcion,
+                                    style: const TextStyle(fontSize: 11)),
+                                subtitle: Text(
+                                    'Stock: ${r.stockActual}'
+                                    '${r.ref != null ? '  •  REF ${r.ref}' : ''}',
+                                    style: const TextStyle(fontSize: 10)),
+                                onTap: () => setState(() {
+                                  _repuestoId    = r.id;
+                                  _busqCtrl.text = r.descripcion;
+                                  _busqueda      = '';
+                                  _busquedaRef   = '';
+                                  _refCtrl.clear();
+                                }),
+                              );
+                            }),
+                  ),
+                const SizedBox(height: 16),
+              ],
 
               // ── Cantidad ──────────────────────────────
               TextFormField(
