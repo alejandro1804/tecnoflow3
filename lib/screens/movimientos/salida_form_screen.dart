@@ -266,7 +266,7 @@ class _State extends ConsumerState<SalidaFormScreen> {
                       Text(
                           'Repuestos de la máquina del ticket (${_repuestosMaquina!.length})',
                           style: const TextStyle(
-                              fontSize: 11, color: Colors.blue)),
+                              fontSize: 9, color: Colors.blue)),
                     ]),
                   ),
 

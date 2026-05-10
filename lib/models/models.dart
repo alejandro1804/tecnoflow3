@@ -121,7 +121,8 @@ class Repuesto {
 
   factory Repuesto.fromMap(Map<String, dynamic> m) => Repuesto(
     id:          m['id'],
-    codigo:      m['codigo'],
+   // codigo:      m['codigo'],
+    codigo:      m['codigo'] ?? '',
     descripcion: m['descripcion'],
     stockActual: m['stock_actual'] ?? 0,
     stockMinimo: m['stock_minimo'] ?? 0,

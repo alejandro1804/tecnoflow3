@@ -226,23 +226,15 @@ class _State extends ConsumerState<SalidasScreen> {
                                   // ── FILA 1: Descripción ancho completo ──
                                   Text(s.repuestoDescripcion ?? '',
                                       style: const TextStyle(
-                                          fontWeight: FontWeight.w600, fontSize: 11),
+                                          fontWeight: FontWeight.w500, fontSize: 10),
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis),
                                   const SizedBox(height: 8),
 
-                                  // ── FILA 2: Ícono + datos + acciones ──
+                                  // ── FILA 2: Datos + acciones ──
                                   Row(
                                     crossAxisAlignment: CrossAxisAlignment.center,
                                     children: [
-                                      // Ícono
-                                      const CircleAvatar(
-                                          backgroundColor: Color(0xFFFFEBEE),
-                                          radius: 18,
-                                          child: Icon(Icons.output_outlined,
-                                              color: Colors.red, size: 18)),
-                                      const SizedBox(width: 10),
-
                                       // Datos
                                       Expanded(
                                         child: Column(
@@ -294,12 +286,13 @@ class _State extends ConsumerState<SalidasScreen> {
                                         ),
                                       ),
 
-                                      // Acciones derecha: REF + ojo + tres puntitos
+                                      // ── Acciones derecha ──
                                       const SizedBox(width: 8),
                                       Column(
                                         mainAxisSize: MainAxisSize.min,
                                         crossAxisAlignment: CrossAxisAlignment.center,
                                         children: [
+                                          // Badge REF
                                           if (s.repuestoRef != null)
                                             Container(
                                               padding: const EdgeInsets.symmetric(
@@ -315,24 +308,15 @@ class _State extends ConsumerState<SalidasScreen> {
                                                       fontSize: 10, color: Colors.purple,
                                                       fontWeight: FontWeight.w800)),
                                             ),
-                                          InkWell(
-                                            onTap: () => _verDetalle(context, s),
-                                            borderRadius: BorderRadius.circular(6),
-                                            child: Container(
-                                              padding: const EdgeInsets.all(6),
-                                              decoration: BoxDecoration(
-                                                  color: Colors.teal.withOpacity(0.08),
-                                                  borderRadius: BorderRadius.circular(6)),
-                                              child: const Icon(Icons.visibility_outlined,
-                                                  size: 18, color: Colors.teal),
-                                            ),
-                                          ),
-                                          if (canEditItem) ...[
-                                            const SizedBox(height: 4),
+
+                                          // Admin/pañolero/quien registró: tres puntitos con ver, editar, eliminar
+                                          if (canEditItem)
                                             PopupMenuButton<String>(
                                               icon: const Icon(Icons.more_vert, size: 18),
                                               onSelected: (v) {
-                                                if (v == 'editar') {
+                                                if (v == 'ver') {
+                                                  _verDetalle(context, s);
+                                                } else if (v == 'editar') {
                                                   Navigator.push(context, MaterialPageRoute(
                                                       builder: (_) => ProviderScope(
                                                           parent: ProviderScope.containerOf(context),
@@ -342,18 +326,40 @@ class _State extends ConsumerState<SalidasScreen> {
                                                 }
                                               },
                                               itemBuilder: (_) => [
+                                                const PopupMenuItem(value: 'ver',
+                                                    child: Row(children: [
+                                                      Icon(Icons.visibility_outlined,
+                                                          size: 16, color: Colors.teal),
+                                                      SizedBox(width: 8),
+                                                      Text('Ver detalle')])),
                                                 const PopupMenuItem(value: 'editar',
                                                     child: Row(children: [
                                                       Icon(Icons.edit_outlined, size: 16),
                                                       SizedBox(width: 8), Text('Editar')])),
                                                 const PopupMenuItem(value: 'eliminar',
                                                     child: Row(children: [
-                                                      Icon(Icons.delete_outline, size: 16, color: Colors.red),
+                                                      Icon(Icons.delete_outline,
+                                                          size: 16, color: Colors.red),
                                                       SizedBox(width: 8),
-                                                      Text('Eliminar', style: TextStyle(color: Colors.red))])),
+                                                      Text('Eliminar',
+                                                          style: TextStyle(color: Colors.red))])),
                                               ],
                                             ),
-                                          ],
+
+                                          // Técnico: solo ojo suelto
+                                          if (!canEditItem)
+                                            InkWell(
+                                              onTap: () => _verDetalle(context, s),
+                                              borderRadius: BorderRadius.circular(6),
+                                              child: Container(
+                                                padding: const EdgeInsets.all(6),
+                                                decoration: BoxDecoration(
+                                                    color: Colors.teal.withOpacity(0.08),
+                                                    borderRadius: BorderRadius.circular(6)),
+                                                child: const Icon(Icons.visibility_outlined,
+                                                    size: 18, color: Colors.teal),
+                                              ),
+                                            ),
                                         ],
                                       ),
                                     ],
