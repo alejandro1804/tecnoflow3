@@ -47,73 +47,135 @@ class _State extends ConsumerState<SalidasScreen> {
   void _verDetalle(BuildContext context, SalidaRepuesto s) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,   // permite que crezca si hay mucho texto
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Center(child: Container(width: 40, height: 4,
-              decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)))),
-          const SizedBox(height: 16),
-          Row(children: [
-            const Text('DETALLE DE SALIDA', style: TextStyle(
-                fontSize: 11, fontWeight: FontWeight.w700, color: Colors.grey, letterSpacing: 1)),
-            const Spacer(),
-            if (s.repuestoRef != null)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                    color: Colors.purple.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Colors.purple.withOpacity(0.3))),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  const Icon(Icons.tag, size: 11, color: Colors.purple),
-                  const SizedBox(width: 3),
-                  Text('REF ${s.repuestoRef}', style: const TextStyle(
-                      fontSize: 11, color: Colors.purple, fontWeight: FontWeight.w800)),
-                ]),
-              ),
-          ]),
-          const SizedBox(height: 12),
-          _DetalleRow(Icons.inventory_2_outlined, 'Repuesto', s.repuestoDescripcion ?? '—'),
-          _DetalleRow(Icons.qr_code_outlined, 'Código', s.repuestoCodigo ?? '—'),
-          _DetalleRow(Icons.numbers_outlined, 'Cantidad', '-${s.cantidad}', color: Colors.red),
-          _DetalleRow(Icons.calendar_today_outlined, 'Fecha', s.fecha),
-          _DetalleRow(Icons.confirmation_number_outlined, 'Ticket',
-              s.ticketId != null ? '${s.ticketId!.substring(0, 8)}...' : 'Sin ticket asociado'),
-          if (s.observacion != null)
-            _DetalleRow(Icons.notes_outlined, 'Observación', s.observacion!),
-          const SizedBox(height: 16),
-        ]),
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.5,
+        minChildSize:     0.3,
+        maxChildSize:     0.9,
+        expand: false,
+        builder: (_, ctrl) => SingleChildScrollView(
+          controller: ctrl,
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Asa
+              Center(child: Container(width: 40, height: 4,
+                  decoration: BoxDecoration(color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2)))),
+              const SizedBox(height: 16),
+
+              // Header con REF
+              Row(children: [
+                const Text('DETALLE DE SALIDA', style: TextStyle(
+                    fontSize: 11, fontWeight: FontWeight.w700,
+                    color: Colors.grey, letterSpacing: 1)),
+                const Spacer(),
+                if (s.repuestoRef != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                        color: Colors.purple.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                            color: Colors.purple.withOpacity(0.3))),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      const Icon(Icons.tag, size: 11, color: Colors.purple),
+                      const SizedBox(width: 3),
+                      Text('REF ${s.repuestoRef}',
+                          style: const TextStyle(
+                              fontSize: 11, color: Colors.purple,
+                              fontWeight: FontWeight.w800)),
+                    ]),
+                  ),
+              ]),
+              const SizedBox(height: 12),
+
+              _DetalleRow(Icons.inventory_2_outlined, 'Repuesto',
+                  s.repuestoDescripcion ?? '—'),
+              _DetalleRow(Icons.qr_code_outlined, 'Código',
+                  s.repuestoCodigo ?? '—'),
+              _DetalleRow(Icons.numbers_outlined, 'Cantidad',
+                  '-${s.cantidad}', color: Colors.red),
+              _DetalleRow(Icons.calendar_today_outlined, 'Fecha', s.fecha),
+
+              // Ticket: muestra número externo si existe, sino ID corto
+              _DetalleRow(
+                  Icons.confirmation_number_outlined,
+                  'Ticket',
+                  s.ticketId != null
+                      ? (s.ticketNumero != null
+                          ? 'N° ${s.ticketNumero!}'
+                          : '${s.ticketId!.substring(0, 8)}...')
+                      : 'Sin ticket asociado'),
+
+              // Observación: texto completo sin ellipsis
+              if (s.observacion != null) ...[
+                const SizedBox(height: 8),
+                const Divider(),
+                const SizedBox(height: 4),
+                const Text('OBSERVACIÓN', style: TextStyle(
+                    fontSize: 11, fontWeight: FontWeight.w700,
+                    color: Colors.grey, letterSpacing: 1)),
+                const SizedBox(height: 6),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                      color: Colors.grey.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                          color: Colors.grey.withOpacity(0.2))),
+                  child: Text(s.observacion!,
+                      style: const TextStyle(
+                          fontSize: 12, color: Colors.black87)),
+                ),
+              ],
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  Future<void> _eliminar(BuildContext context, WidgetRef ref, SalidaRepuesto s) async {
-    final repuesto = '${s.repuestoCodigo ?? ''} — ${s.repuestoDescripcion ?? ''}';
+  Future<void> _eliminar(BuildContext context, WidgetRef ref,
+      SalidaRepuesto s) async {
+    final repuesto =
+        '${s.repuestoCodigo ?? ''} — ${s.repuestoDescripcion ?? ''}';
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Eliminar salida'),
-        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
           const Text('¿Eliminar esta salida de repuesto?'),
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: Colors.green.withOpacity(0.08),
+            decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.08),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: Colors.green.withOpacity(0.3))),
             child: Row(children: [
               const Icon(Icons.info_outline, color: Colors.green, size: 18),
               const SizedBox(width: 8),
               Expanded(child: Text(
-                'Se devolverán ${s.cantidad} unidad${s.cantidad != 1 ? 'es' : ''} de "$repuesto" al stock.',
+                'Se devolverán ${s.cantidad} unidad${s.cantidad != 1 ? 'es' : ''} '
+                'de "$repuesto" al stock.',
                 style: const TextStyle(fontSize: 12, color: Colors.green))),
             ]),
           ),
         ]),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar')),
           ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
               onPressed: () => Navigator.pop(context, true),
@@ -127,7 +189,8 @@ class _State extends ConsumerState<SalidasScreen> {
       ref.invalidate(salidasProvider);
       ref.invalidate(repuestosProvider);
       if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Salida eliminada — ${s.cantidad} unidad${s.cantidad != 1 ? 'es' : ''} devueltas al stock'),
+          content: Text(
+              'Salida eliminada — ${s.cantidad} unidad${s.cantidad != 1 ? 'es' : ''} devueltas al stock'),
           backgroundColor: Colors.green));
     } catch (e) {
       if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
@@ -154,13 +217,16 @@ class _State extends ConsumerState<SalidasScreen> {
             data: (todas) {
               final filtradas = _filtrar(todas);
               return _generandoPdf
-                  ? const Padding(padding: EdgeInsets.all(14),
+                  ? const Padding(
+                      padding: EdgeInsets.all(14),
                       child: SizedBox(width: 20, height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)))
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white)))
                   : IconButton(
                       icon: const Icon(Icons.picture_as_pdf_outlined),
                       tooltip: 'Exportar PDF',
-                      onPressed: filtradas.isEmpty ? null : () => _exportarPdf(filtradas));
+                      onPressed: filtradas.isEmpty
+                          ? null : () => _exportarPdf(filtradas));
             }),
         ],
       ),
@@ -189,18 +255,25 @@ class _State extends ConsumerState<SalidasScreen> {
                       hintText: 'Buscar por código o descripción...',
                       prefixIcon: const Icon(Icons.search, size: 20),
                       suffixIcon: _busqueda.isNotEmpty
-                          ? IconButton(icon: const Icon(Icons.clear, size: 18),
-                              onPressed: () => setState(() => _busqueda = ''))
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 18),
+                              onPressed: () =>
+                                  setState(() => _busqueda = ''))
                           : null,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
                       isDense: true,
                     ),
                     onChanged: (v) => setState(() => _busqueda = v),
                   ),
                   const SizedBox(height: 6),
-                  Align(alignment: Alignment.centerLeft,
-                    child: Text('${salidas.length} resultado${salidas.length != 1 ? 's' : ''}',
-                        style: const TextStyle(fontSize: 11, color: Colors.grey))),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                        '${salidas.length} resultado${salidas.length != 1 ? 's' : ''}',
+                        style: const TextStyle(
+                            fontSize: 11, color: Colors.grey)),
+                  ),
                 ]),
               ),
               const Divider(height: 1),
@@ -216,148 +289,224 @@ class _State extends ConsumerState<SalidasScreen> {
                           final canEditItem = isAdmin || isPaniolero || esMia;
 
                           return Card(
-                            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+                            margin: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 5),
                             child: Padding(
-                              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                              padding: const EdgeInsets.fromLTRB(
+                                  12, 10, 12, 10),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
 
-                                  // ── FILA 1: Descripción ancho completo ──
+                                  // Fila 1: Descripción
                                   Text(s.repuestoDescripcion ?? '',
                                       style: const TextStyle(
-                                          fontWeight: FontWeight.w500, fontSize: 10),
+                                          fontWeight: FontWeight.w500,
+                                          fontSize: 10),
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis),
                                   const SizedBox(height: 8),
 
-                                  // ── FILA 2: Datos + acciones ──
+                                  // Fila 2: Datos + acciones
                                   Row(
-                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
                                     children: [
-                                      // Datos
                                       Expanded(
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Row(children: [
                                               Container(
-                                                padding: const EdgeInsets.symmetric(
-                                                    horizontal: 8, vertical: 2),
+                                                padding: const EdgeInsets
+                                                    .symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 2),
                                                 decoration: BoxDecoration(
-                                                    color: Colors.red.withOpacity(0.1),
-                                                    borderRadius: BorderRadius.circular(6)),
-                                                child: Text('-${s.cantidad}',
+                                                    color: Colors.red
+                                                        .withOpacity(0.1),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            6)),
+                                                child: Text(
+                                                    '-${s.cantidad}',
                                                     style: const TextStyle(
-                                                        fontSize: 12, color: Colors.red,
-                                                        fontWeight: FontWeight.w700)),
+                                                        fontSize: 12,
+                                                        color: Colors.red,
+                                                        fontWeight:
+                                                            FontWeight.w700)),
                                               ),
                                               const SizedBox(width: 8),
-                                              const Icon(Icons.calendar_today_outlined,
-                                                  size: 12, color: Colors.grey),
+                                              const Icon(
+                                                  Icons
+                                                      .calendar_today_outlined,
+                                                  size: 12,
+                                                  color: Colors.grey),
                                               const SizedBox(width: 4),
                                               Text(s.fecha,
                                                   style: const TextStyle(
-                                                      fontSize: 12, color: Colors.grey)),
+                                                      fontSize: 12,
+                                                      color: Colors.grey)),
                                             ]),
                                             const SizedBox(height: 4),
                                             Row(children: [
-                                              const Icon(Icons.confirmation_number_outlined,
-                                                  size: 12, color: Colors.grey),
+                                              const Icon(
+                                                  Icons
+                                                      .confirmation_number_outlined,
+                                                  size: 12,
+                                                  color: Colors.grey),
                                               const SizedBox(width: 4),
+                                              // Ticket: número externo si existe
                                               s.ticketId != null
-                                                  ? Text('Ticket: ${s.ticketId!.substring(0, 8)}...',
-                                                      style: const TextStyle(fontSize: 12, color: Colors.grey))
-                                                  : const Text('Sin ticket asociado',
-                                                      style: TextStyle(fontSize: 12, color: Colors.orange)),
+                                                  ? Text(
+                                                      s.ticketNumero != null
+                                                          ? 'Ticket N° ${s.ticketNumero!}'
+                                                          : 'Ticket: ${s.ticketId!.substring(0, 8)}...',
+                                                      style: const TextStyle(
+                                                          fontSize: 12,
+                                                          color: Colors.grey))
+                                                  : const Text(
+                                                      'Sin ticket asociado',
+                                                      style: TextStyle(
+                                                          fontSize: 12,
+                                                          color: Colors.orange)),
                                             ]),
                                             if (s.observacion != null) ...[
                                               const SizedBox(height: 4),
                                               Row(children: [
-                                                const Icon(Icons.notes_outlined,
-                                                    size: 12, color: Colors.grey),
+                                                const Icon(
+                                                    Icons.notes_outlined,
+                                                    size: 12,
+                                                    color: Colors.grey),
                                                 const SizedBox(width: 4),
-                                                Expanded(child: Text(s.observacion!,
-                                                    style: const TextStyle(fontSize: 11, color: Colors.grey),
-                                                    maxLines: 1, overflow: TextOverflow.ellipsis)),
+                                                Expanded(
+                                                    child: Text(
+                                                        s.observacion!,
+                                                        style: const TextStyle(
+                                                            fontSize: 11,
+                                                            color:
+                                                                Colors.grey),
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow
+                                                            .ellipsis)),
                                               ]),
                                             ],
                                           ],
                                         ),
                                       ),
 
-                                      // ── Acciones derecha ──
+                                      // Acciones derecha
                                       const SizedBox(width: 8),
                                       Column(
                                         mainAxisSize: MainAxisSize.min,
-                                        crossAxisAlignment: CrossAxisAlignment.center,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.center,
                                         children: [
-                                          // Badge REF
                                           if (s.repuestoRef != null)
                                             Container(
-                                              padding: const EdgeInsets.symmetric(
-                                                  horizontal: 6, vertical: 2),
-                                              margin: const EdgeInsets.only(bottom: 4),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 6,
+                                                      vertical: 2),
+                                              margin: const EdgeInsets.only(
+                                                  bottom: 4),
                                               decoration: BoxDecoration(
-                                                  color: Colors.purple.withOpacity(0.1),
-                                                  borderRadius: BorderRadius.circular(5),
+                                                  color: Colors.purple
+                                                      .withOpacity(0.1),
+                                                  borderRadius:
+                                                      BorderRadius.circular(5),
                                                   border: Border.all(
-                                                      color: Colors.purple.withOpacity(0.3))),
-                                              child: Text('# ${s.repuestoRef}',
+                                                      color: Colors.purple
+                                                          .withOpacity(0.3))),
+                                              child: Text(
+                                                  '# ${s.repuestoRef}',
                                                   style: const TextStyle(
-                                                      fontSize: 10, color: Colors.purple,
-                                                      fontWeight: FontWeight.w800)),
+                                                      fontSize: 10,
+                                                      color: Colors.purple,
+                                                      fontWeight:
+                                                          FontWeight.w800)),
                                             ),
-
-                                          // Admin/pañolero/quien registró: tres puntitos con ver, editar, eliminar
                                           if (canEditItem)
                                             PopupMenuButton<String>(
-                                              icon: const Icon(Icons.more_vert, size: 18),
+                                              icon: const Icon(
+                                                  Icons.more_vert,
+                                                  size: 18),
                                               onSelected: (v) {
                                                 if (v == 'ver') {
                                                   _verDetalle(context, s);
                                                 } else if (v == 'editar') {
-                                                  Navigator.push(context, MaterialPageRoute(
-                                                      builder: (_) => ProviderScope(
-                                                          parent: ProviderScope.containerOf(context),
-                                                          child: SalidaFormScreen(salida: s))));
+                                                  Navigator.push(
+                                                      context,
+                                                      MaterialPageRoute(
+                                                          builder: (_) =>
+                                                              ProviderScope(
+                                                                  parent: ProviderScope
+                                                                      .containerOf(
+                                                                          context),
+                                                                  child:
+                                                                      SalidaFormScreen(
+                                                                          salida:
+                                                                              s))));
                                                 } else if (v == 'eliminar') {
                                                   _eliminar(context, ref, s);
                                                 }
                                               },
                                               itemBuilder: (_) => [
-                                                const PopupMenuItem(value: 'ver',
+                                                const PopupMenuItem(
+                                                    value: 'ver',
                                                     child: Row(children: [
-                                                      Icon(Icons.visibility_outlined,
-                                                          size: 16, color: Colors.teal),
+                                                      Icon(
+                                                          Icons
+                                                              .visibility_outlined,
+                                                          size: 16,
+                                                          color: Colors.teal),
                                                       SizedBox(width: 8),
-                                                      Text('Ver detalle')])),
-                                                const PopupMenuItem(value: 'editar',
+                                                      Text('Ver detalle')
+                                                    ])),
+                                                const PopupMenuItem(
+                                                    value: 'editar',
                                                     child: Row(children: [
-                                                      Icon(Icons.edit_outlined, size: 16),
-                                                      SizedBox(width: 8), Text('Editar')])),
-                                                const PopupMenuItem(value: 'eliminar',
+                                                      Icon(
+                                                          Icons.edit_outlined,
+                                                          size: 16),
+                                                      SizedBox(width: 8),
+                                                      Text('Editar')
+                                                    ])),
+                                                const PopupMenuItem(
+                                                    value: 'eliminar',
                                                     child: Row(children: [
-                                                      Icon(Icons.delete_outline,
-                                                          size: 16, color: Colors.red),
+                                                      Icon(
+                                                          Icons.delete_outline,
+                                                          size: 16,
+                                                          color: Colors.red),
                                                       SizedBox(width: 8),
                                                       Text('Eliminar',
-                                                          style: TextStyle(color: Colors.red))])),
+                                                          style: TextStyle(
+                                                              color:
+                                                                  Colors.red))
+                                                    ])),
                                               ],
                                             ),
-
-                                          // Técnico: solo ojo suelto
                                           if (!canEditItem)
                                             InkWell(
-                                              onTap: () => _verDetalle(context, s),
-                                              borderRadius: BorderRadius.circular(6),
+                                              onTap: () =>
+                                                  _verDetalle(context, s),
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
                                               child: Container(
-                                                padding: const EdgeInsets.all(6),
+                                                padding:
+                                                    const EdgeInsets.all(6),
                                                 decoration: BoxDecoration(
-                                                    color: Colors.teal.withOpacity(0.08),
-                                                    borderRadius: BorderRadius.circular(6)),
-                                                child: const Icon(Icons.visibility_outlined,
-                                                    size: 18, color: Colors.teal),
+                                                    color: Colors.teal
+                                                        .withOpacity(0.08),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            6)),
+                                                child: const Icon(
+                                                    Icons.visibility_outlined,
+                                                    size: 18,
+                                                    color: Colors.teal),
                                               ),
                                             ),
                                         ],
@@ -379,8 +528,8 @@ class _State extends ConsumerState<SalidasScreen> {
 
 class _DetalleRow extends StatelessWidget {
   final IconData icon;
-  final String label, value;
-  final Color? color;
+  final String   label, value;
+  final Color?   color;
   const _DetalleRow(this.icon, this.label, this.value, {this.color});
 
   @override
@@ -389,11 +538,12 @@ class _DetalleRow extends StatelessWidget {
     child: Row(children: [
       Icon(icon, size: 16, color: Colors.grey),
       const SizedBox(width: 10),
-      Text('$label: ', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+      Text('$label: ',
+          style: const TextStyle(fontSize: 12, color: Colors.grey)),
       Expanded(child: Text(value,
-          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
-              color: color ?? Colors.black87),
-          overflow: TextOverflow.ellipsis)),
+          style: TextStyle(
+              fontSize: 12, fontWeight: FontWeight.w600,
+              color: color ?? Colors.black87))),
     ]),
   );
 }

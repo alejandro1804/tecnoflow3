@@ -97,16 +97,6 @@ class RepuestosRepository {
     return (data as List).map((e) => Repuesto.fromMap(e)).toList();
   }
 
-  Future<List<Repuesto>> getStockBajo() async {
-    final data = await _db
-        .from('repuestos')
-        .select()
-        .eq('activo', true)
-        .filter('stock_actual', 'lte', 'stock_minimo')
-        .order('descripcion', ascending: true);
-    return (data as List).map((e) => Repuesto.fromMap(e)).toList();
-  }
-
   Future<void> create(Repuesto r) async =>
       _db.from('repuestos').insert(r.toInsert());
 
@@ -154,6 +144,7 @@ class TicketsRepository {
     String? maquinaId,
     required String descripcion,
     String? observacion,
+    String? numero,
   }) async {
     final uid = Supabase.instance.client.auth.currentUser!.id;
     await _db.from('tickets').insert({
@@ -162,6 +153,7 @@ class TicketsRepository {
       'descripcion_desperfecto': descripcion,
       'observacion_encargado':   observacion,
       'estado':                  'abierto',
+      'numero':                  numero,
     });
   }
 
@@ -190,6 +182,10 @@ class TicketsRepository {
     await _db.from('tickets').update(map).eq('id', ticketId);
   }
 
+  Future<void> updateNumero(String ticketId, String? numero) async {
+    await _db.from('tickets').update({'numero': numero}).eq('id', ticketId);
+  }
+
   Future<void> cerrar(String ticketId) async {
     await _db.from('tickets').update({'estado': 'cerrado'}).eq('id', ticketId);
   }
@@ -200,7 +196,6 @@ class TicketsRepository {
 
 // ── Movimientos ───────────────────────────────────────────────
 class MovimientosRepository {
-  // ── INGRESOS ────────────────────────────────────────────────
   Future<List<IngresoRepuesto>> getIngresos() async {
     final data = await _db.from('ingreso_repuestos')
         .select('*, repuestos(codigo, descripcion, ref)')
@@ -242,10 +237,10 @@ class MovimientosRepository {
   Future<void> deleteIngreso(String id) async =>
       _db.from('ingreso_repuestos').delete().eq('id', id);
 
-  // ── SALIDAS ─────────────────────────────────────────────────
+  // ── SALIDAS — join con tickets para traer el numero externo ──
   Future<List<SalidaRepuesto>> getSalidas() async {
     final data = await _db.from('salida_repuestos')
-        .select('*, repuestos(codigo, descripcion, ref)')
+        .select('*, repuestos(codigo, descripcion, ref), tickets(numero)')
         .order('created_at', ascending: false);
     return (data as List).map((e) => SalidaRepuesto.fromMap(e)).toList();
   }

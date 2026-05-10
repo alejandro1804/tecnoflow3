@@ -50,7 +50,6 @@ class _State extends ConsumerState<TicketsScreen> {
     }
   }
 
-
   Future<void> _exportarPdf(List<Ticket> tickets) async {
     setState(() => _generandoPdf = true);
     try {
@@ -61,14 +60,28 @@ class _State extends ConsumerState<TicketsScreen> {
         labelEstado:  _labelEstado,
       );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Error al generar PDF: $e'),
-            backgroundColor: Colors.red));
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error al generar PDF: $e'),
+          backgroundColor: Colors.red));
     } finally {
       if (mounted) setState(() => _generandoPdf = false);
     }
+  }
+
+  List<Ticket> _filtrar(List<Ticket> todos) {
+    var lista = _filtroEstado == 'todos'
+        ? todos
+        : todos.where((t) => t.estado == _filtroEstado).toList();
+    if (_busqueda.isNotEmpty) {
+      final q = _busqueda.toLowerCase();
+      lista = lista.where((t) =>
+          (t.maquinaNombre ?? '').toLowerCase().contains(q) ||
+          t.descripcionDesperfecto.toLowerCase().contains(q) ||
+          (t.creadoPorNombre ?? '').toLowerCase().contains(q) ||
+          (t.tecnicoNombre ?? '').toLowerCase().contains(q) ||
+          (t.numero ?? '').toLowerCase().contains(q)).toList();
+    }
+    return lista;
   }
 
   @override
@@ -85,30 +98,17 @@ class _State extends ConsumerState<TicketsScreen> {
             loading: () => const SizedBox.shrink(),
             error:   (_, __) => const SizedBox.shrink(),
             data: (todos) {
-              var tickets = _filtroEstado == 'todos'
-                  ? todos
-                  : todos.where((t) => t.estado == _filtroEstado).toList();
-              if (_busqueda.isNotEmpty) {
-                tickets = tickets.where((t) =>
-                    (t.maquinaNombre ?? '').toLowerCase().contains(_busqueda.toLowerCase()) ||
-                    t.descripcionDesperfecto.toLowerCase().contains(_busqueda.toLowerCase()) ||
-                    (t.creadoPorNombre ?? '').toLowerCase().contains(_busqueda.toLowerCase()) ||
-                    (t.tecnicoNombre ?? '').toLowerCase().contains(_busqueda.toLowerCase()))
-                .toList();
-              }
+              final tickets = _filtrar(todos);
               return _generandoPdf
-                  ? const Padding(
-                      padding: EdgeInsets.all(14),
-                      child: SizedBox(
-                          width: 20, height: 20,
+                  ? const Padding(padding: EdgeInsets.all(14),
+                      child: SizedBox(width: 20, height: 20,
                           child: CircularProgressIndicator(
                               strokeWidth: 2, color: Colors.white)))
                   : IconButton(
                       icon: const Icon(Icons.picture_as_pdf_outlined),
                       tooltip: 'Exportar PDF',
                       onPressed: tickets.isEmpty
-                          ? null
-                          : () => _exportarPdf(tickets));
+                          ? null : () => _exportarPdf(tickets));
             }),
         ],
       ),
@@ -130,18 +130,7 @@ class _State extends ConsumerState<TicketsScreen> {
             TicketEstados.cerrado:     todos.where((t) => t.estado == TicketEstados.cerrado).length,
           };
 
-          var tickets = _filtroEstado == 'todos'
-              ? todos
-              : todos.where((t) => t.estado == _filtroEstado).toList();
-
-          if (_busqueda.isNotEmpty) {
-            tickets = tickets.where((t) =>
-                (t.maquinaNombre ?? '').toLowerCase().contains(_busqueda.toLowerCase()) ||
-                t.descripcionDesperfecto.toLowerCase().contains(_busqueda.toLowerCase()) ||
-                (t.creadoPorNombre ?? '').toLowerCase().contains(_busqueda.toLowerCase()) ||
-                (t.tecnicoNombre ?? '').toLowerCase().contains(_busqueda.toLowerCase()))
-            .toList();
-          }
+          final tickets = _filtrar(todos);
 
           return RefreshIndicator(
             onRefresh: () => ref.refresh(ticketsProvider.future),
@@ -153,7 +142,7 @@ class _State extends ConsumerState<TicketsScreen> {
                 child: Column(children: [
                   TextField(
                     decoration: InputDecoration(
-                      hintText: 'Buscar por máquina, técnico...',
+                      hintText: 'Buscar por máquina, técnico, número...',
                       prefixIcon: const Icon(Icons.search, size: 20),
                       suffixIcon: _busqueda.isNotEmpty
                           ? IconButton(
@@ -223,47 +212,99 @@ class _State extends ConsumerState<TicketsScreen> {
                         itemCount: tickets.length,
                         itemBuilder: (_, i) {
                           final t = tickets[i];
-                          return Card(child: ListTile(
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 10),
-                            title: Row(children: [
-                              Expanded(child: Text(
-                                  t.maquinaNombre ?? 'Sin máquina',
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 13))),
-                              EstadoBadge(t.estado),
-                            ]),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const SizedBox(height: 4),
-                                Text(t.descripcionDesperfecto,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(fontSize: 12)),
-                                const SizedBox(height: 6),
-                                Row(children: [
-                                  const Icon(Icons.person_outline,
-                                      size: 14, color: Colors.grey),
-                                  const SizedBox(width: 4),
-                                  Text(t.creadoPorNombre ?? '',
+                          return Card(
+                            margin: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 5),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () => context.push('/tickets/${t.id}'),
+                              child: Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                    14, 12, 14, 12),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+
+                                    // ── Fila 1: Máquina ──────────
+                                    Text(
+                                      t.maquinaNombre ?? 'Sin máquina',
                                       style: const TextStyle(
-                                          fontSize: 11, color: Colors.grey)),
-                                  if (t.tecnicoNombre != null) ...[
-                                    const SizedBox(width: 12),
-                                    const Icon(Icons.engineering_outlined,
-                                        size: 14, color: Colors.grey),
-                                    const SizedBox(width: 4),
-                                    Text(t.tecnicoNombre!,
-                                        style: const TextStyle(
-                                            fontSize: 11, color: Colors.grey)),
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 11),
+                                    ),
+                                    const SizedBox(height: 6),
+
+                                    // ── Fila 2: Número + Estado ──
+                                    Row(children: [
+                                      // Número externo (izquierda)
+                                      if (t.numero != null)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 3),
+                                          decoration: BoxDecoration(
+                                              color: Colors.indigo
+                                                  .withOpacity(0.1),
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                              border: Border.all(
+                                                  color: Colors.indigo
+                                                      .withOpacity(0.3))),
+                                          child: Row(
+                                              mainAxisSize:
+                                                  MainAxisSize.min,
+                                              children: [
+                                          /*  const Icon(Icons.tag,
+                                                size: 12,
+                                                color: Colors.indigo),  */
+                                            const SizedBox(width: 3),
+                                            Text(t.numero!,
+                                                style: const TextStyle(
+                                                    fontSize: 11,
+                                                    color: Colors.indigo,
+                                                    fontWeight:
+                                                        FontWeight.w700)),
+                                          ]),
+                                        )
+                                      else
+                                        // Placeholder vacío para mantener alineación
+                                        const SizedBox.shrink(),
+                                      const Spacer(),
+                                      // Estado (derecha)
+                                      EstadoBadge(t.estado),
+                                    ]),
+                                    const SizedBox(height: 6),
+
+                                    // ── Fila 3: Personas ─────────
+                                    Row(children: [
+                                      const Icon(Icons.person_outline,
+                                          size: 13, color: Colors.grey),
+                                      const SizedBox(width: 4),
+                                      Text(t.creadoPorNombre ?? '',
+                                          style: const TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.grey)),
+                                      if (t.tecnicoNombre != null) ...[
+                                        const SizedBox(width: 12),
+                                        const Icon(
+                                            Icons.engineering_outlined,
+                                            size: 13, color: Colors.grey),
+                                        const SizedBox(width: 4),
+                                        Expanded(
+                                          child: Text(t.tecnicoNombre!,
+                                              style: const TextStyle(
+                                                  fontSize: 11,
+                                                  color: Colors.grey),
+                                              overflow:
+                                                  TextOverflow.ellipsis),
+                                        ),
+                                      ],
+                                    ]),
                                   ],
-                                ]),
-                              ],
+                                ),
+                              ),
                             ),
-                            onTap: () => context.push('/tickets/${t.id}'),
-                          ));
+                          );
                         }),
               ),
             ]),

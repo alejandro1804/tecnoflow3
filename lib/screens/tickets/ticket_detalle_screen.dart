@@ -30,7 +30,6 @@ class _State extends ConsumerState<TicketDetalleScreen> {
   bool _generandoPdf = false;
   String? _error;
 
-  // ── Generar PDF del ticket ────────────────────────────────
   Future<void> _exportarPdf(Ticket ticket, List<TicketHistorial> historial) async {
     setState(() => _generandoPdf = true);
     try {
@@ -93,7 +92,10 @@ class _State extends ConsumerState<TicketDetalleScreen> {
           child: pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
-            pw.Text('Ticket ID: ${ticket.id.substring(0, 8)}...',
+            pw.Text(
+                ticket.numero != null
+                    ? 'N° ${ticket.numero!}  |  ID: ${ticket.id.substring(0, 8)}...'
+                    : 'Ticket ID: ${ticket.id.substring(0, 8)}...',
                 style: pw.TextStyle(fontSize: 9, color: PdfColors.blueGrey400)),
             pw.Text('Pág. ${ctx.pageNumber} / ${ctx.pagesCount}',
                 style: pw.TextStyle(fontSize: 9, color: PdfColors.blueGrey600)),
@@ -101,8 +103,6 @@ class _State extends ConsumerState<TicketDetalleScreen> {
         ),
         build: (ctx) => [
           pw.SizedBox(height: 16),
-
-          // ── Datos del ticket ──────────────────────
           pw.Container(
             padding: const pw.EdgeInsets.all(14),
             decoration: pw.BoxDecoration(
@@ -114,9 +114,10 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                 children: [
               pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
-                pw.Text(ticket.maquinaNombre ?? 'Sin máquina',
+                pw.Expanded(child: pw.Text(
+                    ticket.maquinaNombre ?? 'Sin máquina',
                     style: pw.TextStyle(
-                        fontSize: 16, fontWeight: pw.FontWeight.bold)),
+                        fontSize: 16, fontWeight: pw.FontWeight.bold))),
                 pw.Container(
                   padding: const pw.EdgeInsets.symmetric(
                       horizontal: 10, vertical: 4),
@@ -132,18 +133,17 @@ class _State extends ConsumerState<TicketDetalleScreen> {
               pw.SizedBox(height: 12),
               pw.Divider(color: PdfColors.blueGrey200),
               pw.SizedBox(height: 8),
+              if (ticket.numero != null)
+                _pdfFila('N° Externo', ticket.numero!),
               _pdfFila('Creado por', ticket.creadoPorNombre ?? '—'),
               _pdfFila('Técnico', ticket.tecnicoNombre ?? 'Sin asignar'),
               _pdfFila('Fecha', ticket.createdAt.toString().substring(0, 10)),
             ]),
           ),
           pw.SizedBox(height: 16),
-
-          // ── Descripción del desperfecto ───────────
           pw.Text('DESPERFECTO', style: pw.TextStyle(
               fontSize: 11, fontWeight: pw.FontWeight.bold,
-              color: PdfColors.blueGrey600,
-              letterSpacing: 1)),
+              color: PdfColors.blueGrey600, letterSpacing: 1)),
           pw.SizedBox(height: 6),
           pw.Container(
             width: double.infinity,
@@ -156,8 +156,6 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                 style: const pw.TextStyle(fontSize: 11)),
           ),
           pw.SizedBox(height: 12),
-
-          // ── Observación encargado ─────────────────
           if (ticket.observacionEncargado != null) ...[
             pw.Text('OBSERVACIÓN ENCARGADO', style: pw.TextStyle(
                 fontSize: 11, fontWeight: pw.FontWeight.bold,
@@ -175,8 +173,6 @@ class _State extends ConsumerState<TicketDetalleScreen> {
             ),
             pw.SizedBox(height: 12),
           ],
-
-          // ── Observación técnico ───────────────────
           if (ticket.observacionTecnico != null) ...[
             pw.Text('OBSERVACIÓN TÉCNICO', style: pw.TextStyle(
                 fontSize: 11, fontWeight: pw.FontWeight.bold,
@@ -194,28 +190,22 @@ class _State extends ConsumerState<TicketDetalleScreen> {
             ),
             pw.SizedBox(height: 12),
           ],
-
-          // ── Historial ─────────────────────────────
           pw.SizedBox(height: 4),
           pw.Text('HISTORIAL DE CAMBIOS', style: pw.TextStyle(
               fontSize: 11, fontWeight: pw.FontWeight.bold,
               color: PdfColors.blueGrey600, letterSpacing: 1)),
           pw.SizedBox(height: 8),
-
           if (historial.isEmpty)
             pw.Text('Sin cambios registrados',
                 style: pw.TextStyle(fontSize: 10, color: PdfColors.grey))
           else
             pw.TableHelper.fromTextArray(
               headers: ['Fecha', 'Usuario', 'Estado anterior', 'Estado nuevo', 'Comentario'],
-              headerStyle: pw.TextStyle(
-                  fontSize: 9, fontWeight: pw.FontWeight.bold,
-                  color: PdfColors.white),
+              headerStyle: pw.TextStyle(fontSize: 9,
+                  fontWeight: pw.FontWeight.bold, color: PdfColors.white),
               headerDecoration: const pw.BoxDecoration(color: PdfColors.blueGrey700),
-              headerPadding: const pw.EdgeInsets.symmetric(
-                  horizontal: 8, vertical: 6),
-              cellPadding: const pw.EdgeInsets.symmetric(
-                  horizontal: 8, vertical: 5),
+              headerPadding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              cellPadding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 5),
               cellStyle: const pw.TextStyle(fontSize: 9),
               columnWidths: {
                 0: const pw.FlexColumnWidth(1.8),
@@ -227,21 +217,19 @@ class _State extends ConsumerState<TicketDetalleScreen> {
               data: historial.map((h) => [
                 h.fecha.toString().substring(0, 16),
                 h.usuarioNombre ?? '—',
-                h.estadoAnterior != null
-                    ? labelEstado(h.estadoAnterior!) : '—',
+                h.estadoAnterior != null ? labelEstado(h.estadoAnterior!) : '—',
                 labelEstado(h.estadoNuevo),
                 h.comentario ?? '—',
               ]).toList(),
               cellDecoration: (index, data, rowIndex) => pw.BoxDecoration(
-                  color: rowIndex % 2 == 0
-                      ? PdfColors.white : PdfColors.blueGrey50),
+                  color: rowIndex % 2 == 0 ? PdfColors.white : PdfColors.blueGrey50),
             ),
         ],
       ));
 
       await Printing.layoutPdf(
         onLayout: (f) async => pdf.save(),
-        name: 'ticket_${ticket.id.substring(0, 8)}_'
+        name: 'ticket_${ticket.numero ?? ticket.id.substring(0, 8)}_'
             '${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}.pdf',
       );
     } catch (e) {
@@ -369,7 +357,6 @@ class _State extends ConsumerState<TicketDetalleScreen> {
       appBar: AppBar(
         title: const Text('Detalle de ticket'),
         actions: [
-          // Botón PDF — solo si el ticket y el historial están cargados
           if (ticketAsync.valueOrNull != null)
             _generandoPdf
                 ? const Padding(
@@ -402,13 +389,41 @@ class _State extends ConsumerState<TicketDetalleScreen> {
             Card(child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+
+                // Fila 1: Nombre de la máquina
+                Text(ticket.maquinaNombre ?? 'Sin máquina',
+                    style: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 8),
+
+                // Fila 2: Número externo (izquierda) + Estado (derecha)
                 Row(children: [
-                  Expanded(child: Text(ticket.maquinaNombre ?? '',
-                      style: const TextStyle(
-                          fontSize: 15, fontWeight: FontWeight.w800))),
+                  if (ticket.numero != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                          color: Colors.indigo.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                              color: Colors.indigo.withOpacity(0.3))),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        const Icon(Icons.tag, size: 12,
+                            color: Colors.indigo),
+                        const SizedBox(width: 3),
+                        Text(ticket.numero!,
+                            style: const TextStyle(
+                                fontSize: 11,
+                                color: Colors.indigo,
+                                fontWeight: FontWeight.w700)),
+                      ]),
+                    ),
+                  const Spacer(),
                   EstadoBadge(ticket.estado),
                 ]),
                 const SizedBox(height: 12),
+
+                // Fila 3+: Creado por, Técnico, Fecha (fontSize 10)
                 _InfoRow(Icons.person_outline, 'Creado por',
                     ticket.creadoPorNombre ?? ''),
                 _InfoRow(Icons.engineering_outlined, 'Técnico',
@@ -419,16 +434,13 @@ class _State extends ConsumerState<TicketDetalleScreen> {
             )),
 
             // ── Ver repuestos de la máquina ───────────
-            if (isAdmin || isTecnico)
+            if ((isAdmin || isTecnico) && ticket.maquinaId != null)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
-                child: OutlinedButton.icon(
-                    icon: const Icon(Icons.settings_outlined, size: 16),
-                    label: Text(
-                        'Ver repuestos de ${ticket.maquinaNombre ?? 'la máquina'}'),
+                child: OutlinedButton(
                     style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 10),
-                        textStyle: const TextStyle(fontSize: 12),
+                        textStyle: const TextStyle(fontSize: 9),
                         side: BorderSide(color: Colors.blue.withOpacity(0.4)),
                         foregroundColor: Colors.blue),
                     onPressed: () => Navigator.push(context,
@@ -436,7 +448,9 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                             parent: ProviderScope.containerOf(context),
                             child: RepuestosMaquinaScreen(
                                 maquinaId:     ticket.maquinaId ?? '',
-                                maquinaNombre: ticket.maquinaNombre ?? 'Máquina')))))),
+                                maquinaNombre: ticket.maquinaNombre ?? 'Máquina')))),
+                    child: Text(
+                        'Ver repuestos de ${ticket.maquinaNombre ?? 'la máquina'}'))),
 
             // ── Registrar salida ──────────────────────
             if ((isAdmin || (isTecnico && esAsignado)) &&
@@ -496,7 +510,8 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                 child: ElevatedButton.icon(
                     icon: const Icon(Icons.engineering_outlined),
                     label: const Text('Asignar técnico'),
-                    onPressed: _loading ? null : () => _asignarTecnico(ticket.id))),
+                    onPressed: _loading ? null
+                        : () => _asignarTecnico(ticket.id))),
 
             if (isAdmin &&
                 ticket.estado != TicketEstados.cerrado &&
@@ -504,7 +519,8 @@ class _State extends ConsumerState<TicketDetalleScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green),
                     icon: const Icon(Icons.check_circle_outline),
                     label: const Text('Cerrar ticket'),
                     onPressed: _loading ? null : () => _cerrar(ticket.id))),
@@ -514,33 +530,39 @@ class _State extends ConsumerState<TicketDetalleScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.teal),
                     icon: const Icon(Icons.play_circle_outline),
                     label: const Text('Iniciar ejecución'),
                     onPressed: _loading ? null
-                        : () => _cambiarEstado(ticket.id, TicketEstados.enEjecucion))),
+                        : () => _cambiarEstado(
+                            ticket.id, TicketEstados.enEjecucion))),
 
             if (isTecnico && esAsignado &&
                 ticket.estado == TicketEstados.enEjecucion)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange),
                     icon: const Icon(Icons.pause_circle_outline),
                     label: const Text('Poner en espera'),
                     onPressed: _loading ? null
-                        : () => _cambiarEstado(ticket.id, TicketEstados.enEspera))),
+                        : () => _cambiarEstado(
+                            ticket.id, TicketEstados.enEspera))),
 
             if (isTecnico && esAsignado &&
                 ticket.estado == TicketEstados.enEspera)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.teal),
                     icon: const Icon(Icons.play_circle_outline),
                     label: const Text('Reanudar ejecución'),
                     onPressed: _loading ? null
-                        : () => _cambiarEstado(ticket.id, TicketEstados.enEjecucion))),
+                        : () => _cambiarEstado(
+                            ticket.id, TicketEstados.enEjecucion))),
 
             const SizedBox(height: 16),
 
@@ -570,11 +592,13 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
                                   children: [
                                     Wrap(
                                       spacing: 4, runSpacing: 4,
-                                      crossAxisAlignment: WrapCrossAlignment.center,
+                                      crossAxisAlignment:
+                                          WrapCrossAlignment.center,
                                       children: [
                                         if (h.estadoAnterior != null) ...[
                                           EstadoBadge(h.estadoAnterior!),
@@ -591,10 +615,12 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                                             fontSize: 12)),
                                     if (h.comentario != null)
                                       Text(h.comentario!,
-                                          style: const TextStyle(fontSize: 12)),
+                                          style: const TextStyle(
+                                              fontSize: 12)),
                                     Text(h.fecha.toString().substring(0, 16),
                                         style: const TextStyle(
-                                            fontSize: 11, color: Colors.grey)),
+                                            fontSize: 11,
+                                            color: Colors.grey)),
                                   ],
                                 ),
                               ),
@@ -609,6 +635,7 @@ class _State extends ConsumerState<TicketDetalleScreen> {
   }
 }
 
+// ── InfoRow con fontSize 10 ───────────────────────────────────
 class _InfoRow extends StatelessWidget {
   final IconData icon;
   final String label, value;
@@ -618,12 +645,12 @@ class _InfoRow extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(children: [
-        Icon(icon, size: 16, color: Colors.grey),
+        Icon(icon, size: 14, color: Colors.grey),
         const SizedBox(width: 8),
         Text('$label: ',
-            style: const TextStyle(color: Colors.grey, fontSize: 12)),
+            style: const TextStyle(color: Colors.grey, fontSize: 10)),
         Expanded(child: Text(value,
             style: const TextStyle(
-                fontWeight: FontWeight.w600, fontSize: 12))),
+                fontWeight: FontWeight.w600, fontSize: 10))),
       ]));
 }

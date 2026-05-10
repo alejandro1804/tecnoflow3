@@ -103,7 +103,7 @@ class Repuesto {
   final String? ubicacion;
   final String? imagenUrl;
   final bool    activo;
-  final int?    ref;            // autoincremental desde Postgres, solo lectura
+  final int?    ref;
 
   const Repuesto({
     required this.id,
@@ -121,7 +121,6 @@ class Repuesto {
 
   factory Repuesto.fromMap(Map<String, dynamic> m) => Repuesto(
     id:          m['id'],
-   // codigo:      m['codigo'],
     codigo:      m['codigo'] ?? '',
     descripcion: m['descripcion'],
     stockActual: m['stock_actual'] ?? 0,
@@ -140,7 +139,6 @@ class Repuesto {
     'ubicacion':    ubicacion,
     'imagen_url':   imagenUrl,
     'activo':       activo,
-    // ref no se envía — lo asigna Postgres automáticamente
   };
 
   Map<String, dynamic> toUpdate() => {
@@ -150,13 +148,13 @@ class Repuesto {
     'ubicacion':    ubicacion,
     'imagen_url':   imagenUrl,
     'activo':       activo,
-    // ref no se envía — lo asigna Postgres automáticamente
   };
 }
 
 // ── Ticket ────────────────────────────────────────────────────
 class Ticket {
   final String  id;
+  final String? numero;
   final String? maquinaId;
   final String? maquinaNombre;
   final String  creadoPor;
@@ -171,6 +169,7 @@ class Ticket {
 
   const Ticket({
     required this.id,
+    this.numero,
     this.maquinaId,
     this.maquinaNombre,
     required this.creadoPor,
@@ -186,6 +185,7 @@ class Ticket {
 
   factory Ticket.fromMap(Map<String, dynamic> m) => Ticket(
         id:                     m['id'],
+        numero:                 m['numero'],
         maquinaId:              m['maquina_id'],
         maquinaNombre:          m['maquinas']?['nombre'],
         creadoPor:              m['creado_por'],
@@ -236,16 +236,16 @@ class TicketHistorial {
 
 // ── Ingreso de repuesto ───────────────────────────────────────
 class IngresoRepuesto {
-  final String id;
-  final String repuestoId;
+  final String  id;
+  final String  repuestoId;
   final String? repuestoCodigo;
   final String? repuestoDescripcion;
   final int?    repuestoRef;
-  final String registradoPor;
-  final int cantidad;
-  final String quienEntrega;
+  final String  registradoPor;
+  final int     cantidad;
+  final String  quienEntrega;
   final String? descripcion;
-  final String fecha;
+  final String  fecha;
 
   const IngresoRepuesto({
     required this.id,
@@ -276,15 +276,16 @@ class IngresoRepuesto {
 
 // ── Salida de repuesto ────────────────────────────────────────
 class SalidaRepuesto {
-  final String id;
-  final String repuestoId;
+  final String  id;
+  final String  repuestoId;
   final String? repuestoCodigo;
   final String? repuestoDescripcion;
   final int?    repuestoRef;
   final String? ticketId;
-  final String registradoPor;
-  final int cantidad;
-  final String fecha;
+  final String? ticketNumero;     // número externo del ticket asociado
+  final String  registradoPor;
+  final int     cantidad;
+  final String  fecha;
   final String? observacion;
 
   const SalidaRepuesto({
@@ -294,6 +295,7 @@ class SalidaRepuesto {
     this.repuestoDescripcion,
     this.repuestoRef,
     this.ticketId,
+    this.ticketNumero,
     required this.registradoPor,
     required this.cantidad,
     required this.fecha,
@@ -307,6 +309,7 @@ class SalidaRepuesto {
     repuestoDescripcion: m['repuestos']?['descripcion'],
     repuestoRef:         m['repuestos']?['ref'],
     ticketId:            m['ticket_id'],
+    ticketNumero:        m['tickets']?['numero'],
     registradoPor:       m['registrado_por'],
     cantidad:            m['cantidad'] ?? 0,
     fecha:               m['fecha'] ?? '',
@@ -316,15 +319,15 @@ class SalidaRepuesto {
 
 // ── RepuestoMaquina ───────────────────────────────────────────
 class RepuestoMaquina {
-  final String id;
-  final String repuestoId;
-  final String maquinaId;
+  final String  id;
+  final String  repuestoId;
+  final String  maquinaId;
   final String? repuestoCodigo;
   final String? repuestoDescripcion;
   final String? maquinaNombre;
   final String? maquinaCodigo;
   final String? maquinaEstado;
-  final int cantidad;
+  final int     cantidad;
   final String? ubicacionEnMaquina;
   final String? observacion;
 

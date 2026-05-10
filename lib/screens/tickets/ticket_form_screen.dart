@@ -12,12 +12,13 @@ class TicketFormScreen extends ConsumerStatefulWidget {
 }
 
 class _State extends ConsumerState<TicketFormScreen> {
-  final _formKey  = GlobalKey<FormState>();
-  final _descCtrl = TextEditingController();
-  final _obsCtrl  = TextEditingController();
-  String _maquinaId    = '';
-  bool   _sinMaquina   = false;
-  bool   _loading      = false;
+  final _formKey   = GlobalKey<FormState>();
+  final _descCtrl  = TextEditingController();
+  final _obsCtrl   = TextEditingController();
+  final _numCtrl   = TextEditingController();   // campo número externo
+  String  _maquinaId  = '';
+  bool    _sinMaquina = false;
+  bool    _loading    = false;
   String? _error;
 
   Future<void> _submit() async {
@@ -28,7 +29,9 @@ class _State extends ConsumerState<TicketFormScreen> {
           maquinaId:   _sinMaquina ? null : _maquinaId,
           descripcion: _descCtrl.text.trim(),
           observacion: _obsCtrl.text.trim().isEmpty
-              ? null : _obsCtrl.text.trim());
+              ? null : _obsCtrl.text.trim(),
+          numero:      _numCtrl.text.trim().isEmpty
+              ? null : _numCtrl.text.trim());
       ref.invalidate(ticketsProvider);
       if (mounted) {
         context.pop();
@@ -45,7 +48,7 @@ class _State extends ConsumerState<TicketFormScreen> {
 
   @override
   void dispose() {
-    _descCtrl.dispose(); _obsCtrl.dispose();
+    _descCtrl.dispose(); _obsCtrl.dispose(); _numCtrl.dispose();
     super.dispose();
   }
 
@@ -66,6 +69,16 @@ class _State extends ConsumerState<TicketFormScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
 
+              // ── Número externo (opcional) ─────────────
+              TextFormField(
+                controller: _numCtrl,
+                decoration: const InputDecoration(
+                    labelText: 'N° de ticket externo (opcional)',
+                    prefixIcon: Icon(Icons.tag_outlined),
+                    hintText: 'Ej: TK-2024-001'),
+              ),
+              const SizedBox(height: 16),
+
               // ── Switch sin máquina ────────────────────
               Container(
                 padding: const EdgeInsets.symmetric(
@@ -85,14 +98,12 @@ class _State extends ConsumerState<TicketFormScreen> {
                       color: _sinMaquina ? Colors.orange : Colors.grey),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text(
-                      'Sin máquina asociada',
-                      style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: _sinMaquina
-                              ? Colors.orange : Colors.black87),
-                    ),
+                    child: Text('Sin máquina asociada',
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: _sinMaquina
+                                ? Colors.orange : Colors.black87)),
                   ),
                   Switch(
                     value: _sinMaquina,
@@ -106,7 +117,7 @@ class _State extends ConsumerState<TicketFormScreen> {
               ),
               const SizedBox(height: 12),
 
-              // ── Selector de máquina (oculto si sin máquina) ──
+              // ── Selector de máquina ───────────────────
               if (!_sinMaquina)
                 DropdownButtonFormField<String>(
                   isExpanded: true,
@@ -121,8 +132,9 @@ class _State extends ConsumerState<TicketFormScreen> {
                           '${m.nombre} (${m.sectorNombre ?? ''})',
                           overflow: TextOverflow.ellipsis))).toList(),
                   onChanged: (v) => setState(() => _maquinaId = v!),
-                  validator: (v) => (!_sinMaquina && (v == null || v.isEmpty))
-                      ? 'Seleccione una máquina' : null),
+                  validator: (v) =>
+                      (!_sinMaquina && (v == null || v.isEmpty))
+                          ? 'Seleccione una máquina' : null),
 
               if (!_sinMaquina) const SizedBox(height: 16),
 
