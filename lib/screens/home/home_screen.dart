@@ -56,26 +56,27 @@
             return ListView(padding: const EdgeInsets.all(16), children: [
 
               // ── Tarjeta bienvenida ────────────────────
-              Card(child: Padding(padding: const EdgeInsets.all(20),
-                  child: Row(children: [
-                    CircleAvatar(
-                        backgroundColor: Theme.of(context).colorScheme.primary,
-                        radius: 20,
-                        child: Text(profile.nombre.substring(0, 1).toUpperCase(),
-                            style: const TextStyle(color: Colors.white,
-                                fontSize: 22, fontWeight: FontWeight.bold))),
-                    const SizedBox(width: 16),
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text('Bienvenido',
-                          style: TextStyle(color: Colors.grey[500], fontSize: 12)),
-                      Text(profile.nombre,
+              Card(
+                //margin: EdgeInsets.zero,
+                margin: const EdgeInsets.only(bottom: 16),
+                child: Padding(padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                    child: Row(children: [
+                      CircleAvatar(
+                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          radius: 16,
+                          child: Text(profile.nombre.substring(0, 1).toUpperCase(),
+                              style: const TextStyle(color: Colors.white,
+                                  fontSize: 16, fontWeight: FontWeight.bold))),
+                      const SizedBox(width: 12),
+                      Expanded(child: Text(profile.nombre,
                           style: const TextStyle(
-                              fontSize: 12, fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 4),
+                              fontSize: 11, fontWeight: FontWeight.w600),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis)),
+                      const SizedBox(width: 8),
                       RolBadge(profile.rolNombre),
-                    ])),
-                  ]))),
-              const SizedBox(height: 16),
+                    ]))),
 
               // ── Alerta stock bajo — admin y pañolero ──
               if (repuestosBajo.isNotEmpty && (isAdmin || isPaniolero))

@@ -83,18 +83,18 @@ class _State extends ConsumerState<SalidasScreen> {
                         border: Border.all(
                             color: Colors.purple.withOpacity(0.3))),
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      const Icon(Icons.tag, size: 11, color: Colors.purple),
+                      const Icon(Icons.tag, size: 10, color: Colors.purple),
                       const SizedBox(width: 3),
                       Text('REF ${s.repuestoRef}',
                           style: const TextStyle(
-                              fontSize: 11, color: Colors.purple,
-                              fontWeight: FontWeight.w800)),
+                              fontSize: 10, color: Colors.purple,
+                              fontWeight: FontWeight.w600)),
                     ]),
                   ),
               ]),
               const SizedBox(height: 12),
 
-              _DetalleRow(Icons.inventory_2_outlined, 'Repuesto',
+              _DetalleRow(Icons.inventory_2_outlined, 'Rep',
                   s.repuestoDescripcion ?? '—'),
               _DetalleRow(Icons.qr_code_outlined, 'Código',
                   s.repuestoCodigo ?? '—'),
