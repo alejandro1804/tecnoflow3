@@ -53,6 +53,10 @@
                     t.estado == TicketEstados.asignado)
                 .toList() ?? [];
 
+            final ticketsEnRevision = ticketsAsync.valueOrNull
+                ?.where((t) => t.estado == TicketEstados.enRevision)
+                .toList() ?? [];
+
             return ListView(padding: const EdgeInsets.all(16), children: [
 
               // ── Tarjeta bienvenida ────────────────────
@@ -119,6 +123,29 @@
                     onTap: () => context.push('/tickets'),
                   )),
 
+              // ── Alerta tickets en revisión — solo admin ──
+              if (ticketsEnRevision.isNotEmpty && isAdmin)
+                Card(
+                  color: Colors.indigo.shade50,
+                  margin: const EdgeInsets.only(bottom: 6),
+                  child: ListTile(
+                    leading: const Icon(Icons.rate_review_outlined,
+                        color: Colors.indigo, size: 32),
+                    title: Text(
+                        '${ticketsEnRevision.length} ticket(s) para revisar',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: Colors.indigo,
+                            fontSize: 12)),
+                    subtitle: Text(
+                        ticketsEnRevision.length == 1
+                            ? 'Máquina: ${ticketsEnRevision.first.maquinaNombre ?? ''}'
+                            : 'Reportados como completados por los técnicos',
+                        style: const TextStyle(fontSize: 11)),
+                    trailing: const Icon(Icons.chevron_right, color: Colors.indigo),
+                    onTap: () => context.push('/tickets'),
+                  )),
+
               // ── Alerta tickets asignados — solo técnico ──
               if (ticketsAsignados.isNotEmpty && isTecnico)
                 Card(
@@ -148,35 +175,35 @@
               if (isAdmin || isTecnico || isPaniolero)
                 _MenuCard(
                     icon: Icons.inventory_2_outlined, title: 'Repuestos',
-                    subtitle: 'Stock y catálogo de repuestos', color: Colors.blue,
+                    color: Colors.blue,
                     onTap: () => context.push('/repuestos')),
 
               // ── Máquinas — admin, técnico y pañolero ──
               if (isAdmin || isTecnico || isPaniolero)
                 _MenuCard(
                     icon: Icons.precision_manufacturing_outlined, title: 'Máquinas',
-                    subtitle: 'Máquinas y sus repuestos', color: Colors.teal,
+                    color: Colors.teal,
                     onTap: () => context.push('/maquinas')),
 
               // ── Ingresos — admin y pañolero ───────────
               if (isAdmin || isPaniolero)
                 _MenuCard(
                     icon: Icons.input_outlined, title: 'Ingresos',
-                    subtitle: 'Ingresos de repuestos', color: Colors.green,
+                    color: Colors.green,
                     onTap: () => context.push('/ingresos')),
 
               // ── Salidas — admin y pañolero ────────────
               if (isAdmin || isPaniolero)
                 _MenuCard(
                     icon: Icons.output_outlined, title: 'Salidas',
-                    subtitle: 'Salidas de repuestos', color: Colors.red,
+                    color: Colors.red,
                     onTap: () => context.push('/salidas')),
 
               // ── Tickets — solo admin ──────────────────
               if (isAdmin)
                 _MenuCard(
                     icon: Icons.confirmation_number_outlined, title: 'Tickets',
-                    subtitle: 'Gestión de órdenes de trabajo', color: Colors.orange,
+                    color: Colors.orange,
                     onTap: () => context.push('/tickets')),
 
               // ── Repuestos inactivos — solo admin ──────
@@ -193,11 +220,11 @@
               if (isAdmin) ...[
                 _MenuCard(
                     icon: Icons.domain_outlined, title: 'Sectores',
-                    subtitle: 'Sectores de la planta', color: Colors.indigo,
+                    color: Colors.indigo,
                     onTap: () => context.push('/sectores')),
                 _MenuCard(
                     icon: Icons.people_outline, title: 'Usuarios',
-                    subtitle: 'Gestión de usuarios', color: Colors.purple,
+                    color: Colors.purple,
                     onTap: () => context.push('/usuarios')),
               ],
 
@@ -205,21 +232,21 @@
               if (isTecnico)
                 _MenuCard(
                     icon: Icons.input_outlined, title: 'Ingresos',
-                    subtitle: 'Consulta de ingresos de repuestos', color: Colors.green,
+                    color: Colors.green,
                     onTap: () => context.push('/ingresos')),
 
               // ── Salidas — técnico (solo lectura) ─────────
               if (isTecnico)
                 _MenuCard(
                     icon: Icons.output_outlined, title: 'Salidas',
-                    subtitle: 'Consulta de salidas de repuestos', color: Colors.red,
+                    color: Colors.red,
                     onTap: () => context.push('/salidas')),
 
               // ── Tickets — técnico, encargado y pañolero ──
               if (!isAdmin)
                 _MenuCard(
                     icon: Icons.confirmation_number_outlined, title: 'Tickets',
-                    subtitle: 'Gestión de órdenes de trabajo', color: Colors.orange,
+                    color: Colors.orange,
                     onTap: () => context.push('/tickets')),
 
               // ── Repuestos inactivos — pañolero no-admin ──
@@ -386,20 +413,12 @@
                   const Icon(Icons.inventory_2_outlined,
                       color: Colors.orange, size: 28),
                   const SizedBox(width: 12),
-                  Expanded(child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                          '${widget.repuestos.length} repuesto(s) inactivo(s)',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              color: Colors.orange,
-                              fontSize: 12)),
-                      const Text('Toca para ver el listado',
-                          style: TextStyle(
-                              fontSize: 11, color: Colors.orange)),
-                    ],
-                  )),
+                  Expanded(child: Text(
+                      '${widget.repuestos.length} repuesto(s) inactivo(s)',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: Colors.orange,
+                          fontSize: 12))),
                   Icon(_expandido
                       ? Icons.keyboard_arrow_up
                       : Icons.keyboard_arrow_down,
@@ -562,14 +581,13 @@
   // ── MenuCard ──────────────────────────────────────────────────
   class _MenuCard extends StatelessWidget {
     final IconData icon;
-    final String title, subtitle;
+    final String title;
     final Color color;
     final VoidCallback onTap;
 
     const _MenuCard({
       required this.icon,
       required this.title,
-      required this.subtitle,
       required this.color,
       required this.onTap,
     });
@@ -582,31 +600,20 @@
           onTap: onTap,
           borderRadius: BorderRadius.circular(12),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(children: [
-                  CircleAvatar(
-                      radius: 16,
-                      backgroundColor: color.withOpacity(0.12),
-                      child: Icon(icon, color: color, size: 15)),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(title,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w500, fontSize: 12)),
-                  ),
-                  Icon(Icons.chevron_right, color: Colors.grey[400], size: 18),
-                ]),
-                const SizedBox(height: 4),
-                Padding(
-                  padding: const EdgeInsets.only(left: 42),
-                  child: Text(subtitle,
-                      style: TextStyle(fontSize: 10, color: Colors.grey[600])),
-                ),
-              ],
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: Row(children: [
+              CircleAvatar(
+                  radius: 16,
+                  backgroundColor: color.withOpacity(0.12),
+                  child: Icon(icon, color: color, size: 15)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(title,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w500, fontSize: 13)),
+              ),
+              Icon(Icons.chevron_right, color: Colors.grey[400], size: 18),
+            ]),
           ),
         ),
       );

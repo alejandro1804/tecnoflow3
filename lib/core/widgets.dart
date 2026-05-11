@@ -1,4 +1,3 @@
-
 // lib/core/widgets.dart
 import 'package:flutter/material.dart';
 import 'constants.dart';
@@ -12,8 +11,9 @@ class EstadoBadge extends StatelessWidget {
     switch (estado) {
       case 'abierto':      return Colors.orange;
       case 'asignado':     return Colors.blue;
-      case 'en_ejecucion': return Colors.green;
+      case 'en_ejecucion': return Colors.teal;
       case 'en_espera':    return Colors.purple;
+      case 'en_revision':  return Colors.indigo;   // ← NUEVO
       case 'cerrado':      return Colors.grey;
       default:             return Colors.grey;
     }
@@ -25,6 +25,7 @@ class EstadoBadge extends StatelessWidget {
       case 'asignado':     return 'Asignado';
       case 'en_ejecucion': return 'En ejecución';
       case 'en_espera':    return 'En espera';
+      case 'en_revision':  return 'En revisión';   // ← NUEVO
       case 'cerrado':      return 'Cerrado';
       default:             return estado;
     }

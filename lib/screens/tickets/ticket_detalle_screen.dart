@@ -30,33 +30,37 @@ class _State extends ConsumerState<TicketDetalleScreen> {
   bool _generandoPdf = false;
   String? _error;
 
+  // ── helpers de label/color compartidos ───────────────────────
+  static String labelEstado(String e) {
+    switch (e) {
+      case 'abierto':      return 'Abierto';
+      case 'asignado':     return 'Asignado';
+      case 'en_ejecucion': return 'En ejecución';
+      case 'en_espera':    return 'En espera';
+      case 'en_revision':  return 'En revisión';
+      case 'cerrado':      return 'Cerrado';
+      default:             return e;
+    }
+  }
+
+  static PdfColor colorEstadoPdf(String e) {
+    switch (e) {
+      case 'abierto':      return PdfColors.orange;
+      case 'asignado':     return PdfColors.blue;
+      case 'en_ejecucion': return PdfColors.teal;
+      case 'en_espera':    return PdfColors.purple;
+      case 'en_revision':  return PdfColors.indigo;
+      case 'cerrado':      return PdfColors.grey;
+      default:             return PdfColors.grey;
+    }
+  }
+
+  // ── exportar PDF ─────────────────────────────────────────────
   Future<void> _exportarPdf(Ticket ticket, List<TicketHistorial> historial) async {
     setState(() => _generandoPdf = true);
     try {
       final pdf   = pw.Document();
       final ahora = DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now());
-
-      String labelEstado(String e) {
-        switch (e) {
-          case 'abierto':      return 'Abierto';
-          case 'asignado':     return 'Asignado';
-          case 'en_ejecucion': return 'En ejecución';
-          case 'en_espera':    return 'En espera';
-          case 'cerrado':      return 'Cerrado';
-          default:             return e;
-        }
-      }
-
-      PdfColor colorEstado(String e) {
-        switch (e) {
-          case 'abierto':      return PdfColors.orange;
-          case 'asignado':     return PdfColors.blue;
-          case 'en_ejecucion': return PdfColors.teal;
-          case 'en_espera':    return PdfColors.purple;
-          case 'cerrado':      return PdfColors.grey;
-          default:             return PdfColors.grey;
-        }
-      }
 
       pdf.addPage(pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
@@ -122,7 +126,7 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                   padding: const pw.EdgeInsets.symmetric(
                       horizontal: 10, vertical: 4),
                   decoration: pw.BoxDecoration(
-                      color: colorEstado(ticket.estado),
+                      color: colorEstadoPdf(ticket.estado),
                       borderRadius: pw.BorderRadius.circular(4)),
                   child: pw.Text(labelEstado(ticket.estado),
                       style: pw.TextStyle(
@@ -252,6 +256,7 @@ class _State extends ConsumerState<TicketDetalleScreen> {
         ]),
       );
 
+  // ── asignar técnico ───────────────────────────────────────────
   Future<void> _asignarTecnico(String ticketId) async {
     final usuarios = await ref.read(usuariosRepoProvider).getAll();
     final tecnicos = usuarios.where((u) => u.isTecnico).toList();
@@ -279,6 +284,7 @@ class _State extends ConsumerState<TicketDetalleScreen> {
     }
   }
 
+  // ── cambiar estado genérico ───────────────────────────────────
   Future<void> _cambiarEstado(String ticketId, String nuevoEstado) async {
     String? comentario;
     if (nuevoEstado == TicketEstados.enEspera) {
@@ -318,28 +324,155 @@ class _State extends ConsumerState<TicketDetalleScreen> {
     }
   }
 
-  Future<void> _cerrar(String ticketId) async {
+  // ── enviar a revisión (técnico) ───────────────────────────────
+  // Pide una observación obligatoria antes de cambiar el estado
+  Future<void> _enviarARevision(String ticketId) async {
+    final ctrl = TextEditingController();
+    final comentario = await showDialog<String>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Row(children: const [
+          Icon(Icons.rate_review_outlined, color: Colors.indigo),
+          SizedBox(width: 8),
+          Text('Enviar a revisión'),
+        ]),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Text(
+            'Describí brevemente el trabajo realizado o el motivo por el que enviás el ticket a revisión.',
+            style: TextStyle(fontSize: 13, color: Colors.black54),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: ctrl,
+            maxLines: 4,
+            autofocus: true,
+            decoration: const InputDecoration(
+              hintText: 'Ej: Reparación completada, se reemplazó rodamiento...',
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ]),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar')),
+          ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo),
+              icon: const Icon(Icons.send_outlined),
+              label: const Text('Enviar'),
+              onPressed: () {
+                if (ctrl.text.trim().isEmpty) return;
+                Navigator.pop(context, ctrl.text.trim());
+              }),
+        ],
+      ),
+    );
+    if (comentario == null) return;
+    setState(() => _loading = true);
+    try {
+      await ref.read(ticketsRepoProvider).updateEstado(
+          ticketId, TicketEstados.enRevision,
+          comentario: comentario);
+      ref.invalidate(_ticketProvider(ticketId));
+      ref.invalidate(_historialProvider(ticketId));
+      ref.invalidate(ticketsProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Ticket enviado a revisión'),
+            backgroundColor: Colors.indigo));
+      }
+    } catch (e) {
+      setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  // ── cerrar ticket (admin) — solo desde en_revision ───────────
+  // Muestra diálogo de confirmación con resumen del trabajo
+  Future<void> _cerrar(String ticketId, Ticket ticket) async {
+    final ctrl = TextEditingController();
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Cerrar ticket'),
-        content: const Text('¿Confirmar cierre definitivo del ticket?'),
+        title: Row(children: const [
+          Icon(Icons.check_circle_outline, color: Colors.green),
+          SizedBox(width: 8),
+          Text('Cerrar ticket'),
+        ]),
+        content: Column(mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // Resumen del ticket
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+                color: Colors.indigo.withOpacity(0.06),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.indigo.withOpacity(0.2))),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+              Row(children: [
+                const Icon(Icons.rate_review_outlined,
+                    size: 14, color: Colors.indigo),
+                const SizedBox(width: 6),
+                const Text('En revisión — trabajo reportado:',
+                    style: TextStyle(
+                        fontSize: 11, color: Colors.indigo,
+                        fontWeight: FontWeight.w600)),
+              ]),
+              const SizedBox(height: 6),
+              Text(
+                // Muestra la última observación del técnico como contexto
+                ticket.observacionTecnico ?? 'Sin observación del técnico',
+                style: const TextStyle(fontSize: 12),
+              ),
+            ]),
+          ),
+          const SizedBox(height: 14),
+          const Text('Observación de cierre (opcional):',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 6),
+          TextField(
+            controller: ctrl,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              hintText: 'Ej: Revisado y aprobado, máquina operativa...',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Esta acción es definitiva. El ticket quedará cerrado.',
+            style: TextStyle(fontSize: 11, color: Colors.red),
+          ),
+        ]),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
               child: const Text('Cancelar')),
-          ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Cerrar')),
+          ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+              icon: const Icon(Icons.lock_outline),
+              label: const Text('Confirmar cierre'),
+              onPressed: () => Navigator.pop(context, true)),
         ],
       ),
     );
     if (ok != true) return;
     setState(() => _loading = true);
     try {
-      await ref.read(ticketsRepoProvider).cerrar(ticketId);
+      final comentario = ctrl.text.trim().isNotEmpty ? ctrl.text.trim() : null;
+      await ref.read(ticketsRepoProvider).updateEstado(
+          ticketId, TicketEstados.cerrado,
+          comentario: comentario);
       ref.invalidate(_ticketProvider(ticketId));
+      ref.invalidate(_historialProvider(ticketId));
       ref.invalidate(ticketsProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Ticket cerrado correctamente'),
+            backgroundColor: Colors.green));
+      }
     } catch (e) {
       setState(() => _error = e.toString());
     } finally {
@@ -389,14 +522,10 @@ class _State extends ConsumerState<TicketDetalleScreen> {
             Card(child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-
-                // Fila 1: Nombre de la máquina
                 Text(ticket.maquinaNombre ?? 'Sin máquina',
                     style: const TextStyle(
                         fontSize: 12, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
-
-                // Fila 2: Número externo (izquierda) + Estado (derecha)
                 Row(children: [
                   if (ticket.numero != null)
                     Container(
@@ -408,8 +537,7 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                           border: Border.all(
                               color: Colors.indigo.withOpacity(0.3))),
                       child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        const Icon(Icons.tag, size: 12,
-                            color: Colors.indigo),
+                        const Icon(Icons.tag, size: 12, color: Colors.indigo),
                         const SizedBox(width: 3),
                         Text(ticket.numero!,
                             style: const TextStyle(
@@ -422,8 +550,6 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                   EstadoBadge(ticket.estado),
                 ]),
                 const SizedBox(height: 12),
-
-                // Fila 3+: Creado por, Técnico, Fecha (fontSize 10)
                 _InfoRow(Icons.person_outline, 'Creado por',
                     ticket.creadoPorNombre ?? ''),
                 _InfoRow(Icons.engineering_outlined, 'Técnico',
@@ -432,6 +558,30 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                     ticket.createdAt.toString().substring(0, 10)),
               ]),
             )),
+
+            // ── Banner "en revisión" — visible para admin ─────────
+            if (isAdmin && ticket.estado == TicketEstados.enRevision)
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 6),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                    color: Colors.indigo.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.indigo.withOpacity(0.3))),
+                child: Row(children: const [
+                  Icon(Icons.rate_review_outlined,
+                      color: Colors.indigo, size: 20),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'El técnico reportó el trabajo como completado y aguarda tu revisión para cerrar el ticket.',
+                      style: TextStyle(
+                          fontSize: 12, color: Colors.indigo,
+                          fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ]),
+              ),
 
             // ── Ver repuestos de la máquina ───────────
             if ((isAdmin || isTecnico) && ticket.maquinaId != null)
@@ -454,7 +604,8 @@ class _State extends ConsumerState<TicketDetalleScreen> {
 
             // ── Registrar salida ──────────────────────
             if ((isAdmin || (isTecnico && esAsignado)) &&
-                ticket.estado != TicketEstados.cerrado)
+                ticket.estado != TicketEstados.cerrado &&
+                ticket.estado != TicketEstados.enRevision)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: ElevatedButton.icon(
@@ -504,6 +655,7 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                   child: CircularProgressIndicator())),
             if (_error != null) ErrorContainer(_error!),
 
+            // Admin: asignar técnico
             if (isAdmin && ticket.estado == TicketEstados.abierto)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
@@ -513,9 +665,8 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                     onPressed: _loading ? null
                         : () => _asignarTecnico(ticket.id))),
 
-            if (isAdmin &&
-                ticket.estado != TicketEstados.cerrado &&
-                ticket.estado != TicketEstados.abierto)
+            // Admin: cerrar ticket — SOLO desde en_revision
+            if (isAdmin && ticket.estado == TicketEstados.enRevision)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: ElevatedButton.icon(
@@ -523,8 +674,10 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                         backgroundColor: Colors.green),
                     icon: const Icon(Icons.check_circle_outline),
                     label: const Text('Cerrar ticket'),
-                    onPressed: _loading ? null : () => _cerrar(ticket.id))),
+                    onPressed: _loading ? null
+                        : () => _cerrar(ticket.id, ticket))),
 
+            // Técnico: iniciar ejecución
             if (isTecnico && esAsignado &&
                 ticket.estado == TicketEstados.asignado)
               Padding(
@@ -538,6 +691,7 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                         : () => _cambiarEstado(
                             ticket.id, TicketEstados.enEjecucion))),
 
+            // Técnico: poner en espera
             if (isTecnico && esAsignado &&
                 ticket.estado == TicketEstados.enEjecucion)
               Padding(
@@ -551,6 +705,7 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                         : () => _cambiarEstado(
                             ticket.id, TicketEstados.enEspera))),
 
+            // Técnico: reanudar desde espera
             if (isTecnico && esAsignado &&
                 ticket.estado == TicketEstados.enEspera)
               Padding(
@@ -563,6 +718,20 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                     onPressed: _loading ? null
                         : () => _cambiarEstado(
                             ticket.id, TicketEstados.enEjecucion))),
+
+            // Técnico: enviar a revisión — desde en_ejecucion o en_espera
+            if (isTecnico && esAsignado &&
+                (ticket.estado == TicketEstados.enEjecucion ||
+                 ticket.estado == TicketEstados.enEspera))
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.indigo),
+                    icon: const Icon(Icons.rate_review_outlined),
+                    label: const Text('Enviar a revisión'),
+                    onPressed: _loading ? null
+                        : () => _enviarARevision(ticket.id))),
 
             const SizedBox(height: 16),
 
@@ -592,8 +761,7 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Wrap(
                                       spacing: 4, runSpacing: 4,
@@ -615,8 +783,7 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                                             fontSize: 12)),
                                     if (h.comentario != null)
                                       Text(h.comentario!,
-                                          style: const TextStyle(
-                                              fontSize: 12)),
+                                          style: const TextStyle(fontSize: 12)),
                                     Text(h.fecha.toString().substring(0, 16),
                                         style: const TextStyle(
                                             fontSize: 11,
