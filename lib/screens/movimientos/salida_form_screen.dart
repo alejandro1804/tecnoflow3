@@ -25,11 +25,12 @@ class SalidaFormScreen extends ConsumerStatefulWidget {
 }
 
 class _State extends ConsumerState<SalidaFormScreen> {
-  final _formKey  = GlobalKey<FormState>();
-  final _cantCtrl = TextEditingController(text: '1');
-  final _obsCtrl  = TextEditingController();
-  final _busqCtrl = TextEditingController();
-  final _refCtrl  = TextEditingController();
+  final _formKey        = GlobalKey<FormState>();
+  final _cantCtrl       = TextEditingController(text: '1');
+  final _obsCtrl        = TextEditingController();
+  final _busqCtrl       = TextEditingController();
+  final _refCtrl        = TextEditingController();
+  final _quienRetiraCtrl = TextEditingController();   // ← NUEVO
 
   String? _repuestoId;
   String? _ticketId;
@@ -49,13 +50,14 @@ class _State extends ConsumerState<SalidaFormScreen> {
   void initState() {
     super.initState();
     if (isEdit) {
-      final s        = widget.salida!;
-      _repuestoId    = s.repuestoId;
-      _ticketId      = s.ticketId;
-      _conTicket     = s.ticketId != null;
-      _cantCtrl.text = s.cantidad.toString();
-      _obsCtrl.text  = s.observacion ?? '';
-      _busqCtrl.text = s.repuestoDescripcion ?? '';
+      final s                   = widget.salida!;
+      _repuestoId               = s.repuestoId;
+      _ticketId                 = s.ticketId;
+      _conTicket                = s.ticketId != null;
+      _cantCtrl.text            = s.cantidad.toString();
+      _obsCtrl.text             = s.observacion ?? '';
+      _busqCtrl.text            = s.repuestoDescripcion ?? '';
+      _quienRetiraCtrl.text     = s.quienRetira ?? '';   // ← NUEVO
     } else if (widget.repuestoPreseleccionado != null) {
       final r        = widget.repuestoPreseleccionado!;
       _repuestoId    = r.id;
@@ -95,6 +97,7 @@ class _State extends ConsumerState<SalidaFormScreen> {
   void dispose() {
     _cantCtrl.dispose(); _obsCtrl.dispose();
     _busqCtrl.dispose(); _refCtrl.dispose();
+    _quienRetiraCtrl.dispose();   // ← NUEVO
     super.dispose();
   }
 
@@ -120,23 +123,31 @@ class _State extends ConsumerState<SalidaFormScreen> {
       return;
     }
     setState(() { _loading = true; _error = null; });
+
+    // Valor de quienRetira: null si vacío
+    final quienRetira = _quienRetiraCtrl.text.trim().isEmpty
+        ? null
+        : _quienRetiraCtrl.text.trim();
+
     try {
       if (isEdit) {
         await ref.read(movimientosRepoProvider).updateSalida(
           widget.salida!.id,
-          repuestoId:  _repuestoId!,
-          cantidad:    int.parse(_cantCtrl.text),
-          ticketId:    _conTicket ? _ticketId : null,
-          observacion: _obsCtrl.text.trim().isEmpty
+          repuestoId:   _repuestoId!,
+          cantidad:     int.parse(_cantCtrl.text),
+          ticketId:     _conTicket ? _ticketId : null,
+          observacion:  _obsCtrl.text.trim().isEmpty
               ? null : _obsCtrl.text.trim(),
+          quienRetira:  quienRetira,   // ← NUEVO
         );
       } else {
         await ref.read(movimientosRepoProvider).createSalida(
-          repuestoId:  _repuestoId!,
-          cantidad:    int.parse(_cantCtrl.text),
-          ticketId:    _conTicket ? _ticketId : null,
-          observacion: _obsCtrl.text.trim().isEmpty
+          repuestoId:   _repuestoId!,
+          cantidad:     int.parse(_cantCtrl.text),
+          ticketId:     _conTicket ? _ticketId : null,
+          observacion:  _obsCtrl.text.trim().isEmpty
               ? null : _obsCtrl.text.trim(),
+          quienRetira:  quienRetira,   // ← NUEVO
         );
       }
       ref.invalidate(salidasProvider);
@@ -407,6 +418,24 @@ class _State extends ConsumerState<SalidaFormScreen> {
                   if ((int.tryParse(v) ?? 0) <= 0) return 'Debe ser mayor a 0';
                   return null;
                 }),
+              const SizedBox(height: 16),
+
+              // ── Quién retira ───────────────────────────   ← NUEVO
+              const Text('RETIRO', style: TextStyle(
+                  fontSize: 11, fontWeight: FontWeight.w700,
+                  color: Colors.grey, letterSpacing: 1)),
+              const SizedBox(height: 4),
+              TextFormField(
+                controller: _quienRetiraCtrl,
+                textCapitalization: TextCapitalization.words,
+                style: const TextStyle(fontSize: 12),
+                decoration: const InputDecoration(
+                    labelText: 'Quién retira (opcional)',
+                    hintText: 'Nombre del operario que retira',
+                    prefixIcon: Icon(Icons.person_outline),
+                    labelStyle: TextStyle(fontSize: 12),
+                    hintStyle: TextStyle(fontSize: 11, color: Colors.grey)),
+              ),
               const SizedBox(height: 16),
 
               // ── Ticket ────────────────────────────────

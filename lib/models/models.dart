@@ -166,6 +166,7 @@ class Ticket {
   final String? observacionEncargado;
   final String? observacionTecnico;
   final DateTime createdAt;
+  final String? fotoUrl;           // ← foto principal (encargado/admin)
 
   const Ticket({
     required this.id,
@@ -181,6 +182,7 @@ class Ticket {
     this.observacionEncargado,
     this.observacionTecnico,
     required this.createdAt,
+    this.fotoUrl,                  // ← foto principal
   });
 
   factory Ticket.fromMap(Map<String, dynamic> m) => Ticket(
@@ -197,6 +199,7 @@ class Ticket {
         observacionEncargado:   m['observacion_encargado'],
         observacionTecnico:     m['observacion_tecnico'],
         createdAt:              DateTime.parse(m['created_at']),
+        fotoUrl:                m['foto_url'],   // ← foto principal
       );
 }
 
@@ -282,11 +285,12 @@ class SalidaRepuesto {
   final String? repuestoDescripcion;
   final int?    repuestoRef;
   final String? ticketId;
-  final String? ticketNumero;     // número externo del ticket asociado
+  final String? ticketNumero;
   final String  registradoPor;
   final int     cantidad;
   final String  fecha;
   final String? observacion;
+  final String? quienRetira;
 
   const SalidaRepuesto({
     required this.id,
@@ -300,6 +304,7 @@ class SalidaRepuesto {
     required this.cantidad,
     required this.fecha,
     this.observacion,
+    this.quienRetira,
   });
 
   factory SalidaRepuesto.fromMap(Map<String, dynamic> m) => SalidaRepuesto(
@@ -314,6 +319,7 @@ class SalidaRepuesto {
     cantidad:            m['cantidad'] ?? 0,
     fecha:               m['fecha'] ?? '',
     observacion:         m['observacion'],
+    quienRetira:         m['quien_retira'],
   );
 }
 
@@ -372,4 +378,35 @@ class RepuestoMaquina {
     'ubicacion_en_maquina': ubicacionEnMaquina,
     'observacion':          observacion,
   };
+}
+
+// ── Foto de ticket ────────────────────────────────────────────
+class TicketFoto {
+  final String   id;
+  final String   ticketId;
+  final String   subidoPor;
+  final String?  subidoPorNombre;
+  final String   fotoUrl;
+  final String?  descripcion;
+  final DateTime createdAt;
+
+  const TicketFoto({
+    required this.id,
+    required this.ticketId,
+    required this.subidoPor,
+    this.subidoPorNombre,
+    required this.fotoUrl,
+    this.descripcion,
+    required this.createdAt,
+  });
+
+  factory TicketFoto.fromMap(Map<String, dynamic> m) => TicketFoto(
+    id:              m['id'],
+    ticketId:        m['ticket_id'],
+    subidoPor:       m['subido_por'],
+    subidoPorNombre: m['usuarios']?['nombre'],
+    fotoUrl:         m['foto_url'],
+    descripcion:     m['descripcion'],
+    createdAt:       DateTime.parse(m['created_at']),
+  );
 }

@@ -1,6 +1,8 @@
 // lib/screens/tickets/ticket_detalle_screen.dart
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -28,6 +30,7 @@ class TicketDetalleScreen extends ConsumerStatefulWidget {
 class _State extends ConsumerState<TicketDetalleScreen> {
   bool _loading      = false;
   bool _generandoPdf = false;
+  bool _subiendoFoto = false;
   String? _error;
 
   // ── helpers de label/color compartidos ───────────────────────
@@ -256,6 +259,159 @@ class _State extends ConsumerState<TicketDetalleScreen> {
         ]),
       );
 
+  // ── foto: seleccionar fuente ──────────────────────────────────
+  Future<File?> _elegirFoto() async {
+    // Primero elegir la fuente
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (_) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const SizedBox(height: 8),
+          ListTile(
+            leading: const Icon(Icons.camera_alt_outlined),
+            title: const Text('Tomar foto'),
+            onTap: () => Navigator.pop(context, ImageSource.camera),
+          ),
+          ListTile(
+            leading: const Icon(Icons.photo_library_outlined),
+            title: const Text('Elegir de galería'),
+            onTap: () => Navigator.pop(context, ImageSource.gallery),
+          ),
+          const SizedBox(height: 8),
+        ]),
+      ),
+    );
+    if (source == null) return null;
+
+    // Luego abrir el picker con la fuente elegida
+    final p = await ImagePicker().pickImage(
+        source: source, imageQuality: 80, maxWidth: 1200);
+    return p == null ? null : File(p.path);
+  }
+
+  // ── actualizar foto principal ─────────────────────────────────
+  Future<void> _actualizarFotoPrincipal(String ticketId) async {
+    final archivo = await _elegirFoto();
+    if (archivo == null) return;
+    setState(() => _subiendoFoto = true);
+    try {
+      final url = await ref.read(ticketFotosRepoProvider)
+          .subirFoto(archivo, ticketId);
+      await ref.read(ticketsRepoProvider).updateFotoUrl(ticketId, url);
+      ref.invalidate(_ticketProvider(ticketId));
+      ref.invalidate(ticketsProvider);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error al subir foto: $e'),
+          backgroundColor: Colors.red));
+    } finally {
+      if (mounted) setState(() => _subiendoFoto = false);
+    }
+  }
+
+  // ── agregar foto adicional (técnico) ──────────────────────────
+  Future<void> _agregarFotoAdicional(String ticketId) async {
+    final archivo = await _elegirFoto();
+    if (archivo == null) return;
+
+    // Pedir descripción opcional
+    final descCtrl = TextEditingController();
+    final descripcion = await showDialog<String>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Descripción de la foto'),
+        content: TextField(
+          controller: descCtrl,
+          decoration: const InputDecoration(
+              hintText: 'Ej: Rodamiento dañado, cable quemado... (opcional)'),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, ''),
+              child: const Text('Sin descripción')),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(context, descCtrl.text.trim()),
+              child: const Text('Agregar')),
+        ],
+      ),
+    );
+    if (descripcion == null) return;
+
+    setState(() => _subiendoFoto = true);
+    try {
+      final url = await ref.read(ticketFotosRepoProvider)
+          .subirFoto(archivo, ticketId);
+      await ref.read(ticketFotosRepoProvider).agregarFoto(
+          ticketId:    ticketId,
+          fotoUrl:     url,
+          descripcion: descripcion.isEmpty ? null : descripcion);
+      ref.invalidate(ticketFotosProvider(ticketId));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error al subir foto: $e'),
+          backgroundColor: Colors.red));
+    } finally {
+      if (mounted) setState(() => _subiendoFoto = false);
+    }
+  }
+
+  // ── eliminar foto adicional ───────────────────────────────────
+  Future<void> _eliminarFotoAdicional(
+      TicketFoto foto, String ticketId) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Eliminar foto'),
+        content: const Text('¿Confirmás que querés eliminar esta foto?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar')),
+          ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Eliminar')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ref.read(ticketFotosRepoProvider).eliminarFoto(foto);
+      ref.invalidate(ticketFotosProvider(ticketId));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error al eliminar: $e'),
+          backgroundColor: Colors.red));
+    }
+  }
+
+  // ── ver foto en pantalla completa ─────────────────────────────
+  void _verFoto(BuildContext context, String url) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: EdgeInsets.zero,
+        child: Stack(children: [
+          Center(
+            child: InteractiveViewer(
+              child: Image.network(url, fit: BoxFit.contain),
+            ),
+          ),
+          Positioned(
+            top: 40, right: 16,
+            child: IconButton(
+              icon: const Icon(Icons.close, color: Colors.white, size: 28),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+
   // ── asignar técnico ───────────────────────────────────────────
   Future<void> _asignarTecnico(String ticketId) async {
     final usuarios = await ref.read(usuariosRepoProvider).getAll();
@@ -325,7 +481,6 @@ class _State extends ConsumerState<TicketDetalleScreen> {
   }
 
   // ── enviar a revisión (técnico) ───────────────────────────────
-  // Pide una observación obligatoria antes de cambiar el estado
   Future<void> _enviarARevision(String ticketId) async {
     final ctrl = TextEditingController();
     final comentario = await showDialog<String>(
@@ -388,8 +543,7 @@ class _State extends ConsumerState<TicketDetalleScreen> {
     }
   }
 
-  // ── cerrar ticket (admin) — solo desde en_revision ───────────
-  // Muestra diálogo de confirmación con resumen del trabajo
+  // ── cerrar ticket (admin) ─────────────────────────────────────
   Future<void> _cerrar(String ticketId, Ticket ticket) async {
     final ctrl = TextEditingController();
     final ok = await showDialog<bool>(
@@ -402,7 +556,6 @@ class _State extends ConsumerState<TicketDetalleScreen> {
         ]),
         content: Column(mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Resumen del ticket
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
@@ -422,7 +575,6 @@ class _State extends ConsumerState<TicketDetalleScreen> {
               ]),
               const SizedBox(height: 6),
               Text(
-                // Muestra la última observación del técnico como contexto
                 ticket.observacionTecnico ?? 'Sin observación del técnico',
                 style: const TextStyle(fontSize: 12),
               ),
@@ -484,6 +636,7 @@ class _State extends ConsumerState<TicketDetalleScreen> {
   Widget build(BuildContext context) {
     final ticketAsync    = ref.watch(_ticketProvider(widget.ticketId));
     final historialAsync = ref.watch(_historialProvider(widget.ticketId));
+    final fotosAsync     = ref.watch(ticketFotosProvider(widget.ticketId));
     final profile        = ref.watch(myProfileProvider).valueOrNull;
 
     return Scaffold(
@@ -512,9 +665,16 @@ class _State extends ConsumerState<TicketDetalleScreen> {
           if (ticket == null) {
             return const Center(child: Text('Ticket no encontrado'));
           }
-          final isAdmin    = profile?.isAdmin ?? false;
-          final isTecnico  = profile?.isTecnico ?? false;
-          final esAsignado = ticket.tecnicoId == profile?.id;
+          final isAdmin      = profile?.isAdmin ?? false;
+          final isTecnico    = profile?.isTecnico ?? false;
+          final isEncargado  = profile?.isEncargado ?? false;
+          final esAsignado   = ticket.tecnicoId == profile?.id;
+          final puedeEditarFotoPrincipal =
+              (isAdmin || isEncargado) &&
+              ticket.estado != TicketEstados.cerrado;
+          final puedeAgregarFotos =
+              (isAdmin || (isTecnico && esAsignado)) &&
+              ticket.estado != TicketEstados.cerrado;
 
           return ListView(padding: const EdgeInsets.all(16), children: [
 
@@ -559,7 +719,7 @@ class _State extends ConsumerState<TicketDetalleScreen> {
               ]),
             )),
 
-            // ── Banner "en revisión" — visible para admin ─────────
+            // ── Banner "en revisión" ──────────────────
             if (isAdmin && ticket.estado == TicketEstados.enRevision)
               Container(
                 margin: const EdgeInsets.symmetric(vertical: 6),
@@ -648,6 +808,193 @@ class _State extends ConsumerState<TicketDetalleScreen> {
               ]),
             )),
 
+            // ── Sección FOTOS ─────────────────────────
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+              child: Row(children: [
+                const Text('FOTOS', style: TextStyle(
+                    fontSize: 11, fontWeight: FontWeight.w700,
+                    color: Colors.grey, letterSpacing: 1)),
+                const Spacer(),
+                if (_subiendoFoto)
+                  const SizedBox(width: 16, height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2)),
+              ]),
+            ),
+
+            Card(child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+
+                // ── Foto principal ────────────────────
+                const Text('Foto del desperfecto', style: TextStyle(
+                    fontSize: 11, fontWeight: FontWeight.w600,
+                    color: Colors.grey)),
+                const SizedBox(height: 10),
+
+                if (ticket.fotoUrl != null)
+                  Stack(children: [
+                    GestureDetector(
+                      onTap: () => _verFoto(context, ticket.fotoUrl!),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.network(
+                          ticket.fotoUrl!,
+                          width: double.infinity,
+                          height: 200,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (_, child, progress) =>
+                              progress == null ? child
+                                  : const SizedBox(height: 200,
+                                      child: Center(
+                                          child: CircularProgressIndicator())),
+                        ),
+                      ),
+                    ),
+                    if (puedeEditarFotoPrincipal)
+                      Positioned(
+                        top: 8, right: 8,
+                        child: GestureDetector(
+                          onTap: () => _actualizarFotoPrincipal(ticket.id),
+                          child: Container(
+                            decoration: BoxDecoration(
+                                color: Colors.black54,
+                                borderRadius: BorderRadius.circular(20)),
+                            padding: const EdgeInsets.all(6),
+                            child: const Icon(Icons.edit_outlined,
+                                color: Colors.white, size: 18),
+                          ),
+                        ),
+                      ),
+                  ])
+                else if (puedeEditarFotoPrincipal)
+                  GestureDetector(
+                    onTap: () => _actualizarFotoPrincipal(ticket.id),
+                    child: Container(
+                      height: 100,
+                      decoration: BoxDecoration(
+                          color: Colors.grey.withOpacity(0.06),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                              color: Colors.grey.withOpacity(0.3))),
+                      child: const Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                        Icon(Icons.add_a_photo_outlined,
+                            size: 28, color: Colors.grey),
+                        SizedBox(height: 6),
+                        Text('Agregar foto del desperfecto',
+                            style: TextStyle(
+                                color: Colors.grey, fontSize: 12)),
+                      ]),
+                    ),
+                  )
+                else
+                  const Text('Sin foto del desperfecto',
+                      style: TextStyle(color: Colors.grey, fontSize: 12)),
+
+                // ── Fotos adicionales ─────────────────
+                const SizedBox(height: 20),
+                Row(children: [
+                  const Text('Fotos adicionales', style: TextStyle(
+                      fontSize: 11, fontWeight: FontWeight.w600,
+                      color: Colors.grey)),
+                  const Spacer(),
+                  if (puedeAgregarFotos)
+                    TextButton.icon(
+                      icon: const Icon(Icons.add_photo_alternate_outlined,
+                          size: 16),
+                      label: const Text('Agregar', style: TextStyle(fontSize: 12)),
+                      onPressed: _subiendoFoto
+                          ? null : () => _agregarFotoAdicional(ticket.id),
+                    ),
+                ]),
+                const SizedBox(height: 8),
+
+                fotosAsync.when(
+                  loading: () => const Center(
+                      child: CircularProgressIndicator()),
+                  error: (e, _) => Text('Error: $e',
+                      style: const TextStyle(color: Colors.red)),
+                  data: (fotos) => fotos.isEmpty
+                      ? const Text('Sin fotos adicionales',
+                          style: TextStyle(color: Colors.grey, fontSize: 12))
+                      : GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 8,
+                            mainAxisSpacing: 8,
+                            childAspectRatio: 1,
+                          ),
+                          itemCount: fotos.length,
+                          itemBuilder: (_, i) {
+                            final foto = fotos[i];
+                            return Stack(children: [
+                              GestureDetector(
+                                onTap: () =>
+                                    _verFoto(context, foto.fotoUrl),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Column(children: [
+                                    Expanded(
+                                      child: Image.network(
+                                        foto.fotoUrl,
+                                        width: double.infinity,
+                                        fit: BoxFit.cover,
+                                        loadingBuilder: (_, child, p) =>
+                                            p == null ? child
+                                                : const Center(child:
+                                                    CircularProgressIndicator()),
+                                      ),
+                                    ),
+                                    if (foto.descripcion != null)
+                                      Container(
+                                        width: double.infinity,
+                                        color: Colors.black54,
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 6, vertical: 3),
+                                        child: Text(foto.descripcion!,
+                                            style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 10),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis),
+                                      ),
+                                  ]),
+                                ),
+                              ),
+                              // Botón eliminar (solo quien la subió o admin)
+                              if (isAdmin ||
+                                  foto.subidoPor == profile?.id)
+                                Positioned(
+                                  top: 4, right: 4,
+                                  child: GestureDetector(
+                                    onTap: () => _eliminarFotoAdicional(
+                                        foto, ticket.id),
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                          color: Colors.black54,
+                                          borderRadius:
+                                              BorderRadius.circular(12)),
+                                      padding: const EdgeInsets.all(4),
+                                      child: const Icon(
+                                          Icons.close,
+                                          color: Colors.white,
+                                          size: 14),
+                                    ),
+                                  ),
+                                ),
+                            ]);
+                          }),
+                ),
+              ]),
+            )),
+
             // ── Acciones ──────────────────────────────
             if (_loading)
               const Center(child: Padding(
@@ -655,7 +1002,6 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                   child: CircularProgressIndicator())),
             if (_error != null) ErrorContainer(_error!),
 
-            // Admin: asignar técnico
             if (isAdmin && ticket.estado == TicketEstados.abierto)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
@@ -665,7 +1011,6 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                     onPressed: _loading ? null
                         : () => _asignarTecnico(ticket.id))),
 
-            // Admin: cerrar ticket — SOLO desde en_revision
             if (isAdmin && ticket.estado == TicketEstados.enRevision)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
@@ -677,7 +1022,6 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                     onPressed: _loading ? null
                         : () => _cerrar(ticket.id, ticket))),
 
-            // Técnico: iniciar ejecución
             if (isTecnico && esAsignado &&
                 ticket.estado == TicketEstados.asignado)
               Padding(
@@ -691,7 +1035,6 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                         : () => _cambiarEstado(
                             ticket.id, TicketEstados.enEjecucion))),
 
-            // Técnico: poner en espera
             if (isTecnico && esAsignado &&
                 ticket.estado == TicketEstados.enEjecucion)
               Padding(
@@ -705,7 +1048,6 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                         : () => _cambiarEstado(
                             ticket.id, TicketEstados.enEspera))),
 
-            // Técnico: reanudar desde espera
             if (isTecnico && esAsignado &&
                 ticket.estado == TicketEstados.enEspera)
               Padding(
@@ -719,7 +1061,6 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                         : () => _cambiarEstado(
                             ticket.id, TicketEstados.enEjecucion))),
 
-            // Técnico: enviar a revisión — desde en_ejecucion o en_espera
             if (isTecnico && esAsignado &&
                 (ticket.estado == TicketEstados.enEjecucion ||
                  ticket.estado == TicketEstados.enEspera))
@@ -802,7 +1143,7 @@ class _State extends ConsumerState<TicketDetalleScreen> {
   }
 }
 
-// ── InfoRow con fontSize 10 ───────────────────────────────────
+// ── InfoRow ───────────────────────────────────────────────────
 class _InfoRow extends StatelessWidget {
   final IconData icon;
   final String label, value;

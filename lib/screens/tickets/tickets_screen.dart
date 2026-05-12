@@ -235,45 +235,33 @@ class _State extends ConsumerState<TicketsScreen> {
                                     ),
                                     const SizedBox(height: 6),
 
-                                    // ── Fila 2: Número + Estado ──
-                                    Row(children: [
-                                      // Número externo (izquierda)
-                                      if (t.numero != null)
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 8, vertical: 3),
-                                          decoration: BoxDecoration(
-                                              color: Colors.indigo
-                                                  .withOpacity(0.1),
-                                              borderRadius:
-                                                  BorderRadius.circular(6),
-                                              border: Border.all(
-                                                  color: Colors.indigo
-                                                      .withOpacity(0.3))),
-                                          child: Row(
-                                              mainAxisSize:
-                                                  MainAxisSize.min,
-                                              children: [
-                                          /*  const Icon(Icons.tag,
-                                                size: 12,
-                                                color: Colors.indigo),  */
-                                            const SizedBox(width: 3),
-                                            Text(t.numero!,
-                                                style: const TextStyle(
-                                                    fontSize: 11,
-                                                    color: Colors.indigo,
-                                                    fontWeight:
-                                                        FontWeight.w700)),
-                                          ]),
-                                        )
-                                      else
-                                        // Placeholder vacío para mantener alineación
-                                        const SizedBox.shrink(),
-                                      const Spacer(),
-                                      // Estado (derecha)
-                                      EstadoBadge(t.estado),
-                                    ]),
-                                    const SizedBox(height: 6),
+                                   // ── Fila 2: Número + Fecha + Estado ──
+                                   Row(children: [
+                                     if (t.numero != null)
+                                       Container(
+                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                         decoration: BoxDecoration(
+                                             color: Colors.indigo.withOpacity(0.1),
+                                             borderRadius: BorderRadius.circular(6),
+                                             border: Border.all(color: Colors.indigo.withOpacity(0.3))),
+                                         child: Text(t.numero!,
+                                             style: const TextStyle(
+                                                 fontSize: 10,
+                                                 color: Colors.indigo,
+                                                 fontWeight: FontWeight.w700)),
+                                       ),
+                                     const SizedBox(width: 6),
+                                     const Icon(Icons.calendar_today_outlined, size: 10, color: Colors.grey),
+                                     const SizedBox(width: 3),
+                                     Text(
+                                       '${t.createdAt.day.toString().padLeft(2,'0')}/'
+                                       '${t.createdAt.month.toString().padLeft(2,'0')}/'
+                                       '${t.createdAt.year.toString().substring(2)}',
+                                       style: const TextStyle(fontSize: 11, color: Colors.grey),
+                                     ),
+                                     const Spacer(),
+                                     EstadoBadge(t.estado),
+                                   ]),
 
                                     // ── Fila 3: Personas ─────────
                                     Row(children: [

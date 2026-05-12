@@ -1,4 +1,5 @@
 // lib/repositories/repositories.dart
+import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/models.dart';
 
@@ -145,6 +146,7 @@ class TicketsRepository {
     required String descripcion,
     String? observacion,
     String? numero,
+    String? fotoUrl,             // ← foto principal opcional
   }) async {
     final uid = Supabase.instance.client.auth.currentUser!.id;
     await _db.from('tickets').insert({
@@ -154,6 +156,7 @@ class TicketsRepository {
       'observacion_encargado':   observacion,
       'estado':                  'abierto',
       'numero':                  numero,
+      'foto_url':                fotoUrl,   // ← foto principal
     });
   }
 
@@ -186,12 +189,75 @@ class TicketsRepository {
     await _db.from('tickets').update({'numero': numero}).eq('id', ticketId);
   }
 
+  // ── Actualizar solo la foto principal ─────────────────────
+  Future<void> updateFotoUrl(String ticketId, String? fotoUrl) async {
+    await _db.from('tickets').update({'foto_url': fotoUrl}).eq('id', ticketId);
+  }
+
   Future<void> cerrar(String ticketId) async {
     await _db.from('tickets').update({'estado': 'cerrado'}).eq('id', ticketId);
   }
 
   Future<void> delete(String id) async =>
       _db.from('tickets').delete().eq('id', id);
+}
+
+// ── Fotos de tickets ──────────────────────────────────────────
+class TicketFotosRepository {
+  static const _bucket = 'ticket-fotos';
+
+  // Subir una imagen al bucket y devolver la URL pública
+  Future<String> subirFoto(File archivo, String ticketId) async {
+    final uid  = _db.auth.currentUser!.id;
+    final ext  = archivo.path.split('.').last;
+    final path = '$uid/$ticketId/${DateTime.now().millisecondsSinceEpoch}.$ext';
+
+    await _db.storage.from(_bucket).upload(
+      path,
+      archivo,
+      fileOptions: const FileOptions(upsert: false),
+    );
+
+    return _db.storage.from(_bucket).getPublicUrl(path);
+  }
+
+  // Obtener todas las fotos adicionales de un ticket
+  Future<List<TicketFoto>> getFotos(String ticketId) async {
+    final data = await _db
+        .from('ticket_fotos')
+        .select('*, usuarios:subido_por(nombre)')
+        .eq('ticket_id', ticketId)
+        .order('created_at', ascending: true);
+    return (data as List).map((e) => TicketFoto.fromMap(e)).toList();
+  }
+
+  // Agregar registro en tabla ticket_fotos (fotos del técnico)
+  Future<void> agregarFoto({
+    required String ticketId,
+    required String fotoUrl,
+    String? descripcion,
+  }) async {
+    final uid = _db.auth.currentUser!.id;
+    await _db.from('ticket_fotos').insert({
+      'ticket_id':   ticketId,
+      'subido_por':  uid,
+      'foto_url':    fotoUrl,
+      'descripcion': descripcion,
+    });
+  }
+
+  // Eliminar foto adicional (registro + archivo en storage)
+  Future<void> eliminarFoto(TicketFoto foto) async {
+    // Extraer el path relativo de la URL pública
+    final uri  = Uri.parse(foto.fotoUrl);
+    final path = uri.pathSegments
+        .skipWhile((s) => s != _bucket)
+        .skip(1)
+        .join('/');
+
+    await _db.storage.from(_bucket).remove([path]);
+    await _db.from('ticket_fotos').delete().eq('id', foto.id);
+  }
 }
 
 // ── Movimientos ───────────────────────────────────────────────
@@ -237,7 +303,7 @@ class MovimientosRepository {
   Future<void> deleteIngreso(String id) async =>
       _db.from('ingreso_repuestos').delete().eq('id', id);
 
-  // ── SALIDAS — join con tickets para traer el numero externo ──
+  // ── SALIDAS ───────────────────────────────────────────────────
   Future<List<SalidaRepuesto>> getSalidas() async {
     final data = await _db.from('salida_repuestos')
         .select('*, repuestos(codigo, descripcion, ref), tickets(numero)')
@@ -250,6 +316,7 @@ class MovimientosRepository {
     required int cantidad,
     String? ticketId,
     String? observacion,
+    String? quienRetira,
   }) async {
     final uid = Supabase.instance.client.auth.currentUser!.id;
     await _db.from('salida_repuestos').insert({
@@ -258,6 +325,7 @@ class MovimientosRepository {
       'registrado_por': uid,
       'cantidad':       cantidad,
       'observacion':    observacion,
+      'quien_retira':   quienRetira,
       'fecha':          DateTime.now().toIso8601String().substring(0, 10),
     });
   }
@@ -267,12 +335,14 @@ class MovimientosRepository {
     required int cantidad,
     String? ticketId,
     String? observacion,
+    String? quienRetira,
   }) async {
     await _db.from('salida_repuestos').update({
-      'repuesto_id': repuestoId,
-      'ticket_id':   ticketId,
-      'cantidad':    cantidad,
-      'observacion': observacion,
+      'repuesto_id':  repuestoId,
+      'ticket_id':    ticketId,
+      'cantidad':     cantidad,
+      'observacion':  observacion,
+      'quien_retira': quienRetira,
     }).eq('id', id);
   }
 

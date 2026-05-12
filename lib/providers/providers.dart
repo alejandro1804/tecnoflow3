@@ -6,14 +6,15 @@ import '../repositories/auth_repository.dart';
 import '../repositories/repositories.dart';
 
 // ── Repositorios ──────────────────────────────────────────────
-final authRepoProvider        = Provider((_) => AuthRepository());
-final usuariosRepoProvider    = Provider((_) => UsuariosRepository());
-final rolesRepoProvider       = Provider((_) => RolesRepository());
-final sectoresRepoProvider    = Provider((_) => SectoresRepository());
-final maquinasRepoProvider    = Provider((_) => MaquinasRepository());
-final repuestosRepoProvider   = Provider((_) => RepuestosRepository());
-final ticketsRepoProvider     = Provider((_) => TicketsRepository());
-final movimientosRepoProvider = Provider((_) => MovimientosRepository());
+final authRepoProvider           = Provider((_) => AuthRepository());
+final usuariosRepoProvider       = Provider((_) => UsuariosRepository());
+final rolesRepoProvider          = Provider((_) => RolesRepository());
+final sectoresRepoProvider       = Provider((_) => SectoresRepository());
+final maquinasRepoProvider       = Provider((_) => MaquinasRepository());
+final repuestosRepoProvider      = Provider((_) => RepuestosRepository());
+final ticketsRepoProvider        = Provider((_) => TicketsRepository());
+final movimientosRepoProvider    = Provider((_) => MovimientosRepository());
+final ticketFotosRepoProvider    = Provider((_) => TicketFotosRepository());
 
 // ── Auth ──────────────────────────────────────────────────────
 final authStateProvider = StreamProvider<AuthState>((ref) {
@@ -74,9 +75,14 @@ final repuestosMaquinasProvider =
             ref.watch(repuestosMaquinasRepoProvider).getByMaquina(maquinaId));
 
 // ── Máquinas que usan un repuesto específico ──────────────────
-// autoDispose evita que Riverpod cachee los datos entre expansiones
 final maquinasPorRepuestoProvider =
     FutureProvider.family<List<RepuestoMaquina>, String>(
         (ref, repuestoId) => ref
             .read(repuestosMaquinasRepoProvider)
             .getByRepuesto(repuestoId));
+
+// ── Fotos de tickets ──────────────────────────────────────────
+final ticketFotosProvider =
+    FutureProvider.family<List<TicketFoto>, String>(
+        (ref, ticketId) =>
+            ref.watch(ticketFotosRepoProvider).getFotos(ticketId));
