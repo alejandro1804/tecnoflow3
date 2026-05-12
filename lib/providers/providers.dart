@@ -15,6 +15,7 @@ final repuestosRepoProvider      = Provider((_) => RepuestosRepository());
 final ticketsRepoProvider        = Provider((_) => TicketsRepository());
 final movimientosRepoProvider    = Provider((_) => MovimientosRepository());
 final ticketFotosRepoProvider    = Provider((_) => TicketFotosRepository());
+final notificacionesRepoProvider = Provider((_) => NotificacionesRepository());
 
 // ── Auth ──────────────────────────────────────────────────────
 final authStateProvider = StreamProvider<AuthState>((ref) {
@@ -86,3 +87,13 @@ final ticketFotosProvider =
     FutureProvider.family<List<TicketFoto>, String>(
         (ref, ticketId) =>
             ref.watch(ticketFotosRepoProvider).getFotos(ticketId));
+
+// ── Notificaciones ────────────────────────────────────────────
+final misNotificacionesProvider = FutureProvider<List<Notificacion>>(
+    (ref) => ref.watch(notificacionesRepoProvider).getMisNotificaciones());
+
+final confirmacionesTicketProvider =
+    FutureProvider.family<List<Notificacion>, String>(
+        (ref, ticketId) => ref
+            .watch(notificacionesRepoProvider)
+            .getConfirmaciones(ticketId));

@@ -380,3 +380,55 @@ class RepuestosMaquinasRepository {
       _db.from('repuestos_maquinas').delete().eq('id', id);
 }
 
+// ── Notificaciones ────────────────────────────────────────────
+class NotificacionesRepository {
+  // Obtener notificaciones no leídas del usuario actual
+  Future<List<Notificacion>> getMisNotificaciones() async {
+    final uid  = _db.auth.currentUser!.id;
+    final data = await _db
+        .from('notificaciones')
+        .select('*, de_usuario:de_usuario_id(nombre)')
+        .eq('para_usuario_id', uid)
+        .eq('leida', false)
+        .order('created_at', ascending: false);
+    return (data as List).map((e) => Notificacion.fromMap(e)).toList();
+  }
+
+  // Crear notificación para un usuario
+  Future<void> crear({
+    required String tipo,
+    required String mensaje,
+    required String paraUsuarioId,
+    String? ticketId,
+    String? deUsuarioId,
+  }) async {
+    await _db.from('notificaciones').insert({
+      'tipo':            tipo,
+      'mensaje':         mensaje,
+      'para_usuario_id': paraUsuarioId,
+      'ticket_id':       ticketId,
+      'de_usuario_id':   deUsuarioId,
+      'leida':           false,
+    });
+  }
+
+  // Marcar como leída y devolver la notificación actualizada
+  Future<void> marcarLeida(String notifId) async {
+    await _db.from('notificaciones').update({
+      'leida':    true,
+      'leida_en': DateTime.now().toIso8601String(),
+    }).eq('id', notifId);
+  }
+
+  // Obtener confirmaciones de encargados para un ticket
+  Future<List<Notificacion>> getConfirmaciones(String ticketId) async {
+    final data = await _db
+        .from('notificaciones')
+        .select('*, de_usuario:de_usuario_id(nombre)')
+        .eq('ticket_id', ticketId)
+        .eq('tipo', TiposNotificacion.confirmacionEncargado)
+        .order('created_at', ascending: true);
+    return (data as List).map((e) => Notificacion.fromMap(e)).toList();
+  }
+}
+

@@ -410,3 +410,49 @@ class TicketFoto {
     createdAt:       DateTime.parse(m['created_at']),
   );
 }
+
+// ── Notificación ──────────────────────────────────────────────
+class Notificacion {
+  final String   id;
+  final String   tipo;
+  final String   mensaje;
+  final String?  ticketId;
+  final String   paraUsuarioId;
+  final String?  deUsuarioId;
+  final String?  deUsuarioNombre;
+  final bool     leida;
+  final DateTime? leidaEn;
+  final DateTime createdAt;
+
+  const Notificacion({
+    required this.id,
+    required this.tipo,
+    required this.mensaje,
+    this.ticketId,
+    required this.paraUsuarioId,
+    this.deUsuarioId,
+    this.deUsuarioNombre,
+    required this.leida,
+    this.leidaEn,
+    required this.createdAt,
+  });
+
+  factory Notificacion.fromMap(Map<String, dynamic> m) => Notificacion(
+    id:              m['id'],
+    tipo:            m['tipo'],
+    mensaje:         m['mensaje'],
+    ticketId:        m['ticket_id'],
+    paraUsuarioId:   m['para_usuario_id'],
+    deUsuarioId:     m['de_usuario_id'],
+    deUsuarioNombre: m['de_usuario']?['nombre'],
+    leida:           m['leida'] ?? false,
+    leidaEn:         m['leida_en'] != null
+                         ? DateTime.parse(m['leida_en']) : null,
+    createdAt:       DateTime.parse(m['created_at']),
+  );
+}
+
+class TiposNotificacion {
+  static const ticketCerrado        = 'ticket_cerrado';
+  static const confirmacionEncargado = 'confirmacion_encargado';
+}

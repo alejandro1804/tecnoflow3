@@ -7,6 +7,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/constants.dart';
 import '../../core/widgets.dart';
 import '../../models/models.dart';
@@ -261,7 +262,6 @@ class _State extends ConsumerState<TicketDetalleScreen> {
 
   // ── foto: seleccionar fuente ──────────────────────────────────
   Future<File?> _elegirFoto() async {
-    // Primero elegir la fuente
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -284,8 +284,6 @@ class _State extends ConsumerState<TicketDetalleScreen> {
       ),
     );
     if (source == null) return null;
-
-    // Luego abrir el picker con la fuente elegida
     final p = await ImagePicker().pickImage(
         source: source, imageQuality: 80, maxWidth: 1200);
     return p == null ? null : File(p.path);
@@ -311,12 +309,10 @@ class _State extends ConsumerState<TicketDetalleScreen> {
     }
   }
 
-  // ── agregar foto adicional (técnico) ──────────────────────────
+  // ── agregar foto adicional ────────────────────────────────────
   Future<void> _agregarFotoAdicional(String ticketId) async {
     final archivo = await _elegirFoto();
     if (archivo == null) return;
-
-    // Pedir descripción opcional
     final descCtrl = TextEditingController();
     final descripcion = await showDialog<String>(
       context: context,
@@ -338,7 +334,6 @@ class _State extends ConsumerState<TicketDetalleScreen> {
       ),
     );
     if (descripcion == null) return;
-
     setState(() => _subiendoFoto = true);
     try {
       final url = await ref.read(ticketFotosRepoProvider)
@@ -358,8 +353,7 @@ class _State extends ConsumerState<TicketDetalleScreen> {
   }
 
   // ── eliminar foto adicional ───────────────────────────────────
-  Future<void> _eliminarFotoAdicional(
-      TicketFoto foto, String ticketId) async {
+  Future<void> _eliminarFotoAdicional(TicketFoto foto, String ticketId) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -395,11 +389,8 @@ class _State extends ConsumerState<TicketDetalleScreen> {
         backgroundColor: Colors.black,
         insetPadding: EdgeInsets.zero,
         child: Stack(children: [
-          Center(
-            child: InteractiveViewer(
-              child: Image.network(url, fit: BoxFit.contain),
-            ),
-          ),
+          Center(child: InteractiveViewer(
+              child: Image.network(url, fit: BoxFit.contain))),
           Positioned(
             top: 40, right: 16,
             child: IconButton(
@@ -613,13 +604,35 @@ class _State extends ConsumerState<TicketDetalleScreen> {
     if (ok != true) return;
     setState(() => _loading = true);
     try {
+      final uid        = Supabase.instance.client.auth.currentUser!.id;
       final comentario = ctrl.text.trim().isNotEmpty ? ctrl.text.trim() : null;
+      final maquina    = ticket.maquinaNombre ?? 'Sin máquina';
+      final numero     = ticket.numero != null ? ' (${ticket.numero})' : '';
+
+      // 1. Cerrar el ticket
       await ref.read(ticketsRepoProvider).updateEstado(
           ticketId, TicketEstados.cerrado,
           comentario: comentario);
+
+      // 2. Buscar todos los encargados activos
+      final usuarios   = await ref.read(usuariosRepoProvider).getAll();
+      final encargados = usuarios.where((u) => u.isEncargado).toList();
+
+      // 3. Crear notificación para cada encargado
+      for (final encargado in encargados) {
+        await ref.read(notificacionesRepoProvider).crear(
+          tipo:          TiposNotificacion.ticketCerrado,
+          mensaje:       'Máquina operativa: $maquina$numero — ticket cerrado.',
+          paraUsuarioId: encargado.id,
+          ticketId:      ticketId,
+          deUsuarioId:   uid,
+        );
+      }
+
       ref.invalidate(_ticketProvider(ticketId));
       ref.invalidate(_historialProvider(ticketId));
       ref.invalidate(ticketsProvider);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text('Ticket cerrado correctamente'),
@@ -637,6 +650,7 @@ class _State extends ConsumerState<TicketDetalleScreen> {
     final ticketAsync    = ref.watch(_ticketProvider(widget.ticketId));
     final historialAsync = ref.watch(_historialProvider(widget.ticketId));
     final fotosAsync     = ref.watch(ticketFotosProvider(widget.ticketId));
+    final confirAsync    = ref.watch(confirmacionesTicketProvider(widget.ticketId));
     final profile        = ref.watch(myProfileProvider).valueOrNull;
 
     return Scaffold(
@@ -665,10 +679,10 @@ class _State extends ConsumerState<TicketDetalleScreen> {
           if (ticket == null) {
             return const Center(child: Text('Ticket no encontrado'));
           }
-          final isAdmin      = profile?.isAdmin ?? false;
-          final isTecnico    = profile?.isTecnico ?? false;
-          final isEncargado  = profile?.isEncargado ?? false;
-          final esAsignado   = ticket.tecnicoId == profile?.id;
+          final isAdmin     = profile?.isAdmin ?? false;
+          final isTecnico   = profile?.isTecnico ?? false;
+          final isEncargado = profile?.isEncargado ?? false;
+          final esAsignado  = ticket.tecnicoId == profile?.id;
           final puedeEditarFotoPrincipal =
               (isAdmin || isEncargado) &&
               ticket.estado != TicketEstados.cerrado;
@@ -906,7 +920,8 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                     TextButton.icon(
                       icon: const Icon(Icons.add_photo_alternate_outlined,
                           size: 16),
-                      label: const Text('Agregar', style: TextStyle(fontSize: 12)),
+                      label: const Text('Agregar',
+                          style: TextStyle(fontSize: 12)),
                       onPressed: _subiendoFoto
                           ? null : () => _agregarFotoAdicional(ticket.id),
                     ),
@@ -936,8 +951,7 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                             final foto = fotos[i];
                             return Stack(children: [
                               GestureDetector(
-                                onTap: () =>
-                                    _verFoto(context, foto.fotoUrl),
+                                onTap: () => _verFoto(context, foto.fotoUrl),
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(8),
                                   child: Column(children: [
@@ -968,9 +982,7 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                                   ]),
                                 ),
                               ),
-                              // Botón eliminar (solo quien la subió o admin)
-                              if (isAdmin ||
-                                  foto.subidoPor == profile?.id)
+                              if (isAdmin || foto.subidoPor == profile?.id)
                                 Positioned(
                                   top: 4, right: 4,
                                   child: GestureDetector(
@@ -982,10 +994,8 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                                           borderRadius:
                                               BorderRadius.circular(12)),
                                       padding: const EdgeInsets.all(4),
-                                      child: const Icon(
-                                          Icons.close,
-                                          color: Colors.white,
-                                          size: 14),
+                                      child: const Icon(Icons.close,
+                                          color: Colors.white, size: 14),
                                     ),
                                   ),
                                 ),
@@ -1137,6 +1147,45 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                         ),
                       )).toList()),
             ),
+
+            // ── Confirmaciones de encargados ──────────
+            if (ticket.estado == TicketEstados.cerrado) ...[
+              const SizedBox(height: 8),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                child: Text('CONFIRMACIONES DE ENCARGADOS', style: TextStyle(
+                    fontSize: 11, fontWeight: FontWeight.w700,
+                    color: Colors.grey, letterSpacing: 1))),
+              confirAsync.when(
+                loading: () => const Center(
+                    child: CircularProgressIndicator()),
+                error: (e, _) => Text('Error: $e'),
+                data: (confirmaciones) => confirmaciones.isEmpty
+                    ? const Card(child: ListTile(
+                        leading: Icon(Icons.hourglass_empty_outlined,
+                            color: Colors.grey),
+                        title: Text('Sin confirmaciones aún',
+                            style: TextStyle(
+                                fontSize: 12, color: Colors.grey))))
+                    : Column(
+                        children: confirmaciones.map((c) => Card(
+                          color: Colors.green[50],
+                          child: ListTile(
+                            leading: const Icon(Icons.how_to_reg_outlined,
+                                color: Colors.green),
+                            title: Text(c.deUsuarioNombre ?? '—',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12)),
+                            subtitle: Text(
+                                c.createdAt.toString().substring(0, 16),
+                                style: const TextStyle(fontSize: 11)),
+                            trailing: const Icon(Icons.check_circle,
+                                color: Colors.green, size: 18),
+                          ),
+                        )).toList()),
+              ),
+            ],
           ]);
         }),
     );
