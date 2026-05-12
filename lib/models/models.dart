@@ -17,6 +17,7 @@ class Usuario {
   final String nombre;
   final String email;
   final String estado;
+  final bool   primerLogin;   // ← nuevo
 
   const Usuario({
     required this.id,
@@ -25,6 +26,7 @@ class Usuario {
     required this.nombre,
     required this.email,
     required this.estado,
+    this.primerLogin = false,  // ← nuevo
   });
 
   bool get isAdmin     => rolNombre == 'administrador';
@@ -33,12 +35,13 @@ class Usuario {
   bool get isPaniolero => rolNombre == 'paniolero';
 
   factory Usuario.fromMap(Map<String, dynamic> m) => Usuario(
-        id:         m['id'],
-        rolId:      m['rol_id'],
-        rolNombre:  m['roles']?['nombre'] ?? '',
-        nombre:     m['nombre'],
-        email:      m['email'],
-        estado:     m['estado'] ?? 'activo',
+        id:          m['id'],
+        rolId:       m['rol_id'],
+        rolNombre:   m['roles']?['nombre'] ?? '',
+        nombre:      m['nombre'],
+        email:       m['email'],
+        estado:      m['estado'] ?? 'activo',
+        primerLogin: m['primer_login'] ?? false,  // ← nuevo
       );
 
   Map<String, dynamic> toMap() => {

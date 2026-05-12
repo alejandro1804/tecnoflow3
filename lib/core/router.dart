@@ -7,6 +7,7 @@ import '../screens/login/login_screen.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/usuarios/usuarios_screen.dart';
 import '../screens/usuarios/usuario_form_screen.dart';
+import '../screens/usuarios/cambiar_password_screen.dart';
 import '../screens/sectores/sectores_screen.dart';
 import '../screens/sectores/sector_form_screen.dart';
 import '../screens/maquinas/maquinas_screen.dart';
@@ -21,19 +22,31 @@ import '../screens/movimientos/ingreso_form_screen.dart';
 import '../screens/movimientos/salidas_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final auth = ref.watch(authStateProvider);
+  final auth    = ref.watch(authStateProvider);
+  final profile = ref.watch(myProfileProvider);
+
   return GoRouter(
     initialLocation: '/login',
     redirect: (context, state) {
-      final loggedIn = auth.valueOrNull?.session != null;
-      final onLogin  = state.matchedLocation == '/login';
+      final loggedIn  = auth.valueOrNull?.session != null;
+      final onLogin   = state.matchedLocation == '/login';
+      final onCambiar = state.matchedLocation == '/cambiar-password';
+
       if (!loggedIn && !onLogin) return '/login';
-      if (loggedIn  &&  onLogin) return '/home';
+      if (loggedIn  &&  onLogin) {
+        final primerLogin = profile.valueOrNull?.primerLogin ?? false;
+        return primerLogin ? '/cambiar-password' : '/home';
+      }
+      if (loggedIn && !onLogin && !onCambiar) {
+        final primerLogin = profile.valueOrNull?.primerLogin ?? false;
+        if (primerLogin) return '/cambiar-password';
+      }
       return null;
     },
     routes: [
-      GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
-      GoRoute(path: '/home',  builder: (_, __) => const HomeScreen()),
+      GoRoute(path: '/login',            builder: (_, __) => const LoginScreen()),
+      GoRoute(path: '/home',             builder: (_, __) => const HomeScreen()),
+      GoRoute(path: '/cambiar-password', builder: (_, __) => const CambiarPasswordScreen()),
 
       // Usuarios
       GoRoute(path: '/usuarios',       builder: (_, __) => const UsuariosScreen()),
@@ -56,9 +69,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/repuestos/:id',   builder: (_, s)  => RepuestoFormScreen(repuestoId: s.pathParameters['id'])),
 
       // Tickets
-      GoRoute(path: '/tickets',        builder: (_, __) => const TicketsScreen()),
-      GoRoute(path: '/tickets/nuevo',  builder: (_, __) => const TicketFormScreen()),
-      GoRoute(path: '/tickets/:id',    builder: (_, s)  => TicketDetalleScreen(ticketId: s.pathParameters['id']!)),
+      GoRoute(path: '/tickets',       builder: (_, __) => const TicketsScreen()),
+      GoRoute(path: '/tickets/nuevo', builder: (_, __) => const TicketFormScreen()),
+      GoRoute(path: '/tickets/:id',   builder: (_, s)  => TicketDetalleScreen(ticketId: s.pathParameters['id']!)),
 
       // Movimientos
       GoRoute(path: '/ingresos',       builder: (_, __) => const IngresosScreen()),

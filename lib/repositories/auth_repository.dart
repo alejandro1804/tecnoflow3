@@ -12,17 +12,28 @@ class AuthRepository {
     await _client.auth.signInWithPassword(email: email, password: password);
   }
 
-  Future<void> signUp({
+  Future<void> createUser({
     required String email,
     required String password,
     required String nombre,
-    String rol = 'tecnico',
+    required String rolNombre,
   }) async {
-    await _client.auth.signUp(
-      email: email,
-      password: password,
-      data: {'nombre': nombre, 'rol': rol},
+    if (_client.auth.currentSession == null) throw Exception('Sin sesión activa');
+
+    final response = await _client.functions.invoke(
+      'create-user',
+      body: {
+        'email': email,
+        'password': password,
+        'nombre': nombre,
+        'rolNombreNuevo': rolNombre,
+      },
     );
+
+    if (response.status != 200) {
+      final msg = response.data?['error'] ?? 'Error al crear usuario';
+      throw Exception(msg);
+    }
   }
 
   Future<void> signOut() async => _client.auth.signOut();
