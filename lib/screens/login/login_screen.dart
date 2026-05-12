@@ -23,19 +23,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   void dispose() { _emailCtrl.dispose(); _passCtrl.dispose(); super.dispose(); }
 
-  Future<void> _login() async {
-    if (!_formKey.currentState!.validate()) return;
-    setState(() { _loading = true; _error = null; });
-    try {
-      await ref.read(authRepoProvider).signIn(
-        email: _emailCtrl.text.trim(), password: _passCtrl.text.trim());
-      if (mounted) context.go('/home');
-    } catch (_) {
-      setState(() => _error = 'Credenciales incorrectas. Intente nuevamente.');
-    } finally {
-      if (mounted) setState(() => _loading = false);
+Future<void> _login() async {
+  if (!_formKey.currentState!.validate()) return;
+  setState(() { _loading = true; _error = null; });
+  try {
+    await ref.read(authRepoProvider).signIn(
+      email: _emailCtrl.text.trim(), password: _passCtrl.text.trim());
+
+    // Verificar que el usuario esté activo
+    final profile = await ref.read(authRepoProvider).getMyProfile();
+    if (profile == null || profile.estado == 'inactivo') {
+      await ref.read(authRepoProvider).signOut();
+      setState(() => _error = 'Usuario inactivo. Contacte al administrador.');
+      return;
     }
+
+    if (mounted) context.go('/home');
+  } catch (_) {
+    setState(() => _error = 'Credenciales incorrectas. Intente nuevamente.');
+  } finally {
+    if (mounted) setState(() => _loading = false);
   }
+}
 
   @override
   Widget build(BuildContext context) {
