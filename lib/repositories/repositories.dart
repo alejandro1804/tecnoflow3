@@ -8,7 +8,8 @@ final _db = Supabase.instance.client;
 // ── Usuarios ──────────────────────────────────────────────────
 class UsuariosRepository {
   Future<List<Usuario>> getAll() async {
-    final data = await _db.from('usuarios').select('*, roles(nombre)').order('nombre');
+    //final data = await _db.from('usuarios').select('*, roles(nombre)').order('nombre');
+    final data = await _db.from('usuarios').select('*, roles(nombre)').eq('estado', 'activo').order('nombre');
     return (data as List).map((e) => Usuario.fromMap(e)).toList();
   }
 
