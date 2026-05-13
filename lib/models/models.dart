@@ -62,13 +62,14 @@ class Sector {
 
 // ── Maquina ───────────────────────────────────────────────────
 class Maquina {
-  final String id;
-  final String sectorId;
+  final String  id;
+  final String  sectorId;
   final String? sectorNombre;
-  final String nombre;
-  final String codigo;
-  final String estado;
+  final String  nombre;
+  final String  codigo;
+  final String  estado;
   final String? descripcion;
+  final String? imagenUrl;    // ← nuevo
 
   const Maquina({
     required this.id,
@@ -78,6 +79,7 @@ class Maquina {
     required this.codigo,
     required this.estado,
     this.descripcion,
+    this.imagenUrl,           // ← nuevo
   });
 
   factory Maquina.fromMap(Map<String, dynamic> m) => Maquina(
@@ -88,18 +90,23 @@ class Maquina {
         codigo:       m['codigo'],
         estado:       m['estado'] ?? 'activo',
         descripcion:  m['descripcion'],
+        imagenUrl:    m['imagen_url'],   // ← nuevo
       );
 
   Map<String, dynamic> toMap() => {
-        'sector_id': sectorId, 'nombre': nombre,
-        'codigo': codigo, 'estado': estado, 'descripcion': descripcion,
+        'sector_id':   sectorId,
+        'nombre':      nombre,
+        'codigo':      codigo,
+        'estado':      estado,
+        'descripcion': descripcion,
+        'imagen_url':  imagenUrl,        // ← nuevo
       };
 }
 
 // ── Repuesto ──────────────────────────────────────────────────
 class Repuesto {
   final String  id;
-  final String? codigo;       // ← ahora opcional
+  final String? codigo;
   final String  descripcion;
   final int     stockActual;
   final int     stockMinimo;
@@ -110,7 +117,7 @@ class Repuesto {
 
   const Repuesto({
     required this.id,
-    this.codigo,              // ← ya no required
+    this.codigo,
     required this.descripcion,
     required this.stockActual,
     required this.stockMinimo,
@@ -120,12 +127,11 @@ class Repuesto {
     this.ref,
   });
 
-  // ← CAMBIO 1: solo alerta si es MENOR (no igual) al mínimo
   bool get stockBajo => stockActual < stockMinimo;
 
   factory Repuesto.fromMap(Map<String, dynamic> m) => Repuesto(
     id:          m['id'],
-    codigo:      m['codigo'],   // ← puede ser null
+    codigo:      m['codigo'],
     descripcion: m['descripcion'],
     stockActual: m['stock_actual'] ?? 0,
     stockMinimo: m['stock_minimo'] ?? 0,
@@ -136,7 +142,7 @@ class Repuesto {
   );
 
   Map<String, dynamic> toInsert() => {
-    'codigo':       codigo,     // ← puede ser null, la DB lo acepta
+    'codigo':       codigo,
     'descripcion':  descripcion,
     'stock_actual': stockActual,
     'stock_minimo': stockMinimo,
@@ -146,7 +152,7 @@ class Repuesto {
   };
 
   Map<String, dynamic> toUpdate() => {
-    'codigo':       codigo,     // ← puede ser null
+    'codigo':       codigo,
     'descripcion':  descripcion,
     'stock_minimo': stockMinimo,
     'ubicacion':    ubicacion,

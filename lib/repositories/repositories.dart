@@ -8,21 +8,36 @@ final _db = Supabase.instance.client;
 // ── Usuarios ──────────────────────────────────────────────────
 class UsuariosRepository {
   Future<List<Usuario>> getAll() async {
-    //final data = await _db.from('usuarios').select('*, roles(nombre)').order('nombre');
-    final data = await _db.from('usuarios').select('*, roles(nombre)').eq('estado', 'activo').order('nombre');
+    final data = await _db
+        .from('usuarios')
+        .select('*, roles(nombre)')
+        .eq('estado', 'activo')
+        .order('nombre');
     return (data as List).map((e) => Usuario.fromMap(e)).toList();
   }
 
   Future<Usuario?> getById(String id) async {
-    final data = await _db.from('usuarios').select('*, roles(nombre)').eq('id', id).maybeSingle();
+    final data = await _db
+        .from('usuarios')
+        .select('*, roles(nombre)')
+        .eq('id', id)
+        .maybeSingle();
     return data == null ? null : Usuario.fromMap(data);
   }
 
-  Future<void> update(String id, {String? nombre, String? rolId, String? estado}) async {
-    final map = <String, dynamic>{'updated_at': DateTime.now().toIso8601String()};
-    if (nombre != null) map['nombre'] = nombre;
-    if (rolId  != null) map['rol_id'] = rolId;
-    if (estado != null) map['estado'] = estado;
+  Future<void> update(String id, {
+    String? nombre,
+    String? rolId,
+    String? estado,
+    String? email,       // ← nuevo
+  }) async {
+    final map = <String, dynamic>{
+      'updated_at': DateTime.now().toIso8601String(),
+    };
+    if (nombre != null) map['nombre']  = nombre;
+    if (rolId  != null) map['rol_id']  = rolId;
+    if (estado != null) map['estado']  = estado;
+    if (email  != null) map['email']   = email;   // ← nuevo
     await _db.from('usuarios').update(map).eq('id', id);
   }
 
@@ -58,12 +73,16 @@ class SectoresRepository {
 // ── Maquinas ──────────────────────────────────────────────────
 class MaquinasRepository {
   Future<List<Maquina>> getAll() async {
-    final data = await _db.from('maquinas').select('*, sectores(nombre)').order('nombre');
+    final data = await _db
+        .from('maquinas')
+        .select('*, sectores(nombre)')
+        .order('nombre');
     return (data as List).map((e) => Maquina.fromMap(e)).toList();
   }
 
   Future<List<Maquina>> getBySector(String sectorId) async {
-    final data = await _db.from('maquinas')
+    final data = await _db
+        .from('maquinas')
         .select('*, sectores(nombre)')
         .eq('sector_id', sectorId)
         .order('nombre');
@@ -135,7 +154,8 @@ class TicketsRepository {
   }
 
   Future<List<TicketHistorial>> getHistorial(String ticketId) async {
-    final data = await _db.from('ticket_historial')
+    final data = await _db
+        .from('ticket_historial')
         .select('*, usuarios(nombre)')
         .eq('ticket_id', ticketId)
         .order('fecha', ascending: false);
@@ -147,7 +167,7 @@ class TicketsRepository {
     required String descripcion,
     String? observacion,
     String? numero,
-    String? fotoUrl,             // ← foto principal opcional
+    String? fotoUrl,
   }) async {
     final uid = Supabase.instance.client.auth.currentUser!.id;
     await _db.from('tickets').insert({
@@ -157,7 +177,7 @@ class TicketsRepository {
       'observacion_encargado':   observacion,
       'estado':                  'abierto',
       'numero':                  numero,
-      'foto_url':                fotoUrl,   // ← foto principal
+      'foto_url':                fotoUrl,
     });
   }
 
@@ -190,7 +210,6 @@ class TicketsRepository {
     await _db.from('tickets').update({'numero': numero}).eq('id', ticketId);
   }
 
-  // ── Actualizar solo la foto principal ─────────────────────
   Future<void> updateFotoUrl(String ticketId, String? fotoUrl) async {
     await _db.from('tickets').update({'foto_url': fotoUrl}).eq('id', ticketId);
   }
@@ -207,7 +226,6 @@ class TicketsRepository {
 class TicketFotosRepository {
   static const _bucket = 'ticket-fotos';
 
-  // Subir una imagen al bucket y devolver la URL pública
   Future<String> subirFoto(File archivo, String ticketId) async {
     final uid  = _db.auth.currentUser!.id;
     final ext  = archivo.path.split('.').last;
@@ -222,7 +240,6 @@ class TicketFotosRepository {
     return _db.storage.from(_bucket).getPublicUrl(path);
   }
 
-  // Obtener todas las fotos adicionales de un ticket
   Future<List<TicketFoto>> getFotos(String ticketId) async {
     final data = await _db
         .from('ticket_fotos')
@@ -232,7 +249,6 @@ class TicketFotosRepository {
     return (data as List).map((e) => TicketFoto.fromMap(e)).toList();
   }
 
-  // Agregar registro en tabla ticket_fotos (fotos del técnico)
   Future<void> agregarFoto({
     required String ticketId,
     required String fotoUrl,
@@ -247,9 +263,7 @@ class TicketFotosRepository {
     });
   }
 
-  // Eliminar foto adicional (registro + archivo en storage)
   Future<void> eliminarFoto(TicketFoto foto) async {
-    // Extraer el path relativo de la URL pública
     final uri  = Uri.parse(foto.fotoUrl);
     final path = uri.pathSegments
         .skipWhile((s) => s != _bucket)
@@ -264,7 +278,8 @@ class TicketFotosRepository {
 // ── Movimientos ───────────────────────────────────────────────
 class MovimientosRepository {
   Future<List<IngresoRepuesto>> getIngresos() async {
-    final data = await _db.from('ingreso_repuestos')
+    final data = await _db
+        .from('ingreso_repuestos')
         .select('*, repuestos(codigo, descripcion, ref)')
         .order('created_at', ascending: false);
     return (data as List).map((e) => IngresoRepuesto.fromMap(e)).toList();
@@ -272,7 +287,7 @@ class MovimientosRepository {
 
   Future<void> createIngreso({
     required String repuestoId,
-    required int cantidad,
+    required int    cantidad,
     required String quienEntrega,
     String? descripcion,
   }) async {
@@ -289,7 +304,7 @@ class MovimientosRepository {
 
   Future<void> updateIngreso(String id, {
     required String repuestoId,
-    required int cantidad,
+    required int    cantidad,
     required String quienEntrega,
     String? descripcion,
   }) async {
@@ -304,9 +319,10 @@ class MovimientosRepository {
   Future<void> deleteIngreso(String id) async =>
       _db.from('ingreso_repuestos').delete().eq('id', id);
 
-  // ── SALIDAS ───────────────────────────────────────────────────
+  // ── Salidas ───────────────────────────────────────────────
   Future<List<SalidaRepuesto>> getSalidas() async {
-    final data = await _db.from('salida_repuestos')
+    final data = await _db
+        .from('salida_repuestos')
         .select('*, repuestos(codigo, descripcion, ref), tickets(numero)')
         .order('created_at', ascending: false);
     return (data as List).map((e) => SalidaRepuesto.fromMap(e)).toList();
@@ -314,7 +330,7 @@ class MovimientosRepository {
 
   Future<void> createSalida({
     required String repuestoId,
-    required int cantidad,
+    required int    cantidad,
     String? ticketId,
     String? observacion,
     String? quienRetira,
@@ -333,7 +349,7 @@ class MovimientosRepository {
 
   Future<void> updateSalida(String id, {
     required String repuestoId,
-    required int cantidad,
+    required int    cantidad,
     String? ticketId,
     String? observacion,
     String? quienRetira,
@@ -383,7 +399,6 @@ class RepuestosMaquinasRepository {
 
 // ── Notificaciones ────────────────────────────────────────────
 class NotificacionesRepository {
-  // Obtener notificaciones no leídas del usuario actual
   Future<List<Notificacion>> getMisNotificaciones() async {
     final uid  = _db.auth.currentUser!.id;
     final data = await _db
@@ -395,7 +410,6 @@ class NotificacionesRepository {
     return (data as List).map((e) => Notificacion.fromMap(e)).toList();
   }
 
-  // Crear notificación para un usuario
   Future<void> crear({
     required String tipo,
     required String mensaje,
@@ -413,7 +427,6 @@ class NotificacionesRepository {
     });
   }
 
-  // Marcar como leída y devolver la notificación actualizada
   Future<void> marcarLeida(String notifId) async {
     await _db.from('notificaciones').update({
       'leida':    true,
@@ -421,7 +434,6 @@ class NotificacionesRepository {
     }).eq('id', notifId);
   }
 
-  // Obtener confirmaciones de encargados para un ticket
   Future<List<Notificacion>> getConfirmaciones(String ticketId) async {
     final data = await _db
         .from('notificaciones')

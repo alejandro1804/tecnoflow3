@@ -66,13 +66,43 @@ class UsuariosScreen extends ConsumerWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
 
-                              // FILA 1: Nombre
-                              Text(u.nombre,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: 10),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis),
+                              // FILA 1: Nombre + badge primer login
+                              Row(children: [
+                                Expanded(
+                                  child: Text(u.nombre,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.w500,
+                                          fontSize: 10),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis),
+                                ),
+                                // ← badge: contraseña pendiente de cambiar
+                                if (u.primerLogin)
+                                  Tooltip(
+                                    message: 'Contraseña temporal — aún no cambió',
+                                    child: Container(
+                                      margin: const EdgeInsets.only(left: 6),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                          color: Colors.orange.withOpacity(0.12),
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(
+                                              color: Colors.orange.withOpacity(0.4))),
+                                      child: Row(mainAxisSize: MainAxisSize.min,
+                                          children: const [
+                                            Icon(Icons.lock_clock_outlined,
+                                                size: 11, color: Colors.orange),
+                                            SizedBox(width: 3),
+                                            Text('Temp',
+                                                style: TextStyle(
+                                                    fontSize: 9,
+                                                    color: Colors.orange,
+                                                    fontWeight: FontWeight.w700)),
+                                          ]),
+                                    ),
+                                  ),
+                              ]),
                               const SizedBox(height: 4),
 
                               // FILA 2: Email

@@ -9,16 +9,13 @@ import 'constants.dart';
 class ImageHelper {
   static final _picker = ImagePicker();
   static final _client = Supabase.instance.client;
-  static const _bucket = 'repuestos';
+  static const _bucketRepuestos = 'repuestos';
+  static const _bucketMaquinas  = 'maquinas';
 
   // ── Elegir fuente de imagen ───────────────────────────────
   static Future<Uint8List?> elegirImagen(BuildContext context) async {
-    // En web no hay cámara ni archivos separados — solo galería
-    if (kIsWeb) {
-      return _elegirDesdeGaleria();
-    }
+    if (kIsWeb) return _elegirDesdeGaleria();
 
-    // En móvil mostrar bottomsheet con opciones
     final fuente = await showModalBottomSheet<ImageSource?>(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -63,61 +60,64 @@ class ImageHelper {
     return _elegirDesdeFuente(fuente);
   }
 
-  // ── Galería (web y móvil) ─────────────────────────────────
   static Future<Uint8List?> _elegirDesdeGaleria() async {
     final picked = await _picker.pickImage(
-      source:       ImageSource.gallery,
-      imageQuality: 80,
-    );
+      source: ImageSource.gallery, imageQuality: 80);
     if (picked == null) return null;
     return picked.readAsBytes();
   }
 
-  // ── Fuente específica (solo móvil) ────────────────────────
   static Future<Uint8List?> _elegirDesdeFuente(ImageSource fuente) async {
     final picked = await _picker.pickImage(
-      source:       fuente,
-      maxWidth:     800,
-      maxHeight:    800,
-      imageQuality: 80,
-    );
+      source: fuente, maxWidth: 800, maxHeight: 800, imageQuality: 80);
     if (picked == null) return null;
-
-    // En móvil usar readAsBytes directamente
-    // image_picker ya aplica maxWidth/maxHeight/quality como compresión
     return picked.readAsBytes();
   }
 
-// ── Subir a Supabase Storage ──────────────────────────────
+  // ── Subir imagen — repuesto ───────────────────────────────
   static Future<String?> subirImagen(
       Uint8List bytes, String repuestoId) async {
-    final path = 'repuesto_$repuestoId.jpg';
-    try {
-      final adminClient = SupabaseClient(
-        supabaseUrl,           // ← de constants.dart
-        supabaseServiceKey,    // ← agregar esta constante en constants.dart
-      );
+    return _subir(bytes, _bucketRepuestos, 'repuesto_$repuestoId.jpg');
+  }
 
-      await adminClient.storage.from(_bucket).uploadBinary(
-        path,
-        bytes,
+  // ── Subir imagen — máquina ────────────────────────────────
+  static Future<String?> subirImagenMaquina(
+      Uint8List bytes, String maquinaId) async {
+    return _subir(bytes, _bucketMaquinas, 'maquina_$maquinaId.jpg');
+  }
+
+  // ── Subir genérico ────────────────────────────────────────
+  static Future<String?> _subir(
+      Uint8List bytes, String bucket, String path) async {
+    try {
+      final adminClient = SupabaseClient(supabaseUrl, supabaseServiceKey);
+      await adminClient.storage.from(bucket).uploadBinary(
+        path, bytes,
         fileOptions: const FileOptions(
             contentType: 'image/jpeg', upsert: true),
       );
-      final url = _client.storage.from(_bucket).getPublicUrl(path);
+      final url = _client.storage.from(bucket).getPublicUrl(path);
       return '$url?t=${DateTime.now().millisecondsSinceEpoch}';
-    } catch (e) {
-
+    } catch (_) {
       return null;
     }
   }
 
-  // ── Eliminar imagen del bucket ────────────────────────────
+  // ── Eliminar imagen — repuesto ────────────────────────────
   static Future<void> eliminarImagen(String repuestoId) async {
     try {
       await _client.storage
-          .from(_bucket)
+          .from(_bucketRepuestos)
           .remove(['repuesto_$repuestoId.jpg']);
+    } catch (_) {}
+  }
+
+  // ── Eliminar imagen — máquina ─────────────────────────────
+  static Future<void> eliminarImagenMaquina(String maquinaId) async {
+    try {
+      await _client.storage
+          .from(_bucketMaquinas)
+          .remove(['maquina_$maquinaId.jpg']);
     } catch (_) {}
   }
 }

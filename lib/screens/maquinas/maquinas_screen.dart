@@ -152,7 +152,6 @@ class _State extends ConsumerState<MaquinasScreen> {
                   ),
                   const SizedBox(height: 8),
 
-                  // Dropdown de sectores
                   Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 12, vertical: 4),
@@ -237,13 +236,12 @@ class _State extends ConsumerState<MaquinasScreen> {
                             margin: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 5),
                             child: Padding(
-                              padding: const EdgeInsets.fromLTRB(
-                                  12, 10, 12, 10),
+                              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
 
-                                  // FILA 1: Ícono + Nombre
+                                  // FILA 1: Nombre
                                   Row(children: [
                                     CircleAvatar(
                                       radius: 16,
@@ -261,102 +259,142 @@ class _State extends ConsumerState<MaquinasScreen> {
                                           overflow: TextOverflow.ellipsis),
                                     ),
                                   ]),
-                                  const SizedBox(height: 6),
-
-                                  // FILA 2: Código | Sector
-                                  Row(children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 8, vertical: 2),
-                                      decoration: BoxDecoration(
-                                          color: Colors.grey.withOpacity(0.1),
-                                          borderRadius:
-                                              BorderRadius.circular(6)),
-                                      child: Text(m.codigo,
-                                          style: const TextStyle(
-                                              fontSize: 11,
-                                              color: Colors.grey,
-                                              fontWeight: FontWeight.w600)),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Row(children: [
-                                      const Icon(Icons.domain_outlined,
-                                          size: 12, color: Colors.grey),
-                                      const SizedBox(width: 4),
-                                      Text(m.sectorNombre ?? 'Sin sector',
-                                          style: const TextStyle(
-                                              fontSize: 11,
-                                              color: Colors.grey)),
-                                    ]),
-                                  ]),
                                   const SizedBox(height: 8),
 
-                                  // FILA 3: Estado | Editar | Repuestos
-                                  Row(children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 8, vertical: 3),
-                                      decoration: BoxDecoration(
-                                          color: color.withOpacity(0.1),
-                                          borderRadius:
-                                              BorderRadius.circular(6),
-                                          border: Border.all(
-                                              color: color.withOpacity(0.3))),
-                                      child: Text(
-                                          m.estado == 'en_reparacion'
-                                              ? 'En reparación'
-                                              : m.estado == 'inactivo'
-                                                  ? 'Inactivo'
-                                                  : 'Activo',
-                                          style: TextStyle(
-                                              color: color,
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.w600)),
-                                    ),
-                                    const Spacer(),
-                                    // Editar — solo admin y pañolero
-                                    if (canManage)
-                                      InkWell(
-                                        onTap: () => context
-                                            .push('/maquinas/${m.id}'),
-                                        borderRadius: BorderRadius.circular(6),
-                                        child: Container(
-                                          padding: const EdgeInsets.all(6),
-                                          decoration: BoxDecoration(
-                                              color: Colors.grey
-                                                  .withOpacity(0.08),
-                                              borderRadius:
-                                                  BorderRadius.circular(6)),
-                                          child: const Icon(
-                                              Icons.edit_outlined,
-                                              size: 18, color: Colors.grey),
+                                  // FILA 2: Foto + Info
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      // ── Miniatura ──────────────────
+                                      SizedBox(
+                                        width: 72,
+                                        height: 72,
+                                        child: m.imagenUrl != null
+                                            ? ClipRRect(
+                                                borderRadius: BorderRadius.circular(8),
+                                                child: Image.network(
+                                                  m.imagenUrl!,
+                                                  fit: BoxFit.cover,
+                                                  loadingBuilder: (_, child, progress) =>
+                                                      progress == null
+                                                          ? child
+                                                          : Container(
+                                                              decoration: BoxDecoration(
+                                                                  color: Colors.grey[100],
+                                                                  borderRadius: BorderRadius.circular(8)),
+                                                              child: const Center(
+                                                                  child: CircularProgressIndicator(strokeWidth: 2))),
+                                                  errorBuilder: (_, __, ___) =>
+                                                      _SinImagen(color: color),
+                                                ))
+                                            : _SinImagen(color: color),
+                                      ),
+                                      const SizedBox(width: 12),
+
+                                      // ── Datos ──────────────────────
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            // Código + Sector
+                                            Row(children: [
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(
+                                                    horizontal: 8, vertical: 2),
+                                                decoration: BoxDecoration(
+                                                    color: Colors.grey.withOpacity(0.1),
+                                                    borderRadius: BorderRadius.circular(6)),
+                                                child: Text(m.codigo,
+                                                    style: const TextStyle(
+                                                        fontSize: 11,
+                                                        color: Colors.grey,
+                                                        fontWeight: FontWeight.w600)),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Row(children: [
+                                                  const Icon(Icons.domain_outlined,
+                                                      size: 12, color: Colors.grey),
+                                                  const SizedBox(width: 4),
+                                                  Expanded(
+                                                    child: Text(
+                                                        m.sectorNombre ?? 'Sin sector',
+                                                        style: const TextStyle(
+                                                            fontSize: 11,
+                                                            color: Colors.grey),
+                                                        overflow: TextOverflow.ellipsis),
+                                                  ),
+                                                ]),
+                                              ),
+                                            ]),
+                                            const SizedBox(height: 6),
+
+                                            // Descripción si existe
+                                            if (m.descripcion != null &&
+                                                m.descripcion!.isNotEmpty)
+                                              Padding(
+                                                padding: const EdgeInsets.only(bottom: 6),
+                                                child: Text(m.descripcion!,
+                                                    style: const TextStyle(
+                                                        fontSize: 10,
+                                                        color: Colors.grey),
+                                                    maxLines: 2,
+                                                    overflow: TextOverflow.ellipsis),
+                                              ),
+
+                                            // Estado badge
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                  horizontal: 8, vertical: 3),
+                                              decoration: BoxDecoration(
+                                                  color: color.withOpacity(0.1),
+                                                  borderRadius: BorderRadius.circular(6),
+                                                  border: Border.all(
+                                                      color: color.withOpacity(0.3))),
+                                              child: Text(
+                                                  m.estado == 'en_reparacion'
+                                                      ? 'En reparación'
+                                                      : m.estado == 'inactivo'
+                                                          ? 'Inactivo'
+                                                          : 'Activo',
+                                                  style: TextStyle(
+                                                      color: color,
+                                                      fontSize: 10,
+                                                      fontWeight: FontWeight.w600)),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                    const SizedBox(width: 8),
-                                    // Repuestos — todos
-                                    InkWell(
-                                      onTap: () => Navigator.push(context,
-                                          MaterialPageRoute(
-                                              builder: (_) => ProviderScope(
-                                                  parent: ProviderScope
-                                                      .containerOf(context),
-                                                  child: RepuestosMaquinaScreen(
-                                                      maquinaId:     m.id,
-                                                      maquinaNombre: m.nombre)))),
-                                      borderRadius: BorderRadius.circular(6),
-                                      child: Container(
-                                        padding: const EdgeInsets.all(6),
-                                        decoration: BoxDecoration(
-                                            color: Colors.blue
-                                                .withOpacity(0.08),
-                                            borderRadius:
-                                                BorderRadius.circular(6)),
-                                        child: const Icon(
-                                            Icons.settings_outlined,
-                                            size: 18, color: Colors.blue),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+
+                                  // FILA 3: Acciones
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    children: [
+                                      if (canManage) ...[
+                                        _IconBtn(
+                                          icon: Icons.edit_outlined,
+                                          color: Colors.grey,
+                                          onTap: () => context.push('/maquinas/${m.id}'),
+                                        ),
+                                        const SizedBox(width: 8),
+                                      ],
+                                      _IconBtn(
+                                        icon: Icons.settings_outlined,
+                                        color: Colors.blue,
+                                        onTap: () => Navigator.push(context,
+                                            MaterialPageRoute(
+                                                builder: (_) => ProviderScope(
+                                                    parent: ProviderScope
+                                                        .containerOf(context),
+                                                    child: RepuestosMaquinaScreen(
+                                                        maquinaId:     m.id,
+                                                        maquinaNombre: m.nombre)))),
                                       ),
-                                    ),
-                                  ]),
+                                    ],
+                                  ),
                                 ],
                               ),
                             ),
@@ -368,4 +406,45 @@ class _State extends ConsumerState<MaquinasScreen> {
         }),
     );
   }
+}
+
+// ── Placeholder sin imagen ────────────────────────────────────
+class _SinImagen extends StatelessWidget {
+  final Color color;
+  const _SinImagen({required this.color});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    decoration: BoxDecoration(
+        color: color.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.15))),
+    child: Icon(Icons.precision_manufacturing_outlined,
+        color: color.withOpacity(0.4), size: 28),
+  );
+}
+
+// ── Ícono botón ───────────────────────────────────────────────
+class _IconBtn extends StatelessWidget {
+  final IconData     icon;
+  final Color        color;
+  final VoidCallback onTap;
+  const _IconBtn({
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(6),
+    child: Container(
+      padding: const EdgeInsets.all(7),
+      decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(6)),
+      child: Icon(icon, size: 20, color: color),
+    ),
+  );
 }

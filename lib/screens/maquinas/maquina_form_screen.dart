@@ -1,8 +1,10 @@
 // lib/screens/maquinas/maquina_form_screen.dart
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/widgets.dart';
+import '../../core/imageHelper.dart';
 import '../../models/models.dart';
 import '../../providers/providers.dart';
 
@@ -18,10 +20,15 @@ class _State extends ConsumerState<MaquinaFormScreen> {
   final _nomCtrl  = TextEditingController();
   final _codCtrl  = TextEditingController();
   final _descCtrl = TextEditingController();
-  String _sectorId = '';
-  String _estado   = 'activo';
-  bool _loading = false, _loadingData = false;
-  String? _error;
+
+  String     _sectorId    = '';
+  String     _estado      = 'activo';
+  bool       _loading     = false;
+  bool       _loadingData = false;
+  bool       _subiendoImg = false;
+  String?    _error;
+  String?    _imagenUrl;
+  Uint8List? _imagenBytes;
 
   bool get isEdit => widget.maquinaId != null;
 
@@ -39,29 +46,97 @@ class _State extends ConsumerState<MaquinaFormScreen> {
       _nomCtrl.text  = m.nombre;
       _codCtrl.text  = m.codigo;
       _descCtrl.text = m.descripcion ?? '';
-      setState(() { _sectorId = m.sectorId; _estado = m.estado; });
+      setState(() {
+        _sectorId  = m.sectorId;
+        _estado    = m.estado;
+        _imagenUrl = m.imagenUrl;
+      });
     } finally {
       if (mounted) setState(() => _loadingData = false);
     }
+  }
+
+  Future<void> _seleccionarImagen() async {
+    final bytes = await ImageHelper.elegirImagen(context);
+    if (bytes != null) setState(() => _imagenBytes = bytes);
+  }
+
+  void _quitarImagen() {
+    setState(() { _imagenBytes = null; _imagenUrl = null; });
   }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() { _loading = true; _error = null; });
     try {
+      String? urlFinal = _imagenUrl;
+
+      // Si hay imagen nueva, subir primero con ID temporal
+      if (_imagenBytes != null) {
+        setState(() => _subiendoImg = true);
+        final tempId = widget.maquinaId ??
+            'temp_${DateTime.now().millisecondsSinceEpoch}';
+        urlFinal = await ImageHelper.subirImagenMaquina(_imagenBytes!, tempId);
+        setState(() => _subiendoImg = false);
+      }
+
+      // Si se quitó la imagen en edición, eliminar del bucket
+      if (_imagenBytes == null && _imagenUrl == null && isEdit) {
+        await ImageHelper.eliminarImagenMaquina(widget.maquinaId!);
+      }
+
       final m = Maquina(
         id:          widget.maquinaId ?? '',
         sectorId:    _sectorId,
         nombre:      _nomCtrl.text.trim(),
         codigo:      _codCtrl.text.trim(),
         estado:      _estado,
-        descripcion: _descCtrl.text.trim(),
+        descripcion: _descCtrl.text.trim().isEmpty
+            ? null : _descCtrl.text.trim(),
+        imagenUrl:   urlFinal,
       );
+
       if (isEdit) {
         await ref.read(maquinasRepoProvider).update(widget.maquinaId!, m);
+        // Si la imagen era temporal, reubicar con ID real
+        if (_imagenBytes != null && urlFinal != null &&
+            urlFinal.contains('temp_')) {
+          final nueva = await ImageHelper.subirImagenMaquina(
+              _imagenBytes!, widget.maquinaId!);
+          await ref.read(maquinasRepoProvider).update(
+              widget.maquinaId!, Maquina(
+                id:          widget.maquinaId!,
+                sectorId:    _sectorId,
+                nombre:      m.nombre,
+                codigo:      m.codigo,
+                estado:      _estado,
+                descripcion: m.descripcion,
+                imagenUrl:   nueva,
+              ));
+          urlFinal = nueva;
+        }
       } else {
         await ref.read(maquinasRepoProvider).create(m);
+        // Tras crear, obtener el ID real y reubicar imagen si había
+        if (_imagenBytes != null) {
+          final todas = await ref.read(maquinasRepoProvider).getAll();
+          final nueva = todas.firstWhere(
+              (x) => x.nombre == m.nombre && x.codigo == m.codigo);
+          final urlNew = await ImageHelper.subirImagenMaquina(
+              _imagenBytes!, nueva.id);
+          await ref.read(maquinasRepoProvider).update(
+              nueva.id, Maquina(
+                id:          nueva.id,
+                sectorId:    _sectorId,
+                nombre:      m.nombre,
+                codigo:      m.codigo,
+                estado:      _estado,
+                descripcion: m.descripcion,
+                imagenUrl:   urlNew,
+              ));
+        }
       }
+
       ref.invalidate(maquinasProvider);
       if (mounted) {
         context.pop();
@@ -71,7 +146,7 @@ class _State extends ConsumerState<MaquinaFormScreen> {
     } catch (e) {
       setState(() => _error = e.toString());
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() { _loading = false; _subiendoImg = false; });
     }
   }
 
@@ -91,7 +166,6 @@ class _State extends ConsumerState<MaquinaFormScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(isEdit ? 'Editar máquina' : 'Nueva máquina'),
-        // Sin botón eliminar — las máquinas se inactivan, no se eliminan
       ),
       body: _loadingData
           ? const Center(child: CircularProgressIndicator())
@@ -102,6 +176,20 @@ class _State extends ConsumerState<MaquinaFormScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+
+                    // ── Imagen ────────────────────────────
+                    const Text('IMAGEN', style: TextStyle(
+                        fontSize: 11, fontWeight: FontWeight.w700,
+                        color: Colors.grey, letterSpacing: 1)),
+                    const SizedBox(height: 8),
+                    _ImagenSelector(
+                      imagenBytes:   _imagenBytes,
+                      imagenUrl:     _imagenUrl,
+                      subiendoImg:   _subiendoImg,
+                      onSeleccionar: _seleccionarImagen,
+                      onQuitar:      _quitarImagen,
+                    ),
+                    const SizedBox(height: 20),
 
                     // ── Nombre ────────────────────────────
                     TextFormField(
@@ -170,13 +258,116 @@ class _State extends ConsumerState<MaquinaFormScreen> {
                     ],
                     const SizedBox(height: 28),
                     LoadingButton(
-                        loading: _loading,
-                        onPressed: _submit,
-                        label: 'Guardar'),
+                      loading: _loading,
+                      onPressed: _submit,
+                      label: _subiendoImg
+                          ? 'Subiendo imagen...'
+                          : 'Guardar'),
                   ],
                 ),
               ),
-      ),
+          ),
+    );
+  }
+}
+
+// ── Widget selector de imagen ─────────────────────────────────
+class _ImagenSelector extends StatelessWidget {
+  final Uint8List? imagenBytes;
+  final String?    imagenUrl;
+  final bool       subiendoImg;
+  final VoidCallback onSeleccionar;
+  final VoidCallback onQuitar;
+
+  const _ImagenSelector({
+    required this.imagenBytes,
+    required this.imagenUrl,
+    required this.subiendoImg,
+    required this.onSeleccionar,
+    required this.onQuitar,
+  });
+
+  bool get tieneImagen => imagenBytes != null || imagenUrl != null;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 160,
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300)),
+      child: tieneImagen
+          ? Stack(fit: StackFit.expand, children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: imagenBytes != null
+                    ? Image.memory(imagenBytes!, fit: BoxFit.cover)
+                    : Image.network(imagenUrl!, fit: BoxFit.cover,
+                        loadingBuilder: (_, child, progress) =>
+                            progress == null
+                                ? child
+                                : const Center(
+                                    child: CircularProgressIndicator())),
+              ),
+              Positioned(
+                top: 8, right: 8,
+                child: GestureDetector(
+                  onTap: onQuitar,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                        color: Colors.red, shape: BoxShape.circle),
+                    child: const Icon(Icons.close,
+                        color: Colors.white, size: 18)),
+                )),
+              Positioned(
+                bottom: 8, right: 8,
+                child: GestureDetector(
+                  onTap: onSeleccionar,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.6),
+                        borderRadius: BorderRadius.circular(8)),
+                    child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.edit_outlined,
+                          color: Colors.white, size: 14),
+                      SizedBox(width: 4),
+                      Text('Cambiar',
+                          style: TextStyle(
+                              color: Colors.white, fontSize: 12)),
+                    ])),
+                )),
+              if (subiendoImg)
+                Container(
+                  decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.4),
+                      borderRadius: BorderRadius.circular(12)),
+                  child: const Center(
+                      child: CircularProgressIndicator(
+                          color: Colors.white))),
+            ])
+          : InkWell(
+              onTap: onSeleccionar,
+              borderRadius: BorderRadius.circular(12),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.add_photo_alternate_outlined,
+                      size: 48, color: Colors.grey[400]),
+                  const SizedBox(height: 8),
+                  Text('Agregar imagen',
+                      style: TextStyle(
+                          color: Colors.grey[600], fontSize: 13)),
+                  const SizedBox(height: 4),
+                  Text('Cámara, galería o archivos',
+                      style: TextStyle(
+                          color: Colors.grey[400], fontSize: 11)),
+                ],
+              ),
+            ),
     );
   }
 }
