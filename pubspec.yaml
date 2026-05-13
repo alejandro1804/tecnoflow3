@@ -17,6 +17,8 @@ dependencies:
   pdf: ^3.10.8
   printing: ^5.12.0
   image_picker: ^1.2.2
+  share_plus: ^10.0.0       # share sheet nativo
+  path_provider: ^2.1.0     # directorio temporal del dispositivo
 
 
 dev_dependencies:

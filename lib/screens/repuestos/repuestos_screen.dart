@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/widgets.dart';
-import '../../core/pdfgenerator.dart';
+import '../../core/PdfGenerator.dart';
 import '../../core/image_viewer.dart';
 import '../../providers/providers.dart';
 import '../../models/models.dart';
