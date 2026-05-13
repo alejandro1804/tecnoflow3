@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../../core/constants.dart';
 import '../../core/widgets.dart';
 import '../../models/models.dart';
@@ -307,10 +308,52 @@ class HomeScreen extends ConsumerWidget {
                     color: Colors.orange,
                     onTap: () => context.push('/tickets')),
 
-
+              // ── Footer versión ────────────────────────
+              const SizedBox(height: 24),
+              const _VersionFooter(),
+              const SizedBox(height: 8),
             ]),
           );
         }),
+    );
+  }
+}
+
+// ── Footer con versión ────────────────────────────────────────
+class _VersionFooter extends StatefulWidget {
+  const _VersionFooter();
+
+  @override
+  State<_VersionFooter> createState() => _VersionFooterState();
+}
+
+class _VersionFooterState extends State<_VersionFooter> {
+  String _version = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVersion();
+  }
+
+  Future<void> _loadVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    if (mounted) {
+      setState(() => _version = 'v${info.version}');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_version.isEmpty) return const SizedBox.shrink();
+    return Center(
+      child: Text(
+        _version,
+        style: TextStyle(
+            fontSize: 11,
+            color: Colors.grey[400],
+            letterSpacing: 0.5),
+      ),
     );
   }
 }
@@ -482,7 +525,6 @@ class _InactivosState extends ConsumerState<_RepuestosInactivosCard> {
                 ),
                 const SizedBox(height: 16),
               ],
-              // ← codigo nullable
               _InfoFila(Icons.qr_code_outlined, 'Código', r.codigo ?? '—'),
               _InfoFila(Icons.description_outlined, 'Descripción',
                   r.descripcion),
@@ -662,7 +704,7 @@ class _IconBtn extends StatelessWidget {
 class _InfoFila extends StatelessWidget {
   final IconData icon;
   final String   label;
-  final String   value;   // ← ya recibe String (no nullable), el caller pasa ?? '—'
+  final String   value;
   final Color?   color;
   const _InfoFila(this.icon, this.label, this.value, {this.color});
 
