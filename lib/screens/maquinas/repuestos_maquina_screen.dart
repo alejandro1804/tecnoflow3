@@ -52,7 +52,6 @@ class RepuestosMaquinaScreen extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
 
-                          // ── FILA 1: Ícono + Descripción ──────
                           Row(children: [
                             CircleAvatar(
                               radius: 14,
@@ -72,7 +71,6 @@ class RepuestosMaquinaScreen extends ConsumerWidget {
                           ]),
                           const SizedBox(height: 6),
 
-                          // ── FILA 2: Código | Cantidad | Ubicación ──
                           Row(children: [
                             Container(
                               padding: const EdgeInsets.symmetric(
@@ -80,7 +78,8 @@ class RepuestosMaquinaScreen extends ConsumerWidget {
                               decoration: BoxDecoration(
                                   color: Colors.grey.withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(6)),
-                              child: Text(item.repuestoCodigo ?? '',
+                              // ← codigo nullable en RepuestoMaquina ya era String?
+                              child: Text(item.repuestoCodigo ?? '—',
                                   style: const TextStyle(
                                       fontSize: 11,
                                       color: Colors.grey,
@@ -94,7 +93,6 @@ class RepuestosMaquinaScreen extends ConsumerWidget {
                             ],
                           ]),
 
-                          // Observación
                           if (item.observacion != null) ...[
                             const SizedBox(height: 4),
                             Row(children: [
@@ -109,7 +107,6 @@ class RepuestosMaquinaScreen extends ConsumerWidget {
                             ]),
                           ],
 
-                          // ── FILA 3: Acciones ──────────────────
                           if (canEdit) ...[
                             const SizedBox(height: 8),
                             Row(children: [
@@ -260,9 +257,12 @@ class _ModalState extends ConsumerState<_RepuestoMaquinaModal> {
     try {
       String repId = _repuestoSelId ?? '';
       if (_crearNuevo) {
+        // ← codigo opcional al crear desde este modal también
+        final codigoFinal = _codCtrl.text.trim().isEmpty
+            ? null : _codCtrl.text.trim();
         final nuevoRep = Repuesto(
           id:          '',
-          codigo:      _codCtrl.text.trim(),
+          codigo:      codigoFinal,
           descripcion: _descCtrl.text.trim(),
           stockActual: 0,
           stockMinimo: int.tryParse(_minCtrl.text) ?? 0,
@@ -271,7 +271,8 @@ class _ModalState extends ConsumerState<_RepuestoMaquinaModal> {
         );
         await ref.read(repuestosRepoProvider).create(nuevoRep);
         final todos = await ref.read(repuestosRepoProvider).getAll();
-        repId = todos.firstWhere((r) => r.codigo == nuevoRep.codigo).id;
+        // ← buscar por descripcion ya que codigo puede ser null
+        repId = todos.firstWhere((r) => r.descripcion == nuevoRep.descripcion).id;
         ref.invalidate(repuestosProvider);
       }
 
@@ -315,7 +316,8 @@ class _ModalState extends ConsumerState<_RepuestoMaquinaModal> {
     final repuestos = ref.watch(repuestosProvider).valueOrNull ?? [];
     final filtrados = repuestos
         .where((r) =>
-            r.codigo.toLowerCase().contains(_busqueda.toLowerCase()) ||
+            // ← codigo nullable
+            (r.codigo ?? '').toLowerCase().contains(_busqueda.toLowerCase()) ||
             r.descripcion.toLowerCase().contains(_busqueda.toLowerCase()))
         .toList()
       ..sort((a, b) => a.descripcion.compareTo(b.descripcion));
@@ -388,14 +390,16 @@ class _ModalState extends ConsumerState<_RepuestoMaquinaModal> {
                                 sel ? Icons.check_circle : Icons.circle_outlined,
                                 color: sel ? Colors.blue : Colors.grey,
                                 size: 18),
-                            title: Text('${r.codigo} — ${r.descripcion}',
+                            // ← codigo nullable
+                            title: Text(
+                                '${r.codigo ?? '—'} — ${r.descripcion}',
                                 style: const TextStyle(fontSize: 13)),
                             subtitle: Text('Stock: ${r.stockActual}',
                                 style: const TextStyle(fontSize: 11)),
                             onTap: () => setState(() {
                               _repuestoSelId = r.id;
                               _busqCtrl.text =
-                                  '${r.codigo} — ${r.descripcion}';
+                                  '${r.codigo ?? '—'} — ${r.descripcion}';
                               _busqueda = '';
                             }),
                           );
@@ -422,7 +426,8 @@ class _ModalState extends ConsumerState<_RepuestoMaquinaModal> {
                           color: Colors.blue, size: 18),
                       const SizedBox(width: 8),
                       Expanded(child: Text(
-                          '${widget.repuestoMaquina!.repuestoCodigo} — '
+                          // ← codigo nullable
+                          '${widget.repuestoMaquina!.repuestoCodigo ?? '—'} — '
                           '${widget.repuestoMaquina!.repuestoDescripcion}',
                           style: const TextStyle(
                               fontWeight: FontWeight.w600, fontSize: 13))),
@@ -434,14 +439,13 @@ class _ModalState extends ConsumerState<_RepuestoMaquinaModal> {
                     style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
                         color: Colors.grey, letterSpacing: 1)),
                 const SizedBox(height: 12),
+                // ← SKU opcional también en este modal
                 TextFormField(
                     controller: _codCtrl,
                     textCapitalization: TextCapitalization.characters,
                     decoration: const InputDecoration(
-                        labelText: 'Código / SKU',
-                        prefixIcon: Icon(Icons.qr_code_outlined)),
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Requerido' : null),
+                        labelText: 'Código / SKU (opcional)',
+                        prefixIcon: Icon(Icons.qr_code_outlined))),
                 const SizedBox(height: 12),
                 TextFormField(
                     controller: _descCtrl,

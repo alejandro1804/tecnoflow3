@@ -25,12 +25,12 @@ class SalidaFormScreen extends ConsumerStatefulWidget {
 }
 
 class _State extends ConsumerState<SalidaFormScreen> {
-  final _formKey        = GlobalKey<FormState>();
-  final _cantCtrl       = TextEditingController(text: '1');
-  final _obsCtrl        = TextEditingController();
-  final _busqCtrl       = TextEditingController();
-  final _refCtrl        = TextEditingController();
-  final _quienRetiraCtrl = TextEditingController();   // ← NUEVO
+  final _formKey         = GlobalKey<FormState>();
+  final _cantCtrl        = TextEditingController(text: '1');
+  final _obsCtrl         = TextEditingController();
+  final _busqCtrl        = TextEditingController();
+  final _refCtrl         = TextEditingController();
+  final _quienRetiraCtrl = TextEditingController();
 
   String? _repuestoId;
   String? _ticketId;
@@ -57,7 +57,7 @@ class _State extends ConsumerState<SalidaFormScreen> {
       _cantCtrl.text            = s.cantidad.toString();
       _obsCtrl.text             = s.observacion ?? '';
       _busqCtrl.text            = s.repuestoDescripcion ?? '';
-      _quienRetiraCtrl.text     = s.quienRetira ?? '';   // ← NUEVO
+      _quienRetiraCtrl.text     = s.quienRetira ?? '';
     } else if (widget.repuestoPreseleccionado != null) {
       final r        = widget.repuestoPreseleccionado!;
       _repuestoId    = r.id;
@@ -97,7 +97,7 @@ class _State extends ConsumerState<SalidaFormScreen> {
   void dispose() {
     _cantCtrl.dispose(); _obsCtrl.dispose();
     _busqCtrl.dispose(); _refCtrl.dispose();
-    _quienRetiraCtrl.dispose();   // ← NUEVO
+    _quienRetiraCtrl.dispose();
     super.dispose();
   }
 
@@ -124,7 +124,6 @@ class _State extends ConsumerState<SalidaFormScreen> {
     }
     setState(() { _loading = true; _error = null; });
 
-    // Valor de quienRetira: null si vacío
     final quienRetira = _quienRetiraCtrl.text.trim().isEmpty
         ? null
         : _quienRetiraCtrl.text.trim();
@@ -138,7 +137,7 @@ class _State extends ConsumerState<SalidaFormScreen> {
           ticketId:     _conTicket ? _ticketId : null,
           observacion:  _obsCtrl.text.trim().isEmpty
               ? null : _obsCtrl.text.trim(),
-          quienRetira:  quienRetira,   // ← NUEVO
+          quienRetira:  quienRetira,
         );
       } else {
         await ref.read(movimientosRepoProvider).createSalida(
@@ -147,7 +146,7 @@ class _State extends ConsumerState<SalidaFormScreen> {
           ticketId:     _conTicket ? _ticketId : null,
           observacion:  _obsCtrl.text.trim().isEmpty
               ? null : _obsCtrl.text.trim(),
-          quienRetira:  quienRetira,   // ← NUEVO
+          quienRetira:  quienRetira,
         );
       }
       ref.invalidate(salidasProvider);
@@ -189,7 +188,6 @@ class _State extends ConsumerState<SalidaFormScreen> {
         ? _repuestosMaquina!
         : todosRepuestos;
 
-    // Filtro por REF tiene prioridad
     List<Repuesto> repuestosFiltrados;
     if (_busquedaRef.isNotEmpty) {
       final refNum = int.tryParse(_busquedaRef);
@@ -200,7 +198,8 @@ class _State extends ConsumerState<SalidaFormScreen> {
       repuestosFiltrados = (_busqueda.isEmpty
           ? fuenteRepuestos
           : fuenteRepuestos.where((r) =>
-              r.codigo.toLowerCase().contains(_busqueda.toLowerCase()) ||
+              // ← codigo nullable
+              (r.codigo ?? '').toLowerCase().contains(_busqueda.toLowerCase()) ||
               r.descripcion.toLowerCase().contains(_busqueda.toLowerCase()))
           .toList())
         ..sort((a, b) => a.descripcion.compareTo(b.descripcion));
@@ -242,7 +241,8 @@ class _State extends ConsumerState<SalidaFormScreen> {
                             style: const TextStyle(
                                 fontWeight: FontWeight.w600, fontSize: 13)),
                         Text(
-                            'Código: ${repuestoFijo.codigo}  |  Stock: ${repuestoFijo.stockActual}'
+                            // ← codigo nullable
+                            'Código: ${repuestoFijo.codigo ?? '—'}  |  Stock: ${repuestoFijo.stockActual}'
                             '${repuestoFijo.ref != null ? '  |  REF: ${repuestoFijo.ref}' : ''}',
                             style: const TextStyle(
                                 fontSize: 11, color: Colors.grey)),
@@ -284,7 +284,6 @@ class _State extends ConsumerState<SalidaFormScreen> {
                 if (_cargandoRepuestos)
                   const Center(child: CircularProgressIndicator())
                 else ...[
-                  // Buscador texto
                   TextFormField(
                     controller: _busqCtrl,
                     style: const TextStyle(fontSize: 11),
@@ -305,7 +304,6 @@ class _State extends ConsumerState<SalidaFormScreen> {
                   ),
                   const SizedBox(height: 8),
 
-                  // Buscador REF
                   TextField(
                     controller: _refCtrl,
                     keyboardType: TextInputType.number,
@@ -348,7 +346,6 @@ class _State extends ConsumerState<SalidaFormScreen> {
                   ),
                   const SizedBox(height: 4),
 
-                  // Lista resultados
                   if ((_busqueda.isNotEmpty || _busquedaRef.isNotEmpty) &&
                       _repuestoId == null)
                     Container(
@@ -420,7 +417,7 @@ class _State extends ConsumerState<SalidaFormScreen> {
                 }),
               const SizedBox(height: 16),
 
-              // ── Quién retira ───────────────────────────   ← NUEVO
+              // ── Quién retira ───────────────────────────
               const Text('RETIRO', style: TextStyle(
                   fontSize: 11, fontWeight: FontWeight.w700,
                   color: Colors.grey, letterSpacing: 1)),

@@ -45,7 +45,6 @@ class _State extends ConsumerState<RepuestosScreen> {
         ? todos.where((r) => r.stockBajo).toList()
         : todos.toList();
 
-    // Filtro por ref tiene prioridad si está activo
     if (_busquedaRef.isNotEmpty) {
       final refNum = int.tryParse(_busquedaRef);
       if (refNum != null) {
@@ -56,7 +55,8 @@ class _State extends ConsumerState<RepuestosScreen> {
 
     if (_busqueda.isNotEmpty) {
       lista = lista.where((r) =>
-          r.codigo.toLowerCase().contains(_busqueda.toLowerCase()) ||
+          // ← codigo es nullable, usar ?? ''
+          (r.codigo ?? '').toLowerCase().contains(_busqueda.toLowerCase()) ||
           r.descripcion.toLowerCase().contains(_busqueda.toLowerCase()) ||
           (r.ubicacion ?? '').toLowerCase().contains(_busqueda.toLowerCase()))
       .toList();
@@ -137,7 +137,6 @@ class _State extends ConsumerState<RepuestosScreen> {
                 padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
                 child: Column(children: [
 
-                  // Buscador texto
                   TextField(
                     decoration: InputDecoration(
                       hintText: 'Buscar por código, descripción...',
@@ -156,7 +155,6 @@ class _State extends ConsumerState<RepuestosScreen> {
                   ),
                   const SizedBox(height: 8),
 
-                  // Buscador por REF
                   TextField(
                     controller: _refCtrl,
                     keyboardType: TextInputType.number,
@@ -310,7 +308,6 @@ class _RepuestoCard extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(2)))),
               const SizedBox(height: 16),
 
-              // Header con REF badge
               Row(children: [
                 const Text('DETALLE DE REPUESTO', style: TextStyle(
                     fontSize: 11, fontWeight: FontWeight.w700,
@@ -380,7 +377,9 @@ class _RepuestoCard extends ConsumerWidget {
                 ),
                 const SizedBox(height: 16),
               ],
-              _DetalleRow(Icons.qr_code_outlined, 'Código', repuesto.codigo),
+              // ← codigo nullable: mostrar '—' si es null
+              _DetalleRow(Icons.qr_code_outlined, 'Código',
+                  repuesto.codigo ?? '—'),
               _DetalleRow(Icons.description_outlined, 'Descripción',
                   repuesto.descripcion),
               _DetalleRow(Icons.location_on_outlined, 'Ubicación',

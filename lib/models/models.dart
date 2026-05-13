@@ -17,7 +17,7 @@ class Usuario {
   final String nombre;
   final String email;
   final String estado;
-  final bool   primerLogin;   // ← nuevo
+  final bool   primerLogin;
 
   const Usuario({
     required this.id,
@@ -26,7 +26,7 @@ class Usuario {
     required this.nombre,
     required this.email,
     required this.estado,
-    this.primerLogin = false,  // ← nuevo
+    this.primerLogin = false,
   });
 
   bool get isAdmin     => rolNombre == 'administrador';
@@ -41,7 +41,7 @@ class Usuario {
         nombre:      m['nombre'],
         email:       m['email'],
         estado:      m['estado'] ?? 'activo',
-        primerLogin: m['primer_login'] ?? false,  // ← nuevo
+        primerLogin: m['primer_login'] ?? false,
       );
 
   Map<String, dynamic> toMap() => {
@@ -99,7 +99,7 @@ class Maquina {
 // ── Repuesto ──────────────────────────────────────────────────
 class Repuesto {
   final String  id;
-  final String  codigo;
+  final String? codigo;       // ← ahora opcional
   final String  descripcion;
   final int     stockActual;
   final int     stockMinimo;
@@ -110,7 +110,7 @@ class Repuesto {
 
   const Repuesto({
     required this.id,
-    required this.codigo,
+    this.codigo,              // ← ya no required
     required this.descripcion,
     required this.stockActual,
     required this.stockMinimo,
@@ -120,11 +120,12 @@ class Repuesto {
     this.ref,
   });
 
-  bool get stockBajo => stockActual <= stockMinimo;
+  // ← CAMBIO 1: solo alerta si es MENOR (no igual) al mínimo
+  bool get stockBajo => stockActual < stockMinimo;
 
   factory Repuesto.fromMap(Map<String, dynamic> m) => Repuesto(
     id:          m['id'],
-    codigo:      m['codigo'] ?? '',
+    codigo:      m['codigo'],   // ← puede ser null
     descripcion: m['descripcion'],
     stockActual: m['stock_actual'] ?? 0,
     stockMinimo: m['stock_minimo'] ?? 0,
@@ -135,7 +136,7 @@ class Repuesto {
   );
 
   Map<String, dynamic> toInsert() => {
-    'codigo':       codigo,
+    'codigo':       codigo,     // ← puede ser null, la DB lo acepta
     'descripcion':  descripcion,
     'stock_actual': stockActual,
     'stock_minimo': stockMinimo,
@@ -145,7 +146,7 @@ class Repuesto {
   };
 
   Map<String, dynamic> toUpdate() => {
-    'codigo':       codigo,
+    'codigo':       codigo,     // ← puede ser null
     'descripcion':  descripcion,
     'stock_minimo': stockMinimo,
     'ubicacion':    ubicacion,
@@ -169,7 +170,7 @@ class Ticket {
   final String? observacionEncargado;
   final String? observacionTecnico;
   final DateTime createdAt;
-  final String? fotoUrl;           // ← foto principal (encargado/admin)
+  final String? fotoUrl;
 
   const Ticket({
     required this.id,
@@ -185,7 +186,7 @@ class Ticket {
     this.observacionEncargado,
     this.observacionTecnico,
     required this.createdAt,
-    this.fotoUrl,                  // ← foto principal
+    this.fotoUrl,
   });
 
   factory Ticket.fromMap(Map<String, dynamic> m) => Ticket(
@@ -202,7 +203,7 @@ class Ticket {
         observacionEncargado:   m['observacion_encargado'],
         observacionTecnico:     m['observacion_tecnico'],
         createdAt:              DateTime.parse(m['created_at']),
-        fotoUrl:                m['foto_url'],   // ← foto principal
+        fotoUrl:                m['foto_url'],
       );
 }
 
@@ -456,6 +457,6 @@ class Notificacion {
 }
 
 class TiposNotificacion {
-  static const ticketCerrado        = 'ticket_cerrado';
+  static const ticketCerrado         = 'ticket_cerrado';
   static const confirmacionEncargado = 'confirmacion_encargado';
 }

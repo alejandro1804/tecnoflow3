@@ -184,11 +184,9 @@ class HomeScreen extends ConsumerWidget {
                     .map((n) => _NotifEncargadoCard(
                           notif: n,
                           onTap: () async {
-                            // 1. Marcar como leída
                             await ref
                                 .read(notificacionesRepoProvider)
                                 .marcarLeida(n.id);
-                            // 2. Notificar a todos los admins
                             final usuarios = await ref
                                 .read(usuariosRepoProvider)
                                 .getAll();
@@ -213,7 +211,6 @@ class HomeScreen extends ConsumerWidget {
                               ref.invalidate(
                                   confirmacionesTicketProvider(n.ticketId!));
                             }
-                            // 3. Navegar al ticket
                             if (context.mounted && n.ticketId != null) {
                               context.push('/tickets/${n.ticketId}');
                             }
@@ -242,42 +239,36 @@ class HomeScreen extends ConsumerWidget {
 
               const SizedBox(height: 8),
 
-              // ── Repuestos — admin, técnico y pañolero ─
               if (isAdmin || isTecnico || isPaniolero)
                 _MenuCard(
                     icon: Icons.inventory_2_outlined, title: 'Repuestos',
                     color: Colors.blue,
                     onTap: () => context.push('/repuestos')),
 
-              // ── Máquinas — admin, técnico y pañolero ──
               if (isAdmin || isTecnico || isPaniolero)
                 _MenuCard(
                     icon: Icons.precision_manufacturing_outlined, title: 'Máquinas',
                     color: Colors.teal,
                     onTap: () => context.push('/maquinas')),
 
-              // ── Ingresos — admin y pañolero ───────────
               if (isAdmin || isPaniolero)
                 _MenuCard(
                     icon: Icons.input_outlined, title: 'Ingresos',
                     color: Colors.green,
                     onTap: () => context.push('/ingresos')),
 
-              // ── Salidas — admin y pañolero ────────────
               if (isAdmin || isPaniolero)
                 _MenuCard(
                     icon: Icons.output_outlined, title: 'Salidas',
                     color: Colors.red,
                     onTap: () => context.push('/salidas')),
 
-              // ── Tickets — solo admin ──────────────────
               if (isAdmin)
                 _MenuCard(
                     icon: Icons.confirmation_number_outlined, title: 'Tickets',
                     color: Colors.orange,
                     onTap: () => context.push('/tickets')),
 
-              // ── Repuestos inactivos — solo admin ──────
               if (isAdmin)
                 inactivosAsync.when(
                   loading: () => const SizedBox.shrink(),
@@ -287,7 +278,6 @@ class HomeScreen extends ConsumerWidget {
                       : _RepuestosInactivosCard(repuestos: inactivos),
                 ),
 
-              // ── Sectores y Usuarios — solo admin ──────
               if (isAdmin) ...[
                 _MenuCard(
                     icon: Icons.domain_outlined, title: 'Sectores',
@@ -299,38 +289,27 @@ class HomeScreen extends ConsumerWidget {
                     onTap: () => context.push('/usuarios')),
               ],
 
-              // ── Ingresos — técnico (solo lectura) ────────
               if (isTecnico)
                 _MenuCard(
                     icon: Icons.input_outlined, title: 'Ingresos',
                     color: Colors.green,
                     onTap: () => context.push('/ingresos')),
 
-              // ── Salidas — técnico (solo lectura) ─────────
               if (isTecnico)
                 _MenuCard(
                     icon: Icons.output_outlined, title: 'Salidas',
                     color: Colors.red,
                     onTap: () => context.push('/salidas')),
 
-              // ── Tickets — técnico, encargado y pañolero ──
               if (!isAdmin)
                 _MenuCard(
                     icon: Icons.confirmation_number_outlined, title: 'Tickets',
                     color: Colors.orange,
                     onTap: () => context.push('/tickets')),
 
-              // ── Repuestos inactivos — pañolero no-admin ──
-              if (!isAdmin && isPaniolero)
-                inactivosAsync.when(
-                  loading: () => const SizedBox.shrink(),
-                  error:   (_, __) => const SizedBox.shrink(),
-                  data: (inactivos) => inactivos.isEmpty
-                      ? const SizedBox.shrink()
-                      : _RepuestosInactivosCard(repuestos: inactivos),
-                ),
-            ]),  // cierre ListView
-          );     // cierre RefreshIndicator
+
+            ]),
+          );
         }),
     );
   }
@@ -503,7 +482,8 @@ class _InactivosState extends ConsumerState<_RepuestosInactivosCard> {
                 ),
                 const SizedBox(height: 16),
               ],
-              _InfoFila(Icons.qr_code_outlined, 'Código', r.codigo),
+              // ← codigo nullable
+              _InfoFila(Icons.qr_code_outlined, 'Código', r.codigo ?? '—'),
               _InfoFila(Icons.description_outlined, 'Descripción',
                   r.descripcion),
               _InfoFila(Icons.location_on_outlined, 'Ubicación',
@@ -528,7 +508,6 @@ class _InactivosState extends ConsumerState<_RepuestosInactivosCard> {
       margin: const EdgeInsets.only(bottom: 6),
       child: Column(
         children: [
-          // ── Cabecera colapsable ──────────────────
           InkWell(
             onTap: () => setState(() => _expandido = !_expandido),
             borderRadius: BorderRadius.circular(12),
@@ -552,7 +531,6 @@ class _InactivosState extends ConsumerState<_RepuestosInactivosCard> {
             ),
           ),
 
-          // ── Listado expandido ─────────────────────
           if (_expandido) ...[
             const Divider(height: 1, color: Colors.orange),
             ...widget.repuestos.map((r) => Padding(
@@ -683,8 +661,9 @@ class _IconBtn extends StatelessWidget {
 // ── Fila de info en detalle ───────────────────────────────────
 class _InfoFila extends StatelessWidget {
   final IconData icon;
-  final String label, value;
-  final Color? color;
+  final String   label;
+  final String   value;   // ← ya recibe String (no nullable), el caller pasa ?? '—'
+  final Color?   color;
   const _InfoFila(this.icon, this.label, this.value, {this.color});
 
   @override

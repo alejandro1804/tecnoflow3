@@ -29,7 +29,7 @@ class _State extends ConsumerState<RepuestoFormScreen> {
   String?    _error;
   String?    _imagenUrl;
   Uint8List? _imagenBytes;
-  int?       _ref;           // campo ref solo lectura
+  int?       _ref;
 
   bool get isEdit => widget.repuestoId != null;
 
@@ -41,7 +41,7 @@ class _State extends ConsumerState<RepuestoFormScreen> {
     try {
       final lista = await ref.read(repuestosRepoProvider).getAll();
       final rep   = lista.firstWhere((r) => r.id == widget.repuestoId);
-      _codCtrl.text  = rep.codigo;
+      _codCtrl.text  = rep.codigo ?? '';   // ← codigo ahora es nullable
       _descCtrl.text = rep.descripcion;
       _minCtrl.text  = rep.stockMinimo.toString();
       _ubicCtrl.text = rep.ubicacion ?? '';
@@ -81,9 +81,14 @@ class _State extends ConsumerState<RepuestoFormScreen> {
         await ImageHelper.eliminarImagen(widget.repuestoId!);
       }
 
+      // ← codigo es null si el campo está vacío
+      final codigoFinal = _codCtrl.text.trim().isEmpty
+          ? null
+          : _codCtrl.text.trim();
+
       final rep = Repuesto(
         id:          widget.repuestoId ?? '',
-        codigo:      _codCtrl.text.trim(),
+        codigo:      codigoFinal,
         descripcion: _descCtrl.text.trim(),
         stockActual: 0,
         stockMinimo: int.tryParse(_minCtrl.text) ?? 0,
@@ -106,7 +111,8 @@ class _State extends ConsumerState<RepuestoFormScreen> {
         await ref.read(repuestosRepoProvider).create(rep);
         if (_imagenBytes != null) {
           final todos = await ref.read(repuestosRepoProvider).getAll();
-          final nuevo = todos.firstWhere((r) => r.codigo == rep.codigo);
+          // ← buscar por descripcion ya que codigo puede ser null
+          final nuevo = todos.firstWhere((r) => r.descripcion == rep.descripcion);
           final urlNew = await ImageHelper.subirImagen(
               _imagenBytes!, nuevo.id);
           await ref.read(repuestosRepoProvider).update(
@@ -137,7 +143,7 @@ class _State extends ConsumerState<RepuestoFormScreen> {
 
   Future<void> _delete() async {
     final ok = await confirmarEliminacion(
-        context, '¿Eliminar "${_codCtrl.text}"?');
+        context, '¿Eliminar "${_descCtrl.text}"?');  // ← usa descripcion por si codigo es null
     if (!ok) return;
     setState(() => _loading = true);
     try {
@@ -224,14 +230,14 @@ class _State extends ConsumerState<RepuestoFormScreen> {
                   const SizedBox(height: 20),
 
                   // ── Campos ────────────────────────────
+                  // ← CAMBIO 2: sin validator, label indica que es opcional
                   TextFormField(
                     controller: _codCtrl,
                     textCapitalization: TextCapitalization.characters,
                     decoration: const InputDecoration(
-                        labelText: 'Código / SKU',
+                        labelText: 'Código / SKU (opcional)',
                         prefixIcon: Icon(Icons.qr_code_outlined)),
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Requerido' : null),
+                  ),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _descCtrl,

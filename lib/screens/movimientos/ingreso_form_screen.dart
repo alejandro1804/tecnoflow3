@@ -104,7 +104,6 @@ class _State extends ConsumerState<IngresoFormScreen> {
     final repuestos    = ref.watch(repuestosProvider).valueOrNull ?? [];
     final repuestoFijo = widget.repuestoPreseleccionado;
 
-    // Filtro por REF tiene prioridad
     List<Repuesto> repuestosFiltrados;
     if (_busquedaRef.isNotEmpty) {
       final refNum = int.tryParse(_busquedaRef);
@@ -113,7 +112,8 @@ class _State extends ConsumerState<IngresoFormScreen> {
           : [];
     } else if (_busqueda.isNotEmpty) {
       repuestosFiltrados = repuestos.where((r) =>
-          r.codigo.toLowerCase().contains(_busqueda.toLowerCase()) ||
+          // ← codigo nullable
+          (r.codigo ?? '').toLowerCase().contains(_busqueda.toLowerCase()) ||
           r.descripcion.toLowerCase().contains(_busqueda.toLowerCase()))
           .toList()
         ..sort((a, b) => a.descripcion.compareTo(b.descripcion));
@@ -155,7 +155,8 @@ class _State extends ConsumerState<IngresoFormScreen> {
                                 fontWeight: FontWeight.w600,
                                 fontSize: 13)),
                         Text(
-                            'Código: ${repuestoFijo.codigo}  |  Stock: ${repuestoFijo.stockActual}'
+                            // ← codigo nullable
+                            'Código: ${repuestoFijo.codigo ?? '—'}  |  Stock: ${repuestoFijo.stockActual}'
                             '${repuestoFijo.ref != null ? '  |  REF: ${repuestoFijo.ref}' : ''}',
                             style: const TextStyle(
                                 fontSize: 11, color: Colors.grey)),
@@ -171,7 +172,6 @@ class _State extends ConsumerState<IngresoFormScreen> {
                     color: Colors.grey, letterSpacing: 1)),
                 const SizedBox(height: 8),
 
-                // Buscador texto
                 TextFormField(
                   controller: _busqCtrl,
                   style: const TextStyle(fontSize: 11),
@@ -192,7 +192,6 @@ class _State extends ConsumerState<IngresoFormScreen> {
                 ),
                 const SizedBox(height: 8),
 
-                // Buscador REF
                 TextField(
                   controller: _refCtrl,
                   keyboardType: TextInputType.number,
@@ -235,7 +234,6 @@ class _State extends ConsumerState<IngresoFormScreen> {
                 ),
                 const SizedBox(height: 4),
 
-                // Lista resultados
                 if ((_busqueda.isNotEmpty || _busquedaRef.isNotEmpty) &&
                     _repuestoId.isEmpty)
                   Container(
