@@ -14,9 +14,10 @@ class MaquinasScreen extends ConsumerStatefulWidget {
 }
 
 class _State extends ConsumerState<MaquinasScreen> {
-  String _busqueda     = '';
-  String _sectorId     = '';
-  bool   _generandoPdf = false;
+  String _busqueda      = '';
+  String _sectorId      = '';
+  bool   _generandoPdf  = false;
+  String? _generandoQr; // id de la máquina cuyo QR se está generando
 
   @override
   void initState() {
@@ -40,6 +41,29 @@ class _State extends ConsumerState<MaquinasScreen> {
       }
     } finally {
       if (mounted) setState(() => _generandoPdf = false);
+    }
+  }
+
+  Future<void> _generarQr(Maquina maquina) async {
+    setState(() => _generandoQr = maquina.id);
+    try {
+      // Cargar repuestos asociados a esta máquina
+      final repuestos = await ref
+          .read(repuestosMaquinasRepoProvider)
+          .getByMaquina(maquina.id);
+
+      await PdfGenerator.generarQrMaquina(
+        maquina:   maquina,
+        repuestos: repuestos,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Error al generar QR: $e'),
+            backgroundColor: Colors.red));
+      }
+    } finally {
+      if (mounted) setState(() => _generandoQr = null);
     }
   }
 
@@ -231,6 +255,7 @@ class _State extends ConsumerState<MaquinasScreen> {
                               : m.estado == 'inactivo'
                                   ? Colors.grey
                                   : Colors.green;
+                          final generandoEsteQr = _generandoQr == m.id;
 
                           return Card(
                             margin: const EdgeInsets.symmetric(
@@ -265,7 +290,7 @@ class _State extends ConsumerState<MaquinasScreen> {
                                   Row(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      // ── Miniatura ──────────────────
+                                      // Miniatura
                                       SizedBox(
                                         width: 72,
                                         height: 72,
@@ -291,12 +316,11 @@ class _State extends ConsumerState<MaquinasScreen> {
                                       ),
                                       const SizedBox(width: 12),
 
-                                      // ── Datos ──────────────────────
+                                      // Datos
                                       Expanded(
                                         child: Column(
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
-                                            // Código + Sector
                                             Row(children: [
                                               Container(
                                                 padding: const EdgeInsets.symmetric(
@@ -329,7 +353,6 @@ class _State extends ConsumerState<MaquinasScreen> {
                                             ]),
                                             const SizedBox(height: 6),
 
-                                            // Descripción si existe
                                             if (m.descripcion != null &&
                                                 m.descripcion!.isNotEmpty)
                                               Padding(
@@ -342,7 +365,6 @@ class _State extends ConsumerState<MaquinasScreen> {
                                                     overflow: TextOverflow.ellipsis),
                                               ),
 
-                                            // Estado badge
                                             Container(
                                               padding: const EdgeInsets.symmetric(
                                                   horizontal: 8, vertical: 3),
@@ -373,10 +395,29 @@ class _State extends ConsumerState<MaquinasScreen> {
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.end,
                                     children: [
+                                      // Botón QR
+                                      generandoEsteQr
+                                          ? const SizedBox(
+                                              width: 34, height: 34,
+                                              child: Center(
+                                                  child: SizedBox(
+                                                      width: 18, height: 18,
+                                                      child: CircularProgressIndicator(
+                                                          strokeWidth: 2,
+                                                          color: Colors.teal))))
+                                          : _IconBtn(
+                                              icon: Icons.qr_code_outlined,
+                                              color: Colors.teal,
+                                              tooltip: 'Generar QR',
+                                              onTap: () => _generarQr(m),
+                                            ),
+                                      const SizedBox(width: 8),
+
                                       if (canManage) ...[
                                         _IconBtn(
                                           icon: Icons.edit_outlined,
                                           color: Colors.grey,
+                                          tooltip: 'Editar',
                                           onTap: () => context.push('/maquinas/${m.id}'),
                                         ),
                                         const SizedBox(width: 8),
@@ -384,6 +425,7 @@ class _State extends ConsumerState<MaquinasScreen> {
                                       _IconBtn(
                                         icon: Icons.settings_outlined,
                                         color: Colors.blue,
+                                        tooltip: 'Repuestos',
                                         onTap: () => Navigator.push(context,
                                             MaterialPageRoute(
                                                 builder: (_) => ProviderScope(
@@ -429,22 +471,27 @@ class _IconBtn extends StatelessWidget {
   final IconData     icon;
   final Color        color;
   final VoidCallback onTap;
+  final String?      tooltip;
   const _IconBtn({
     required this.icon,
     required this.color,
     required this.onTap,
+    this.tooltip,
   });
 
   @override
-  Widget build(BuildContext context) => InkWell(
-    onTap: onTap,
-    borderRadius: BorderRadius.circular(6),
-    child: Container(
-      padding: const EdgeInsets.all(7),
-      decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(6)),
-      child: Icon(icon, size: 20, color: color),
+  Widget build(BuildContext context) => Tooltip(
+    message: tooltip ?? '',
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        padding: const EdgeInsets.all(7),
+        decoration: BoxDecoration(
+            color: color.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(6)),
+        child: Icon(icon, size: 20, color: color),
+      ),
     ),
   );
 }

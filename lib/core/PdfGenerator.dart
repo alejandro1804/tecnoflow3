@@ -1,10 +1,14 @@
 // lib/core/PdfGenerator.dart
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:intl/intl.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:flutter/rendering.dart';
+import 'dart:ui' as ui;
 import '../models/models.dart';
 
 class PdfGenerator {
@@ -17,6 +21,261 @@ class PdfGenerator {
     await Share.shareXFiles(
       [XFile(file.path, mimeType: 'application/pdf')],
       subject: nombre,
+    );
+  }
+
+  // ── Genera imagen PNG del QR como bytes para incrustar en PDF ──
+  static Future<Uint8List> _qrComoBytes(String data, double size) async {
+    final qrPainter = QrPainter(
+      data:                 data,
+      version:              QrVersions.auto,
+      errorCorrectionLevel: QrErrorCorrectLevel.M,
+      color:                const ui.Color(0xFF000000),
+      emptyColor:           const ui.Color(0xFFFFFFFF),
+    );
+    final image    = await qrPainter.toImage(size);
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    return byteData!.buffer.asUint8List();
+  }
+
+  // ── PDF QR de Máquina ─────────────────────────────────────
+  // PDF A4 estándar con recuadro A6 apaisado centrado y línea de corte.
+  static Future<void> generarQrMaquina({
+    required Maquina               maquina,
+    required List<RepuestoMaquina> repuestos,
+  }) async {
+    final qrBytes = await _qrComoBytes(maquina.id, 512);
+    final qrImage = pw.MemoryImage(qrBytes);
+    final pdf     = pw.Document();
+    final ahora   = DateFormat('dd/MM/yyyy').format(DateTime.now());
+
+    // A6 apaisado en puntos
+    const double a6W = 148 * PdfPageFormat.mm;
+    const double a6H = 105 * PdfPageFormat.mm;
+    // A4 vertical en puntos: 210mm × 297mm
+    const double a4W = 210 * PdfPageFormat.mm;
+    const double a4H = 297 * PdfPageFormat.mm;
+    // Offsets para centrar A6 dentro de A4
+    const double offX = (a4W - a6W) / 2;
+    const double offY = (a4H - a6H) / 2;
+
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        margin:     pw.EdgeInsets.zero,
+        build: (ctx) => pw.Stack(
+          children: [
+
+            // Línea de corte punteada
+            pw.Positioned(
+              left: offX,
+              top:  offY,
+              child: pw.Container(
+                width:  a6W,
+                height: a6H,
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(
+                    color: PdfColors.blueGrey300,
+                    width: 0.5,
+                    style: pw.BorderStyle.dashed,
+                  ),
+                ),
+              ),
+            ),
+
+            // Texto guía de recorte
+            pw.Positioned(
+              left: offX,
+              top:  offY - 11,
+              child: pw.Text(
+                'Recortar por la línea punteada',
+                style: pw.TextStyle(
+                    fontSize: 7, color: PdfColors.blueGrey300),
+              ),
+            ),
+
+            // Contenido interno con padding
+            pw.Positioned(
+              left: offX + 14,
+              top:  offY + 14,
+              child: pw.SizedBox(
+                width:  a6W - 28,
+                height: a6H - 28,
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+
+                    // Encabezado
+                    pw.Container(
+                      padding: const pw.EdgeInsets.only(bottom: 5),
+                      decoration: const pw.BoxDecoration(
+                          border: pw.Border(
+                              bottom: pw.BorderSide(
+                                  color: PdfColors.blueGrey300,
+                                  width: 0.5))),
+                      child: pw.Row(
+                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                        children: [
+                          pw.Text('TECNOFLOW3',
+                              style: pw.TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: PdfColors.blue800)),
+                          pw.Text('Ficha de máquina — $ahora',
+                              style: const pw.TextStyle(
+                                  fontSize: 7,
+                                  color: PdfColors.blueGrey500)),
+                        ],
+                      ),
+                    ),
+                    pw.SizedBox(height: 7),
+
+                    // Cuerpo: QR izquierda | Datos derecha
+                    pw.Expanded(
+                      child: pw.Row(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+
+                          // QR 6 cm
+                          pw.Image(qrImage,
+                              width: 170, height: 170,
+                              fit: pw.BoxFit.contain),
+                          pw.SizedBox(width: 12),
+
+                          // Datos
+                          pw.Expanded(
+                            child: pw.Column(
+                              crossAxisAlignment: pw.CrossAxisAlignment.start,
+                              children: [
+
+                                pw.Text(maquina.nombre,
+                                    style: pw.TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: pw.FontWeight.bold,
+                                        color: PdfColors.blueGrey900),
+                                    maxLines: 2),
+                                pw.SizedBox(height: 4),
+
+                                pw.Container(
+                                  padding: const pw.EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
+                                  decoration: pw.BoxDecoration(
+                                      color: PdfColors.blueGrey50,
+                                      borderRadius:
+                                          pw.BorderRadius.circular(3)),
+                                  child: pw.Text(maquina.codigo,
+                                      style: const pw.TextStyle(
+                                          fontSize: 9,
+                                          color: PdfColors.blueGrey700)),
+                                ),
+                                pw.SizedBox(height: 4),
+
+                                pw.Row(children: [
+                                  pw.Text('Sector: ',
+                                      style: pw.TextStyle(
+                                          fontSize: 9,
+                                          color: PdfColors.blueGrey500)),
+                                  pw.Text(maquina.sectorNombre ?? '—',
+                                      style: pw.TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: pw.FontWeight.bold,
+                                          color: PdfColors.blueGrey800)),
+                                ]),
+                                pw.SizedBox(height: 8),
+
+                                if (maquina.descripcion != null &&
+                                    maquina.descripcion!.isNotEmpty) ...[
+                                  pw.Text(maquina.descripcion!,
+                                      style: const pw.TextStyle(
+                                          fontSize: 8,
+                                          color: PdfColors.blueGrey500),
+                                      maxLines: 2),
+                                  pw.SizedBox(height: 6),
+                                ],
+
+                                if (repuestos.isNotEmpty) ...[
+                                  pw.Container(
+                                    padding: const pw.EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 3),
+                                    decoration: pw.BoxDecoration(
+                                        color: PdfColors.teal700,
+                                        borderRadius:
+                                            pw.BorderRadius.circular(3)),
+                                    child: pw.Text(
+                                        'REPUESTOS (${repuestos.length})',
+                                        style: pw.TextStyle(
+                                            fontSize: 7,
+                                            fontWeight: pw.FontWeight.bold,
+                                            color: PdfColors.white)),
+                                  ),
+                                  pw.SizedBox(height: 4),
+                                  ...repuestos.take(10).map((r) => pw.Padding(
+                                        padding: const pw.EdgeInsets.only(
+                                            bottom: 2),
+                                        child: pw.Row(
+                                          crossAxisAlignment:
+                                              pw.CrossAxisAlignment.start,
+                                          children: [
+                                            pw.Text('• ',
+                                                style: const pw.TextStyle(
+                                                    fontSize: 7,
+                                                    color: PdfColors.teal700)),
+                                            pw.Expanded(
+                                              child: pw.Text(
+                                                r.repuestoDescripcion ?? '—',
+                                                style: const pw.TextStyle(
+                                                    fontSize: 7,
+                                                    color: PdfColors.blueGrey800),
+                                                maxLines: 1,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      )),
+                                  if (repuestos.length > 10)
+                                    pw.Text(
+                                        '... y ${repuestos.length - 10} más',
+                                        style: const pw.TextStyle(
+                                            fontSize: 7,
+                                            color: PdfColors.blueGrey400)),
+                                ] else
+                                  pw.Text('Sin repuestos registrados',
+                                      style: const pw.TextStyle(
+                                          fontSize: 8,
+                                          color: PdfColors.blueGrey400)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Pie con ID
+                    pw.Container(
+                      padding: const pw.EdgeInsets.only(top: 4),
+                      decoration: const pw.BoxDecoration(
+                          border: pw.Border(
+                              top: pw.BorderSide(
+                                  color: PdfColors.blueGrey200,
+                                  width: 0.5))),
+                      child: pw.Text(
+                        'ID: ${maquina.id}',
+                        style: const pw.TextStyle(
+                            fontSize: 6, color: PdfColors.blueGrey300),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    await _compartir(
+      pdf,
+      'qr_${maquina.codigo}_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf',
     );
   }
 

@@ -10,6 +10,7 @@ import '../../models/models.dart';
 import '../../providers/providers.dart';
 import '../../core/image_viewer.dart';
 import '../repuestos/repuestos_screen.dart';
+import '../qr/QrScannerScreen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -90,6 +91,57 @@ class HomeScreen extends ConsumerWidget {
                       const SizedBox(width: 8),
                       RolBadge(profile.rolNombre),
                     ]))),
+
+              // ── Botón escanear QR ─────────────────────
+              Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                color: Colors.teal.shade50,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ProviderScope(
+                        parent: ProviderScope.containerOf(context),
+                        child: QrScannerScreen(),
+                      ),
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 14),
+                    child: Row(children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                            color: Colors.teal.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(8)),
+                        child: const Icon(Icons.qr_code_scanner,
+                            color: Colors.teal, size: 22)),
+                      const SizedBox(width: 14),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Escanear QR de máquina',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 13,
+                                    color: Colors.teal)),
+                            SizedBox(height: 2),
+                            Text('Identificá un equipo y accedé a su ticket activo',
+                                style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.teal)),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right,
+                          color: Colors.teal, size: 20),
+                    ]),
+                  ),
+                ),
+              ),
 
               // ── Alerta stock bajo — admin y pañolero ──
               if (repuestosBajo.isNotEmpty && (isAdmin || isPaniolero))
@@ -338,22 +390,16 @@ class _VersionFooterState extends State<_VersionFooter> {
 
   Future<void> _loadVersion() async {
     final info = await PackageInfo.fromPlatform();
-    if (mounted) {
-      setState(() => _version = 'v${info.version}');
-    }
+    if (mounted) setState(() => _version = 'v${info.version}');
   }
 
   @override
   Widget build(BuildContext context) {
     if (_version.isEmpty) return const SizedBox.shrink();
     return Center(
-      child: Text(
-        _version,
-        style: TextStyle(
-            fontSize: 11,
-            color: Colors.grey[400],
-            letterSpacing: 0.5),
-      ),
+      child: Text(_version,
+          style: TextStyle(
+              fontSize: 11, color: Colors.grey[400], letterSpacing: 0.5)),
     );
   }
 }
@@ -374,8 +420,7 @@ class _NotifEncargadoCard extends StatelessWidget {
       title: Text(notif.mensaje,
           style: const TextStyle(
               fontWeight: FontWeight.w700,
-              color: Colors.green,
-              fontSize: 12)),
+              color: Colors.green, fontSize: 12)),
       subtitle: const Text('Tocá para confirmar recepción',
           style: TextStyle(fontSize: 11)),
       trailing: const Icon(Icons.chevron_right, color: Colors.green),
@@ -400,8 +445,7 @@ class _NotifAdminCard extends StatelessWidget {
       title: Text(notif.mensaje,
           style: const TextStyle(
               fontWeight: FontWeight.w700,
-              color: Colors.teal,
-              fontSize: 12)),
+              color: Colors.teal, fontSize: 12)),
       subtitle: Text(
           'Recibido: ${notif.createdAt.toString().substring(0, 16)}',
           style: const TextStyle(fontSize: 11)),
@@ -505,8 +549,7 @@ class _InactivosState extends ConsumerState<_RepuestosInactivosCard> {
                       width: double.infinity, height: 200,
                       fit: BoxFit.cover,
                       loadingBuilder: (_, child, progress) =>
-                          progress == null
-                              ? child
+                          progress == null ? child
                               : Container(height: 200,
                                   color: Colors.grey[100],
                                   child: const Center(
@@ -526,10 +569,8 @@ class _InactivosState extends ConsumerState<_RepuestosInactivosCard> {
                 const SizedBox(height: 16),
               ],
               _InfoFila(Icons.qr_code_outlined, 'Código', r.codigo ?? '—'),
-              _InfoFila(Icons.description_outlined, 'Descripción',
-                  r.descripcion),
-              _InfoFila(Icons.location_on_outlined, 'Ubicación',
-                  r.ubicacion ?? '—'),
+              _InfoFila(Icons.description_outlined, 'Descripción', r.descripcion),
+              _InfoFila(Icons.location_on_outlined, 'Ubicación', r.ubicacion ?? '—'),
               const Divider(height: 20),
               _InfoFila(Icons.inventory_2_outlined, 'Stock actual',
                   r.stockActual.toString(),
@@ -548,122 +589,117 @@ class _InactivosState extends ConsumerState<_RepuestosInactivosCard> {
     return Card(
       color: Colors.orange[50],
       margin: const EdgeInsets.only(bottom: 6),
-      child: Column(
-        children: [
-          InkWell(
-            onTap: () => setState(() => _expandido = !_expandido),
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-              child: Row(children: [
-                const Icon(Icons.inventory_2_outlined,
-                    color: Colors.orange, size: 28),
-                const SizedBox(width: 12),
-                Expanded(child: Text(
-                    '${widget.repuestos.length} repuesto(s) inactivo(s)',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: Colors.orange,
-                        fontSize: 12))),
-                Icon(_expandido
-                    ? Icons.keyboard_arrow_up
-                    : Icons.keyboard_arrow_down,
-                    color: Colors.orange),
-              ]),
-            ),
+      child: Column(children: [
+        InkWell(
+          onTap: () => setState(() => _expandido = !_expandido),
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+            child: Row(children: [
+              const Icon(Icons.inventory_2_outlined,
+                  color: Colors.orange, size: 28),
+              const SizedBox(width: 12),
+              Expanded(child: Text(
+                  '${widget.repuestos.length} repuesto(s) inactivo(s)',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: Colors.orange, fontSize: 12))),
+              Icon(_expandido
+                  ? Icons.keyboard_arrow_up
+                  : Icons.keyboard_arrow_down,
+                  color: Colors.orange),
+            ]),
           ),
+        ),
 
-          if (_expandido) ...[
-            const Divider(height: 1, color: Colors.orange),
-            ...widget.repuestos.map((r) => Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(children: [
-                    const Icon(Icons.block_outlined,
-                        size: 12, color: Colors.orange),
-                    const SizedBox(width: 6),
-                    Expanded(child: Text(r.descripcion,
-                        style: const TextStyle(
-                            fontSize: 11, fontWeight: FontWeight.w500),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis)),
-                  ]),
-                  const SizedBox(height: 8),
-                  Row(crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                    SizedBox(
-                      width: 70, height: 70,
-                      child: r.imagenUrl != null
-                          ? RepuestoImagenThumb(
-                              imagenUrl: r.imagenUrl, size: 70)
-                          : Container(
-                              decoration: BoxDecoration(
-                                  color: Colors.grey.withOpacity(0.08),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                      color: Colors.grey.withOpacity(0.2))),
-                              child: Icon(Icons.image_outlined,
-                                  color: Colors.grey[300], size: 24)),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (r.ubicacion != null)
-                          Row(children: [
-                            const Icon(Icons.location_on_outlined,
-                                size: 11, color: Colors.grey),
-                            const SizedBox(width: 3),
-                            Expanded(child: Text(r.ubicacion!,
-                                style: const TextStyle(
-                                    fontSize: 10, color: Colors.grey))),
-                          ]),
-                        const SizedBox(height: 4),
-                        Wrap(spacing: 4, runSpacing: 4, children: [
-                          StockBadge(
-                              stock: r.stockActual,
-                              minimo: r.stockMinimo),
-                          Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                  color: Colors.grey.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(6)),
-                              child: Text('Mín: ${r.stockMinimo}',
-                                  style: const TextStyle(
-                                      fontSize: 10, color: Colors.grey,
-                                      fontWeight: FontWeight.w600))),
-                        ]),
-                      ],
-                    )),
-                  ]),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _IconBtn(
-                        icon: Icons.visibility_outlined,
-                        color: Colors.teal,
-                        label: 'Ver',
-                        onTap: () => _verDetalle(context, r),
-                      ),
-                      _IconBtn(
-                        icon: Icons.toggle_off_outlined,
-                        color: Colors.orange,
-                        label: 'Activar',
-                        onTap: () => _activar(context, r),
-                      ),
-                    ],
+        if (_expandido) ...[
+          const Divider(height: 1, color: Colors.orange),
+          ...widget.repuestos.map((r) => Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  const Icon(Icons.block_outlined,
+                      size: 12, color: Colors.orange),
+                  const SizedBox(width: 6),
+                  Expanded(child: Text(r.descripcion,
+                      style: const TextStyle(
+                          fontSize: 11, fontWeight: FontWeight.w500),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis)),
+                ]),
+                const SizedBox(height: 8),
+                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  SizedBox(
+                    width: 70, height: 70,
+                    child: r.imagenUrl != null
+                        ? RepuestoImagenThumb(imagenUrl: r.imagenUrl, size: 70)
+                        : Container(
+                            decoration: BoxDecoration(
+                                color: Colors.grey.withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                    color: Colors.grey.withOpacity(0.2))),
+                            child: Icon(Icons.image_outlined,
+                                color: Colors.grey[300], size: 24)),
                   ),
-                  const Divider(height: 16, color: Colors.orange),
-                ],
-              ),
-            )),
-          ],
+                  const SizedBox(width: 10),
+                  Expanded(child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (r.ubicacion != null)
+                        Row(children: [
+                          const Icon(Icons.location_on_outlined,
+                              size: 11, color: Colors.grey),
+                          const SizedBox(width: 3),
+                          Expanded(child: Text(r.ubicacion!,
+                              style: const TextStyle(
+                                  fontSize: 10, color: Colors.grey))),
+                        ]),
+                      const SizedBox(height: 4),
+                      Wrap(spacing: 4, runSpacing: 4, children: [
+                        StockBadge(
+                            stock: r.stockActual,
+                            minimo: r.stockMinimo),
+                        Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                                color: Colors.grey.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(6)),
+                            child: Text('Mín: ${r.stockMinimo}',
+                                style: const TextStyle(
+                                    fontSize: 10, color: Colors.grey,
+                                    fontWeight: FontWeight.w600))),
+                      ]),
+                    ],
+                  )),
+                ]),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _IconBtn(
+                      icon: Icons.visibility_outlined,
+                      color: Colors.teal,
+                      label: 'Ver',
+                      onTap: () => _verDetalle(context, r),
+                    ),
+                    _IconBtn(
+                      icon: Icons.toggle_off_outlined,
+                      color: Colors.orange,
+                      label: 'Activar',
+                      onTap: () => _activar(context, r),
+                    ),
+                  ],
+                ),
+                const Divider(height: 16, color: Colors.orange),
+              ],
+            ),
+          )),
         ],
-      ),
+      ]),
     );
   }
 }
@@ -726,11 +762,10 @@ class _InfoFila extends StatelessWidget {
 
 // ── MenuCard ──────────────────────────────────────────────────
 class _MenuCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final Color color;
+  final IconData     icon;
+  final String       title;
+  final Color        color;
   final VoidCallback onTap;
-
   const _MenuCard({
     required this.icon,
     required this.title,
@@ -739,29 +774,25 @@ class _MenuCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 5),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Row(children: [
-            CircleAvatar(
-                radius: 16,
-                backgroundColor: color.withOpacity(0.12),
-                child: Icon(icon, color: color, size: 15)),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(title,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w500, fontSize: 13)),
-            ),
-            Icon(Icons.chevron_right, color: Colors.grey[400], size: 18),
-          ]),
-        ),
+  Widget build(BuildContext context) => Card(
+    margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 5),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(children: [
+          CircleAvatar(
+              radius: 16,
+              backgroundColor: color.withOpacity(0.12),
+              child: Icon(icon, color: color, size: 15)),
+          const SizedBox(width: 10),
+          Expanded(child: Text(title,
+              style: const TextStyle(
+                  fontWeight: FontWeight.w500, fontSize: 13))),
+          Icon(Icons.chevron_right, color: Colors.grey[400], size: 18),
+        ]),
       ),
-    );
-  }
+    ),
+  );
 }
