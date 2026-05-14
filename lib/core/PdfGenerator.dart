@@ -229,6 +229,13 @@ class PdfGenerator {
                                                 maxLines: 1,
                                               ),
                                             ),
+                                            pw.Text(
+                                              ' x${r.cantidad}',
+                                              style: pw.TextStyle(
+                                                  fontSize: 7,
+                                                  fontWeight: pw.FontWeight.bold,
+                                                  color: PdfColors.teal700),
+                                            ),
                                           ],
                                         ),
                                       )),

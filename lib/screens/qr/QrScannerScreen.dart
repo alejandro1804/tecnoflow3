@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../core/constants.dart';
 import '../../models/models.dart';
 import '../../providers/providers.dart';
@@ -309,6 +310,45 @@ class _State extends ConsumerState<QrScannerScreen> {
                   ),
                 ),
               ]),
+              const SizedBox(height: 10),
+
+              // Botón compartir
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.share_outlined, size: 16),
+                  label: const Text('Compartir ficha',
+                      style: TextStyle(fontSize: 12)),
+                  style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.blueGrey,
+                      side: BorderSide(
+                          color: Colors.blueGrey.withOpacity(0.4))),
+                  onPressed: () {
+                    final buffer = StringBuffer();
+                    buffer.writeln('🔧 TECNOFLOW3 — Ficha de máquina');
+                    buffer.writeln('📌 ${maquina.nombre} (${maquina.codigo})');
+                    buffer.writeln('🏭 Sector: ${maquina.sectorNombre ?? '—'}');
+                    if (maquina.descripcion != null &&
+                        maquina.descripcion!.isNotEmpty) {
+                      buffer.writeln('📝 ${maquina.descripcion}');
+                    }
+                    if (repuestos.isNotEmpty) {
+                      buffer.writeln('');
+                      buffer.writeln(
+                          '🔩 REPUESTOS ASOCIADOS (${repuestos.length})');
+                      for (final r in repuestos) {
+                        buffer.writeln(
+                            '• ${r.repuestoDescripcion ?? '—'}  x${r.cantidad}');
+                      }
+                    } else {
+                      buffer.writeln('');
+                      buffer.writeln('Sin repuestos registrados');
+                    }
+                    Share.share(buffer.toString(),
+                        subject: 'Ficha de máquina — ${maquina.nombre}');
+                  },
+                ),
+              ),
             ],
           ),
         ),
