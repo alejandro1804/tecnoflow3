@@ -11,13 +11,14 @@ class Rol {
 
 // ── Usuario ───────────────────────────────────────────────────
 class Usuario {
-  final String id;
-  final String rolId;
-  final String rolNombre;
-  final String nombre;
-  final String email;
-  final String estado;
-  final bool   primerLogin;
+  final String    id;
+  final String    rolId;
+  final String    rolNombre;
+  final String    nombre;
+  final String    email;
+  final String    estado;
+  final bool      primerLogin;
+  final DateTime? ultimoAcceso;
 
   const Usuario({
     required this.id,
@@ -27,6 +28,7 @@ class Usuario {
     required this.email,
     required this.estado,
     this.primerLogin = false,
+    this.ultimoAcceso,
   });
 
   bool get isAdmin     => rolNombre == 'administrador';
@@ -35,13 +37,16 @@ class Usuario {
   bool get isPaniolero => rolNombre == 'paniolero';
 
   factory Usuario.fromMap(Map<String, dynamic> m) => Usuario(
-        id:          m['id'],
-        rolId:       m['rol_id'],
-        rolNombre:   m['roles']?['nombre'] ?? '',
-        nombre:      m['nombre'],
-        email:       m['email'],
-        estado:      m['estado'] ?? 'activo',
-        primerLogin: m['primer_login'] ?? false,
+        id:           m['id'],
+        rolId:        m['rol_id'],
+        rolNombre:    m['roles']?['nombre'] ?? '',
+        nombre:       m['nombre'],
+        email:        m['email'],
+        estado:       m['estado'] ?? 'activo',
+        primerLogin:  m['primer_login'] ?? false,
+        ultimoAcceso: m['ultimo_acceso'] != null
+            ? DateTime.parse(m['ultimo_acceso']).toLocal()
+            : null,
       );
 
   Map<String, dynamic> toMap() => {
@@ -258,7 +263,7 @@ class IngresoRepuesto {
   final int      cantidad;
   final String   quienEntrega;
   final String?  descripcion;
-  final DateTime fecha; // ← ahora DateTime (UTC→local al mostrar)
+  final DateTime fecha;
 
   const IngresoRepuesto({
     required this.id,
@@ -298,7 +303,7 @@ class SalidaRepuesto {
   final String?  ticketNumero;
   final String   registradoPor;
   final int      cantidad;
-  final DateTime fecha; // ← ahora DateTime (UTC→local al mostrar)
+  final DateTime fecha;
   final String?  observacion;
   final String?  quienRetira;
 

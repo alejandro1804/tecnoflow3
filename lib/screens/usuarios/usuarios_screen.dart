@@ -2,8 +2,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import '../../core/widgets.dart';
 import '../../providers/providers.dart';
+
+String _fmtAcceso(DateTime? dt) {
+  if (dt == null) return 'Sin acceso registrado';
+  return DateFormat('dd/MM/yyyy HH:mm').format(dt);
+}
 
 class UsuariosScreen extends ConsumerWidget {
   const UsuariosScreen({super.key});
@@ -76,7 +82,6 @@ class UsuariosScreen extends ConsumerWidget {
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis),
                                 ),
-                                // ← badge: contraseña pendiente de cambiar
                                 if (u.primerLogin)
                                   Tooltip(
                                     message: 'Contraseña temporal — aún no cambió',
@@ -142,6 +147,28 @@ class UsuariosScreen extends ConsumerWidget {
                                           color: u.estado == 'activo'
                                               ? Colors.green
                                               : Colors.grey)),
+                                ),
+                              ]),
+                              const SizedBox(height: 4),
+
+                              // FILA 4: Último acceso
+                              Row(children: [
+                                Icon(Icons.access_time_outlined,
+                                    size: 12,
+                                    color: u.ultimoAcceso != null
+                                        ? Colors.blueGrey
+                                        : Colors.grey[350]),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                      _fmtAcceso(u.ultimoAcceso),
+                                      style: TextStyle(
+                                          fontSize: 10,
+                                          color: u.ultimoAcceso != null
+                                              ? Colors.blueGrey
+                                              : Colors.grey[350]),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis),
                                 ),
                               ]),
                             ],

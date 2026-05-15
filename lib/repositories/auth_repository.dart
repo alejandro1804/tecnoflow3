@@ -10,6 +10,13 @@ class AuthRepository {
 
   Future<void> signIn({required String email, required String password}) async {
     await _client.auth.signInWithPassword(email: email, password: password);
+    // Registrar último acceso en UTC (el servidor siempre guarda en UTC)
+    final uid = _client.auth.currentUser?.id;
+    if (uid != null) {
+      await _client.from('usuarios').update({
+        'ultimo_acceso': DateTime.now().toUtc().toIso8601String(),
+      }).eq('id', uid);
+    }
   }
 
   Future<void> createUser({
