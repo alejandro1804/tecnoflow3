@@ -55,7 +55,6 @@ class _State extends ConsumerState<RepuestosScreen> {
 
     if (_busqueda.isNotEmpty) {
       lista = lista.where((r) =>
-          // ← codigo es nullable, usar ?? ''
           (r.codigo ?? '').toLowerCase().contains(_busqueda.toLowerCase()) ||
           r.descripcion.toLowerCase().contains(_busqueda.toLowerCase()) ||
           (r.ubicacion ?? '').toLowerCase().contains(_busqueda.toLowerCase()))
@@ -308,11 +307,15 @@ class _RepuestoCard extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(2)))),
               const SizedBox(height: 16),
 
+              // ── Título + badge REF sin overflow ──────
               Row(children: [
-                const Text('DETALLE DE REPUESTO', style: TextStyle(
-                    fontSize: 11, fontWeight: FontWeight.w700,
-                    color: Colors.grey, letterSpacing: 1)),
-                const Spacer(),
+                Expanded(
+                  child: Text('DETALLE DE REPUESTO', style: const TextStyle(
+                      fontSize: 10, fontWeight: FontWeight.w700,
+                      color: Colors.grey, letterSpacing: 1),
+                    overflow: TextOverflow.ellipsis),
+                ),
+                const SizedBox(width: 8),
                 if (repuesto.ref != null)
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -377,7 +380,6 @@ class _RepuestoCard extends ConsumerWidget {
                 ),
                 const SizedBox(height: 16),
               ],
-              // ← codigo nullable: mostrar '—' si es null
               _DetalleRow(Icons.qr_code_outlined, 'Código',
                   repuesto.codigo ?? '—'),
               _DetalleRow(Icons.description_outlined, 'Descripción',

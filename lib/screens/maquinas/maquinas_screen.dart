@@ -14,15 +14,54 @@ class MaquinasScreen extends ConsumerStatefulWidget {
 }
 
 class _State extends ConsumerState<MaquinasScreen> {
-  String _busqueda      = '';
-  String _sectorId      = '';
-  bool   _generandoPdf  = false;
-  String? _generandoQr; // id de la máquina cuyo QR se está generando
+  String  _busqueda     = '';
+  String  _sectorId     = '';
+  String  _estadoFiltro = ''; // '' = todos, 'activo', 'en_reparacion', 'inactivo'
+  bool    _generandoPdf = false;
+  String? _generandoQr;
 
   @override
   void initState() {
     super.initState();
     Future.microtask(() => ref.invalidate(maquinasProvider));
+  }
+
+  // ── Ver foto en pantalla completa ─────────────────────────────
+  void _verFoto(BuildContext context, String url, String nombre) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: EdgeInsets.zero,
+        child: Stack(children: [
+          Center(
+            child: InteractiveViewer(
+              child: Image.network(url, fit: BoxFit.contain),
+            ),
+          ),
+          Positioned(
+            top: 40, right: 16,
+            child: IconButton(
+              icon: const Icon(Icons.close, color: Colors.white, size: 28),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+          Positioned(
+            bottom: 40, left: 0, right: 0,
+            child: Center(
+              child: Text(
+                nombre,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    shadows: [Shadow(color: Colors.black, blurRadius: 6)]),
+              ),
+            ),
+          ),
+        ]),
+      ),
+    );
   }
 
   Future<void> _exportarPdf(List<Maquina> maquinas, String sectorNombre) async {
@@ -47,11 +86,9 @@ class _State extends ConsumerState<MaquinasScreen> {
   Future<void> _generarQr(Maquina maquina) async {
     setState(() => _generandoQr = maquina.id);
     try {
-      // Cargar repuestos asociados a esta máquina
       final repuestos = await ref
           .read(repuestosMaquinasRepoProvider)
           .getByMaquina(maquina.id);
-
       await PdfGenerator.generarQrMaquina(
         maquina:   maquina,
         repuestos: repuestos,
@@ -90,9 +127,12 @@ class _State extends ConsumerState<MaquinasScreen> {
               final porSector = _sectorId.isEmpty
                   ? maquinas
                   : maquinas.where((m) => m.sectorId == _sectorId).toList();
-              final filtradas = _busqueda.isEmpty
+              final porEstado = _estadoFiltro.isEmpty
                   ? porSector
-                  : porSector.where((m) =>
+                  : porSector.where((m) => m.estado == _estadoFiltro).toList();
+              final filtradas = _busqueda.isEmpty
+                  ? porEstado
+                  : porEstado.where((m) =>
                       m.nombre.toLowerCase().contains(_busqueda.toLowerCase()) ||
                       m.codigo.toLowerCase().contains(_busqueda.toLowerCase()) ||
                       (m.sectorNombre ?? '').toLowerCase()
@@ -136,9 +176,13 @@ class _State extends ConsumerState<MaquinasScreen> {
               ? maquinas
               : maquinas.where((m) => m.sectorId == _sectorId).toList();
 
-          final filtradas = _busqueda.isEmpty
+          final porEstado = _estadoFiltro.isEmpty
               ? porSector
-              : porSector.where((m) =>
+              : porSector.where((m) => m.estado == _estadoFiltro).toList();
+
+          final filtradas = _busqueda.isEmpty
+              ? porEstado
+              : porEstado.where((m) =>
                   m.nombre.toLowerCase().contains(_busqueda.toLowerCase()) ||
                   m.codigo.toLowerCase().contains(_busqueda.toLowerCase()) ||
                   (m.sectorNombre ?? '').toLowerCase()
@@ -227,6 +271,46 @@ class _State extends ConsumerState<MaquinasScreen> {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 8),
+
+                  // ── Chips de estado ───────────────────────
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(children: [
+                      _EstadoChip(
+                        label: 'Todos',
+                        color: Colors.grey,
+                        selected: _estadoFiltro.isEmpty,
+                        onTap: () => setState(() => _estadoFiltro = ''),
+                      ),
+                      const SizedBox(width: 6),
+                      _EstadoChip(
+                        label: 'Activo',
+                        color: Colors.green,
+                        selected: _estadoFiltro == 'activo',
+                        onTap: () => setState(() => _estadoFiltro =
+                            _estadoFiltro == 'activo' ? '' : 'activo'),
+                      ),
+                      const SizedBox(width: 6),
+                      _EstadoChip(
+                        label: 'En reparación',
+                        color: Colors.red,
+                        selected: _estadoFiltro == 'en_reparacion',
+                        onTap: () => setState(() => _estadoFiltro =
+                            _estadoFiltro == 'en_reparacion'
+                                ? ''
+                                : 'en_reparacion'),
+                      ),
+                      const SizedBox(width: 6),
+                      _EstadoChip(
+                        label: 'Inactivo',
+                        color: Colors.grey.shade600,
+                        selected: _estadoFiltro == 'inactivo',
+                        onTap: () => setState(() => _estadoFiltro =
+                            _estadoFiltro == 'inactivo' ? '' : 'inactivo'),
+                      ),
+                    ]),
+                  ),
                   const SizedBox(height: 6),
 
                   Align(
@@ -290,28 +374,75 @@ class _State extends ConsumerState<MaquinasScreen> {
                                   Row(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      // Miniatura
+                                      // ── Miniatura con tap para ampliar ──
                                       SizedBox(
                                         width: 72,
                                         height: 72,
                                         child: m.imagenUrl != null
-                                            ? ClipRRect(
-                                                borderRadius: BorderRadius.circular(8),
-                                                child: Image.network(
-                                                  m.imagenUrl!,
-                                                  fit: BoxFit.cover,
-                                                  loadingBuilder: (_, child, progress) =>
-                                                      progress == null
-                                                          ? child
-                                                          : Container(
-                                                              decoration: BoxDecoration(
-                                                                  color: Colors.grey[100],
-                                                                  borderRadius: BorderRadius.circular(8)),
-                                                              child: const Center(
-                                                                  child: CircularProgressIndicator(strokeWidth: 2))),
-                                                  errorBuilder: (_, __, ___) =>
-                                                      _SinImagen(color: color),
-                                                ))
+                                            ? GestureDetector(
+                                                onTap: () => _verFoto(
+                                                    context,
+                                                    m.imagenUrl!,
+                                                    m.nombre),
+                                                child: ClipRRect(
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                  child: Stack(
+                                                    fit: StackFit.expand,
+                                                    children: [
+                                                      Image.network(
+                                                        m.imagenUrl!,
+                                                        fit: BoxFit.cover,
+                                                        loadingBuilder: (_, child,
+                                                                progress) =>
+                                                            progress == null
+                                                                ? child
+                                                                : Container(
+                                                                    decoration: BoxDecoration(
+                                                                        color: Colors
+                                                                            .grey[100],
+                                                                        borderRadius:
+                                                                            BorderRadius
+                                                                                .circular(8)),
+                                                                    child: const Center(
+                                                                        child:
+                                                                            CircularProgressIndicator(
+                                                                                strokeWidth:
+                                                                                    2))),
+                                                        errorBuilder: (_, __, ___) =>
+                                                            _SinImagen(
+                                                                color: color),
+                                                      ),
+                                                      // Ícono lupa superpuesto
+                                                      Positioned(
+                                                        bottom: 3, right: 3,
+                                                        child: Container(
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .all(3),
+                                                          decoration:
+                                                              BoxDecoration(
+                                                            color: Colors
+                                                                .black
+                                                                .withOpacity(
+                                                                    0.45),
+                                                            borderRadius:
+                                                                BorderRadius
+                                                                    .circular(
+                                                                        4),
+                                                          ),
+                                                          child: const Icon(
+                                                              Icons
+                                                                  .zoom_in_outlined,
+                                                              color:
+                                                                  Colors.white,
+                                                              size: 13),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              )
                                             : _SinImagen(color: color),
                                       ),
                                       const SizedBox(width: 12),
@@ -319,34 +450,46 @@ class _State extends ConsumerState<MaquinasScreen> {
                                       // Datos
                                       Expanded(
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Row(children: [
                                               Container(
-                                                padding: const EdgeInsets.symmetric(
-                                                    horizontal: 8, vertical: 2),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 2),
                                                 decoration: BoxDecoration(
-                                                    color: Colors.grey.withOpacity(0.1),
-                                                    borderRadius: BorderRadius.circular(6)),
+                                                    color: Colors.grey
+                                                        .withOpacity(0.1),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            6)),
                                                 child: Text(m.codigo,
                                                     style: const TextStyle(
                                                         fontSize: 11,
                                                         color: Colors.grey,
-                                                        fontWeight: FontWeight.w600)),
+                                                        fontWeight:
+                                                            FontWeight.w600)),
                                               ),
                                               const SizedBox(width: 8),
                                               Expanded(
                                                 child: Row(children: [
-                                                  const Icon(Icons.domain_outlined,
-                                                      size: 12, color: Colors.grey),
+                                                  const Icon(
+                                                      Icons.domain_outlined,
+                                                      size: 12,
+                                                      color: Colors.grey),
                                                   const SizedBox(width: 4),
                                                   Expanded(
                                                     child: Text(
-                                                        m.sectorNombre ?? 'Sin sector',
+                                                        m.sectorNombre ??
+                                                            'Sin sector',
                                                         style: const TextStyle(
                                                             fontSize: 11,
                                                             color: Colors.grey),
-                                                        overflow: TextOverflow.ellipsis),
+                                                        overflow:
+                                                            TextOverflow
+                                                                .ellipsis),
                                                   ),
                                                 ]),
                                               ),
@@ -356,23 +499,30 @@ class _State extends ConsumerState<MaquinasScreen> {
                                             if (m.descripcion != null &&
                                                 m.descripcion!.isNotEmpty)
                                               Padding(
-                                                padding: const EdgeInsets.only(bottom: 6),
+                                                padding: const EdgeInsets.only(
+                                                    bottom: 6),
                                                 child: Text(m.descripcion!,
                                                     style: const TextStyle(
                                                         fontSize: 10,
                                                         color: Colors.grey),
                                                     maxLines: 2,
-                                                    overflow: TextOverflow.ellipsis),
+                                                    overflow:
+                                                        TextOverflow.ellipsis),
                                               ),
 
                                             Container(
-                                              padding: const EdgeInsets.symmetric(
-                                                  horizontal: 8, vertical: 3),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 3),
                                               decoration: BoxDecoration(
-                                                  color: color.withOpacity(0.1),
-                                                  borderRadius: BorderRadius.circular(6),
+                                                  color:
+                                                      color.withOpacity(0.1),
+                                                  borderRadius:
+                                                      BorderRadius.circular(6),
                                                   border: Border.all(
-                                                      color: color.withOpacity(0.3))),
+                                                      color: color
+                                                          .withOpacity(0.3))),
                                               child: Text(
                                                   m.estado == 'en_reparacion'
                                                       ? 'En reparación'
@@ -382,7 +532,8 @@ class _State extends ConsumerState<MaquinasScreen> {
                                                   style: TextStyle(
                                                       color: color,
                                                       fontSize: 10,
-                                                      fontWeight: FontWeight.w600)),
+                                                      fontWeight:
+                                                          FontWeight.w600)),
                                             ),
                                           ],
                                         ),
@@ -395,16 +546,17 @@ class _State extends ConsumerState<MaquinasScreen> {
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.end,
                                     children: [
-                                      // Botón QR
                                       generandoEsteQr
                                           ? const SizedBox(
                                               width: 34, height: 34,
                                               child: Center(
                                                   child: SizedBox(
                                                       width: 18, height: 18,
-                                                      child: CircularProgressIndicator(
-                                                          strokeWidth: 2,
-                                                          color: Colors.teal))))
+                                                      child:
+                                                          CircularProgressIndicator(
+                                                              strokeWidth: 2,
+                                                              color:
+                                                                  Colors.teal))))
                                           : _IconBtn(
                                               icon: Icons.qr_code_outlined,
                                               color: Colors.teal,
@@ -418,7 +570,8 @@ class _State extends ConsumerState<MaquinasScreen> {
                                           icon: Icons.edit_outlined,
                                           color: Colors.grey,
                                           tooltip: 'Editar',
-                                          onTap: () => context.push('/maquinas/${m.id}'),
+                                          onTap: () =>
+                                              context.push('/maquinas/${m.id}'),
                                         ),
                                         const SizedBox(width: 8),
                                       ],
@@ -426,14 +579,17 @@ class _State extends ConsumerState<MaquinasScreen> {
                                         icon: Icons.settings_outlined,
                                         color: Colors.blue,
                                         tooltip: 'Repuestos',
-                                        onTap: () => Navigator.push(context,
+                                        onTap: () => Navigator.push(
+                                            context,
                                             MaterialPageRoute(
                                                 builder: (_) => ProviderScope(
-                                                    parent: ProviderScope
-                                                        .containerOf(context),
+                                                    parent:
+                                                        ProviderScope.containerOf(
+                                                            context),
                                                     child: RepuestosMaquinaScreen(
-                                                        maquinaId:     m.id,
-                                                        maquinaNombre: m.nombre)))),
+                                                        maquinaId: m.id,
+                                                        maquinaNombre:
+                                                            m.nombre)))),
                                       ),
                                     ],
                                   ),
@@ -491,6 +647,44 @@ class _IconBtn extends StatelessWidget {
             color: color.withOpacity(0.08),
             borderRadius: BorderRadius.circular(6)),
         child: Icon(icon, size: 20, color: color),
+      ),
+    ),
+  );
+}
+
+// ── Chip de filtro de estado ──────────────────────────────────
+class _EstadoChip extends StatelessWidget {
+  final String       label;
+  final Color        color;
+  final bool         selected;
+  final VoidCallback onTap;
+  const _EstadoChip({
+    required this.label,
+    required this.color,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      decoration: BoxDecoration(
+        color: selected ? color : color.withOpacity(0.07),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+            color: selected ? color : color.withOpacity(0.3),
+            width: selected ? 1.5 : 1),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+          color: selected ? Colors.white : color,
+        ),
       ),
     ),
   );
