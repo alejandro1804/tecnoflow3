@@ -24,7 +24,6 @@ class PdfGenerator {
     );
   }
 
-  // ── Genera imagen PNG del QR como bytes para incrustar en PDF ──
   static Future<Uint8List> _qrComoBytes(String data, double size) async {
     final qrPainter = QrPainter(
       data:                 data,
@@ -39,7 +38,6 @@ class PdfGenerator {
   }
 
   // ── PDF QR de Máquina ─────────────────────────────────────
-  // PDF A4 estándar con recuadro A6 apaisado centrado y línea de corte.
   static Future<void> generarQrMaquina({
     required Maquina               maquina,
     required List<RepuestoMaquina> repuestos,
@@ -49,13 +47,10 @@ class PdfGenerator {
     final pdf     = pw.Document();
     final ahora   = DateFormat('dd/MM/yyyy').format(DateTime.now());
 
-    // A6 apaisado en puntos
     const double a6W = 148 * PdfPageFormat.mm;
     const double a6H = 105 * PdfPageFormat.mm;
-    // A4 vertical en puntos: 210mm × 297mm
     const double a4W = 210 * PdfPageFormat.mm;
     const double a4H = 297 * PdfPageFormat.mm;
-    // Offsets para centrar A6 dentro de A4
     const double offX = (a4W - a6W) / 2;
     const double offY = (a4H - a6H) / 2;
 
@@ -65,8 +60,6 @@ class PdfGenerator {
         margin:     pw.EdgeInsets.zero,
         build: (ctx) => pw.Stack(
           children: [
-
-            // Línea de corte punteada
             pw.Positioned(
               left: offX,
               top:  offY,
@@ -82,8 +75,6 @@ class PdfGenerator {
                 ),
               ),
             ),
-
-            // Texto guía de recorte
             pw.Positioned(
               left: offX,
               top:  offY - 11,
@@ -93,8 +84,6 @@ class PdfGenerator {
                     fontSize: 7, color: PdfColors.blueGrey300),
               ),
             ),
-
-            // Contenido interno con padding
             pw.Positioned(
               left: offX + 14,
               top:  offY + 14,
@@ -104,8 +93,6 @@ class PdfGenerator {
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-
-                    // Encabezado
                     pw.Container(
                       padding: const pw.EdgeInsets.only(bottom: 5),
                       decoration: const pw.BoxDecoration(
@@ -129,25 +116,18 @@ class PdfGenerator {
                       ),
                     ),
                     pw.SizedBox(height: 7),
-
-                    // Cuerpo: QR izquierda | Datos derecha
                     pw.Expanded(
                       child: pw.Row(
                         crossAxisAlignment: pw.CrossAxisAlignment.start,
                         children: [
-
-                          // QR 6 cm
                           pw.Image(qrImage,
                               width: 170, height: 170,
                               fit: pw.BoxFit.contain),
                           pw.SizedBox(width: 12),
-
-                          // Datos
                           pw.Expanded(
                             child: pw.Column(
                               crossAxisAlignment: pw.CrossAxisAlignment.start,
                               children: [
-
                                 pw.Text(maquina.nombre,
                                     style: pw.TextStyle(
                                         fontSize: 12,
@@ -155,7 +135,6 @@ class PdfGenerator {
                                         color: PdfColors.blueGrey900),
                                     maxLines: 2),
                                 pw.SizedBox(height: 4),
-
                                 pw.Container(
                                   padding: const pw.EdgeInsets.symmetric(
                                       horizontal: 6, vertical: 2),
@@ -169,7 +148,6 @@ class PdfGenerator {
                                           color: PdfColors.blueGrey700)),
                                 ),
                                 pw.SizedBox(height: 4),
-
                                 pw.Row(children: [
                                   pw.Text('Sector: ',
                                       style: pw.TextStyle(
@@ -182,7 +160,6 @@ class PdfGenerator {
                                           color: PdfColors.blueGrey800)),
                                 ]),
                                 pw.SizedBox(height: 8),
-
                                 if (maquina.descripcion != null &&
                                     maquina.descripcion!.isNotEmpty) ...[
                                   pw.Text(maquina.descripcion!,
@@ -192,7 +169,6 @@ class PdfGenerator {
                                       maxLines: 2),
                                   pw.SizedBox(height: 6),
                                 ],
-
                                 if (repuestos.isNotEmpty) ...[
                                   pw.Container(
                                     padding: const pw.EdgeInsets.symmetric(
@@ -256,8 +232,6 @@ class PdfGenerator {
                         ],
                       ),
                     ),
-
-                    // Pie con ID
                     pw.Container(
                       padding: const pw.EdgeInsets.only(top: 4),
                       decoration: const pw.BoxDecoration(
@@ -307,6 +281,35 @@ class PdfGenerator {
       build: (ctx) => [pw.SizedBox(height: 16), _buildTablaRepuestos(repuestos)],
     ));
     await _compartir(pdf, 'repuestos_${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}.pdf');
+  }
+
+  // ── PDF de Repuestos por Máquina ──────────────────────────
+  static Future<void> generarRepuestosMaquina({
+    required String               maquinaNombre,
+    required List<RepuestoMaquina> repuestos,
+  }) async {
+    final pdf   = pw.Document();
+    final ahora = DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now());
+    final totalUnidades = repuestos.fold<int>(0, (s, r) => s + r.cantidad);
+
+    pdf.addPage(pw.MultiPage(
+      pageFormat: PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.all(32),
+      maxPages: 1000,
+      header: (ctx) => _buildHeader(
+          ahora, 'Máquina: $maquinaNombre', 'Repuestos de Máquina'),
+      footer: (ctx) => _buildFooterRepuestosMaquina(
+          ctx, repuestos.length, totalUnidades),
+      build: (ctx) => [
+        pw.SizedBox(height: 16),
+        _buildTablaRepuestosMaquina(repuestos),
+      ],
+    ));
+
+    await _compartir(
+      pdf,
+      'repuestos_maquina_${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}.pdf',
+    );
   }
 
   // ── PDF de Salidas ────────────────────────────────────────
@@ -480,6 +483,36 @@ class PdfGenerator {
     );
   }
 
+  // ── Tabla Repuestos por Máquina ───────────────────────────
+  static pw.Widget _buildTablaRepuestosMaquina(List<RepuestoMaquina> repuestos) {
+    return pw.TableHelper.fromTextArray(
+      headers: ['Codigo', 'Descripcion', 'Cantidad', 'Ubicacion en maquina', 'Observacion'],
+      headerStyle: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+      headerDecoration: const pw.BoxDecoration(color: PdfColors.teal700),
+      headerAlignment: pw.Alignment.centerLeft,
+      headerPadding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      cellPadding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      cellAlignment: pw.Alignment.centerLeft,
+      cellStyle: const pw.TextStyle(fontSize: 9),
+      columnWidths: {
+        0: const pw.FlexColumnWidth(1.4),
+        1: const pw.FlexColumnWidth(3.0),
+        2: const pw.FlexColumnWidth(0.9),
+        3: const pw.FlexColumnWidth(2.0),
+        4: const pw.FlexColumnWidth(2.0),
+      },
+      data: repuestos.map((r) => [
+        r.repuestoCodigo ?? '-',
+        r.repuestoDescripcion ?? '-',
+        r.cantidad.toString(),
+        r.ubicacionEnMaquina ?? '-',
+        r.observacion ?? '-',
+      ]).toList(),
+      cellDecoration: (index, data, rowIndex) => pw.BoxDecoration(
+          color: rowIndex % 2 == 0 ? PdfColors.white : PdfColors.teal50),
+    );
+  }
+
   // ── Tabla Salidas ─────────────────────────────────────────
   static pw.Widget _buildTablaSalidas(List<SalidaRepuesto> salidas) {
     return pw.TableHelper.fromTextArray(
@@ -629,6 +662,24 @@ class PdfGenerator {
                   fontSize: 9,
                   color: totalBajo > 0 ? PdfColors.red700 : PdfColors.green700,
                   fontWeight: pw.FontWeight.bold)),
+        ]),
+        pw.Text('Pag. ${ctx.pageNumber} / ${ctx.pagesCount}',
+            style: pw.TextStyle(fontSize: 9, color: PdfColors.blueGrey600)),
+      ]),
+    );
+  }
+
+  static pw.Widget _buildFooterRepuestosMaquina(pw.Context ctx, int total, int totalUnidades) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.only(top: 8),
+      decoration: const pw.BoxDecoration(
+          border: pw.Border(top: pw.BorderSide(color: PdfColors.blueGrey300, width: 1))),
+      child: pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
+        pw.Row(children: [
+          pw.Text('Total repuestos: $total   |   ',
+              style: pw.TextStyle(fontSize: 9, color: PdfColors.blueGrey600)),
+          pw.Text('Unidades totales: $totalUnidades',
+              style: pw.TextStyle(fontSize: 9, color: PdfColors.teal700, fontWeight: pw.FontWeight.bold)),
         ]),
         pw.Text('Pag. ${ctx.pageNumber} / ${ctx.pagesCount}',
             style: pw.TextStyle(fontSize: 9, color: PdfColors.blueGrey600)),

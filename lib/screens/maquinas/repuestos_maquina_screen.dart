@@ -3,10 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/widgets.dart';
+import '../../core/PdfGenerator.dart';
 import '../../models/models.dart';
 import '../../providers/providers.dart';
 
-class RepuestosMaquinaScreen extends ConsumerWidget {
+class RepuestosMaquinaScreen extends ConsumerStatefulWidget {
   final String maquinaId;
   final String maquinaNombre;
 
@@ -17,8 +18,33 @@ class RepuestosMaquinaScreen extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final async       = ref.watch(repuestosMaquinasProvider(maquinaId));
+  ConsumerState<RepuestosMaquinaScreen> createState() => _State();
+}
+
+class _State extends ConsumerState<RepuestosMaquinaScreen> {
+  bool _generandoPdf = false;
+
+  Future<void> _exportarPdf(List<RepuestoMaquina> repuestos) async {
+    setState(() => _generandoPdf = true);
+    try {
+      await PdfGenerator.generarRepuestosMaquina(
+        maquinaNombre: widget.maquinaNombre,
+        repuestos:     repuestos,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Error al generar PDF: $e'),
+            backgroundColor: Colors.red));
+      }
+    } finally {
+      if (mounted) setState(() => _generandoPdf = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final async       = ref.watch(repuestosMaquinasProvider(widget.maquinaId));
     final profile     = ref.watch(myProfileProvider).valueOrNull;
     final isAdmin     = profile?.isAdmin ?? false;
     final isPaniolero = profile?.isPaniolero ?? false;
@@ -26,12 +52,33 @@ class RepuestosMaquinaScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFFEFF6FF),
-      appBar: AppBar(title: Text('Repuestos — $maquinaNombre')),
+      appBar: AppBar(
+        title: Text('Repuestos — ${widget.maquinaNombre}'),
+        actions: [
+          async.when(
+            loading: () => const SizedBox.shrink(),
+            error:   (_, __) => const SizedBox.shrink(),
+            data: (items) => _generandoPdf
+                ? const Padding(
+                    padding: EdgeInsets.all(14),
+                    child: SizedBox(
+                        width: 20, height: 20,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white)))
+                : IconButton(
+                    icon: const Icon(Icons.picture_as_pdf_outlined),
+                    tooltip: 'Exportar PDF',
+                    onPressed: items.isEmpty
+                        ? null
+                        : () => _exportarPdf(items)),
+          ),
+        ],
+      ),
       floatingActionButton: canEdit
           ? FloatingActionButton.extended(
               icon: const Icon(Icons.add),
               label: const Text('Agregar repuesto'),
-              onPressed: () => _mostrarModal(context, ref, maquinaId, isAdmin),
+              onPressed: () => _mostrarModal(context, ref, widget.maquinaId, isAdmin),
             )
           : null,
       body: async.when(
@@ -78,7 +125,6 @@ class RepuestosMaquinaScreen extends ConsumerWidget {
                               decoration: BoxDecoration(
                                   color: Colors.grey.withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(6)),
-                              // ← codigo nullable en RepuestoMaquina ya era String?
                               child: Text(item.repuestoCodigo ?? '—',
                                   style: const TextStyle(
                                       fontSize: 11,
@@ -113,7 +159,7 @@ class RepuestosMaquinaScreen extends ConsumerWidget {
                               const Spacer(),
                               InkWell(
                                 onTap: () => _mostrarModal(
-                                    context, ref, maquinaId, isAdmin,
+                                    context, ref, widget.maquinaId, isAdmin,
                                     repuestoMaquina: item),
                                 borderRadius: BorderRadius.circular(6),
                                 child: Container(
@@ -129,7 +175,7 @@ class RepuestosMaquinaScreen extends ConsumerWidget {
                                 const SizedBox(width: 8),
                                 InkWell(
                                   onTap: () => _eliminar(
-                                      context, ref, item.id, maquinaId),
+                                      context, ref, item.id, widget.maquinaId),
                                   borderRadius: BorderRadius.circular(6),
                                   child: Container(
                                     padding: const EdgeInsets.all(6),
@@ -257,7 +303,6 @@ class _ModalState extends ConsumerState<_RepuestoMaquinaModal> {
     try {
       String repId = _repuestoSelId ?? '';
       if (_crearNuevo) {
-        // ← codigo opcional al crear desde este modal también
         final codigoFinal = _codCtrl.text.trim().isEmpty
             ? null : _codCtrl.text.trim();
         final nuevoRep = Repuesto(
@@ -271,7 +316,6 @@ class _ModalState extends ConsumerState<_RepuestoMaquinaModal> {
         );
         await ref.read(repuestosRepoProvider).create(nuevoRep);
         final todos = await ref.read(repuestosRepoProvider).getAll();
-        // ← buscar por descripcion ya que codigo puede ser null
         repId = todos.firstWhere((r) => r.descripcion == nuevoRep.descripcion).id;
         ref.invalidate(repuestosProvider);
       }
@@ -316,7 +360,6 @@ class _ModalState extends ConsumerState<_RepuestoMaquinaModal> {
     final repuestos = ref.watch(repuestosProvider).valueOrNull ?? [];
     final filtrados = repuestos
         .where((r) =>
-            // ← codigo nullable
             (r.codigo ?? '').toLowerCase().contains(_busqueda.toLowerCase()) ||
             r.descripcion.toLowerCase().contains(_busqueda.toLowerCase()))
         .toList()
@@ -390,7 +433,6 @@ class _ModalState extends ConsumerState<_RepuestoMaquinaModal> {
                                 sel ? Icons.check_circle : Icons.circle_outlined,
                                 color: sel ? Colors.blue : Colors.grey,
                                 size: 18),
-                            // ← codigo nullable
                             title: Text(
                                 '${r.codigo ?? '—'} — ${r.descripcion}',
                                 style: const TextStyle(fontSize: 13)),
@@ -426,7 +468,6 @@ class _ModalState extends ConsumerState<_RepuestoMaquinaModal> {
                           color: Colors.blue, size: 18),
                       const SizedBox(width: 8),
                       Expanded(child: Text(
-                          // ← codigo nullable
                           '${widget.repuestoMaquina!.repuestoCodigo ?? '—'} — '
                           '${widget.repuestoMaquina!.repuestoDescripcion}',
                           style: const TextStyle(
@@ -439,7 +480,6 @@ class _ModalState extends ConsumerState<_RepuestoMaquinaModal> {
                     style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
                         color: Colors.grey, letterSpacing: 1)),
                 const SizedBox(height: 12),
-                // ← SKU opcional también en este modal
                 TextFormField(
                     controller: _codCtrl,
                     textCapitalization: TextCapitalization.characters,
