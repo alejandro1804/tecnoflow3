@@ -69,97 +69,112 @@ class _State extends ConsumerState<TicketDetalleScreen> {
     }
   }
 
-  // ── exportar PDF ─────────────────────────────────────────────
-  Future<void> _exportarPdf(Ticket ticket, List<TicketHistorial> historial) async {
-    setState(() => _generandoPdf = true);
-    try {
-      final pdf   = pw.Document();
-      final ahora = DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now());
+  // ── construir documento PDF (lógica compartida) ───────────────
+  Future<pw.Document> _buildPdf(
+      Ticket ticket, List<TicketHistorial> historial) async {
+    final pdf   = pw.Document();
+    final ahora = DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now());
 
-      pdf.addPage(pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(32),
-        header: (ctx) => pw.Container(
-          padding: const pw.EdgeInsets.only(bottom: 12),
-          decoration: const pw.BoxDecoration(
-              border: pw.Border(bottom: pw.BorderSide(
-                  color: PdfColors.blueGrey300, width: 1))),
-          child: pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-            pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-              pw.Text('TECNOFLOW3', style: pw.TextStyle(
-                  fontSize: 20, fontWeight: pw.FontWeight.bold,
-                  color: PdfColors.blue800)),
-              pw.Text('Control de stock de repuestos',
-                  style: pw.TextStyle(fontSize: 11, color: PdfColors.blueGrey600)),
-            ]),
-            pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.end, children: [
-              pw.Text('Detalle de Ticket', style: pw.TextStyle(
-                  fontSize: 14, fontWeight: pw.FontWeight.bold)),
-              pw.Text('Emitido: $ahora',
-                  style: pw.TextStyle(fontSize: 10, color: PdfColors.blueGrey600)),
-            ]),
+    pdf.addPage(pw.MultiPage(
+      pageFormat: PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.all(32),
+      header: (ctx) => pw.Container(
+        padding: const pw.EdgeInsets.only(bottom: 12),
+        decoration: const pw.BoxDecoration(
+            border: pw.Border(bottom: pw.BorderSide(
+                color: PdfColors.blueGrey300, width: 1))),
+        child: pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+          pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+            pw.Text('TECNOFLOW3', style: pw.TextStyle(
+                fontSize: 20, fontWeight: pw.FontWeight.bold,
+                color: PdfColors.blue800)),
+            pw.Text('Control de stock de repuestos',
+                style: pw.TextStyle(fontSize: 11, color: PdfColors.blueGrey600)),
           ]),
-        ),
-        footer: (ctx) => pw.Container(
-          padding: const pw.EdgeInsets.only(top: 8),
-          decoration: const pw.BoxDecoration(
-              border: pw.Border(top: pw.BorderSide(
-                  color: PdfColors.blueGrey300, width: 1))),
-          child: pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-            pw.Text(
-                ticket.numero != null
-                    ? 'N° ${ticket.numero!}  |  ID: ${ticket.id.substring(0, 8)}...'
-                    : 'Ticket ID: ${ticket.id.substring(0, 8)}...',
-                style: pw.TextStyle(fontSize: 9, color: PdfColors.blueGrey400)),
-            pw.Text('Pág. ${ctx.pageNumber} / ${ctx.pagesCount}',
-                style: pw.TextStyle(fontSize: 9, color: PdfColors.blueGrey600)),
+          pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.end, children: [
+            pw.Text('Detalle de Ticket', style: pw.TextStyle(
+                fontSize: 14, fontWeight: pw.FontWeight.bold)),
+            pw.Text('Emitido: $ahora',
+                style: pw.TextStyle(fontSize: 10, color: PdfColors.blueGrey600)),
           ]),
-        ),
-        build: (ctx) => [
-          pw.SizedBox(height: 16),
-          pw.Container(
-            padding: const pw.EdgeInsets.all(14),
-            decoration: pw.BoxDecoration(
-                color: PdfColors.blueGrey50,
-                borderRadius: pw.BorderRadius.circular(6),
-                border: pw.Border.all(color: PdfColors.blueGrey200)),
-            child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
+        ]),
+      ),
+      footer: (ctx) => pw.Container(
+        padding: const pw.EdgeInsets.only(top: 8),
+        decoration: const pw.BoxDecoration(
+            border: pw.Border(top: pw.BorderSide(
+                color: PdfColors.blueGrey300, width: 1))),
+        child: pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+          pw.Text(
+              ticket.numero != null
+                  ? 'N° ${ticket.numero!}  |  ID: ${ticket.id.substring(0, 8)}...'
+                  : 'Ticket ID: ${ticket.id.substring(0, 8)}...',
+              style: pw.TextStyle(fontSize: 9, color: PdfColors.blueGrey400)),
+          pw.Text('Pág. ${ctx.pageNumber} / ${ctx.pagesCount}',
+              style: pw.TextStyle(fontSize: 9, color: PdfColors.blueGrey600)),
+        ]),
+      ),
+      build: (ctx) => [
+        pw.SizedBox(height: 16),
+        pw.Container(
+          padding: const pw.EdgeInsets.all(14),
+          decoration: pw.BoxDecoration(
+              color: PdfColors.blueGrey50,
+              borderRadius: pw.BorderRadius.circular(6),
+              border: pw.Border.all(color: PdfColors.blueGrey200)),
+          child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+            pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-              pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                pw.Expanded(child: pw.Text(
-                    ticket.maquinaNombre ?? 'Sin máquina',
+              pw.Expanded(child: pw.Text(
+                  ticket.maquinaNombre ?? 'Sin máquina',
+                  style: pw.TextStyle(
+                      fontSize: 16, fontWeight: pw.FontWeight.bold))),
+              pw.Container(
+                padding: const pw.EdgeInsets.symmetric(
+                    horizontal: 10, vertical: 4),
+                decoration: pw.BoxDecoration(
+                    color: colorEstadoPdf(ticket.estado),
+                    borderRadius: pw.BorderRadius.circular(4)),
+                child: pw.Text(labelEstado(ticket.estado),
                     style: pw.TextStyle(
-                        fontSize: 16, fontWeight: pw.FontWeight.bold))),
-                pw.Container(
-                  padding: const pw.EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 4),
-                  decoration: pw.BoxDecoration(
-                      color: colorEstadoPdf(ticket.estado),
-                      borderRadius: pw.BorderRadius.circular(4)),
-                  child: pw.Text(labelEstado(ticket.estado),
-                      style: pw.TextStyle(
-                          fontSize: 11, color: PdfColors.white,
-                          fontWeight: pw.FontWeight.bold)),
-                ),
-              ]),
-              pw.SizedBox(height: 12),
-              pw.Divider(color: PdfColors.blueGrey200),
-              pw.SizedBox(height: 8),
-              if (ticket.numero != null)
-                _pdfFila('N° Externo', ticket.numero!),
-              _pdfFila('Creado por', ticket.creadoPorNombre ?? '—'),
-              _pdfFila('Técnico', ticket.tecnicoNombre ?? 'Sin asignar'),
-              _pdfFila('Fecha', _fmtFecha(ticket.createdAt, soloFecha: true)),
+                        fontSize: 11, color: PdfColors.white,
+                        fontWeight: pw.FontWeight.bold)),
+              ),
             ]),
-          ),
-          pw.SizedBox(height: 16),
-          pw.Text('DESPERFECTO', style: pw.TextStyle(
+            pw.SizedBox(height: 12),
+            pw.Divider(color: PdfColors.blueGrey200),
+            pw.SizedBox(height: 8),
+            if (ticket.numero != null)
+              _pdfFila('N° Externo', ticket.numero!),
+            _pdfFila('Creado por', ticket.creadoPorNombre ?? '—'),
+            _pdfFila('Técnico', ticket.tecnicoNombre ?? 'Sin asignar'),
+            _pdfFila('Fecha', _fmtFecha(ticket.createdAt, soloFecha: true)),
+          ]),
+        ),
+        pw.SizedBox(height: 16),
+        pw.Text('DESPERFECTO', style: pw.TextStyle(
+            fontSize: 11, fontWeight: pw.FontWeight.bold,
+            color: PdfColors.blueGrey600, letterSpacing: 1)),
+        pw.SizedBox(height: 6),
+        pw.Container(
+          width: double.infinity,
+          padding: const pw.EdgeInsets.all(12),
+          decoration: pw.BoxDecoration(
+              color: PdfColors.white,
+              borderRadius: pw.BorderRadius.circular(6),
+              border: pw.Border.all(color: PdfColors.blueGrey200)),
+          child: pw.Text(ticket.descripcionDesperfecto,
+              style: const pw.TextStyle(fontSize: 11)),
+        ),
+        pw.SizedBox(height: 12),
+        if (ticket.observacionEncargado != null) ...[
+          pw.Text('OBSERVACIÓN ENCARGADO', style: pw.TextStyle(
               fontSize: 11, fontWeight: pw.FontWeight.bold,
               color: PdfColors.blueGrey600, letterSpacing: 1)),
           pw.SizedBox(height: 6),
@@ -167,92 +182,109 @@ class _State extends ConsumerState<TicketDetalleScreen> {
             width: double.infinity,
             padding: const pw.EdgeInsets.all(12),
             decoration: pw.BoxDecoration(
-                color: PdfColors.white,
+                color: PdfColors.orange50,
                 borderRadius: pw.BorderRadius.circular(6),
-                border: pw.Border.all(color: PdfColors.blueGrey200)),
-            child: pw.Text(ticket.descripcionDesperfecto,
+                border: pw.Border.all(color: PdfColors.orange200)),
+            child: pw.Text(ticket.observacionEncargado!,
                 style: const pw.TextStyle(fontSize: 11)),
           ),
           pw.SizedBox(height: 12),
-          if (ticket.observacionEncargado != null) ...[
-            pw.Text('OBSERVACIÓN ENCARGADO', style: pw.TextStyle(
-                fontSize: 11, fontWeight: pw.FontWeight.bold,
-                color: PdfColors.blueGrey600, letterSpacing: 1)),
-            pw.SizedBox(height: 6),
-            pw.Container(
-              width: double.infinity,
-              padding: const pw.EdgeInsets.all(12),
-              decoration: pw.BoxDecoration(
-                  color: PdfColors.orange50,
-                  borderRadius: pw.BorderRadius.circular(6),
-                  border: pw.Border.all(color: PdfColors.orange200)),
-              child: pw.Text(ticket.observacionEncargado!,
-                  style: const pw.TextStyle(fontSize: 11)),
-            ),
-            pw.SizedBox(height: 12),
-          ],
-          if (ticket.observacionTecnico != null) ...[
-            pw.Text('OBSERVACIÓN TÉCNICO', style: pw.TextStyle(
-                fontSize: 11, fontWeight: pw.FontWeight.bold,
-                color: PdfColors.blueGrey600, letterSpacing: 1)),
-            pw.SizedBox(height: 6),
-            pw.Container(
-              width: double.infinity,
-              padding: const pw.EdgeInsets.all(12),
-              decoration: pw.BoxDecoration(
-                  color: PdfColors.teal50,
-                  borderRadius: pw.BorderRadius.circular(6),
-                  border: pw.Border.all(color: PdfColors.teal200)),
-              child: pw.Text(ticket.observacionTecnico!,
-                  style: const pw.TextStyle(fontSize: 11)),
-            ),
-            pw.SizedBox(height: 12),
-          ],
-          pw.SizedBox(height: 4),
-          pw.Text('HISTORIAL DE CAMBIOS', style: pw.TextStyle(
+        ],
+        if (ticket.observacionTecnico != null) ...[
+          pw.Text('OBSERVACIÓN TÉCNICO', style: pw.TextStyle(
               fontSize: 11, fontWeight: pw.FontWeight.bold,
               color: PdfColors.blueGrey600, letterSpacing: 1)),
-          pw.SizedBox(height: 8),
-          if (historial.isEmpty)
-            pw.Text('Sin cambios registrados',
-                style: pw.TextStyle(fontSize: 10, color: PdfColors.grey))
-          else
-            pw.TableHelper.fromTextArray(
-              headers: ['Fecha', 'Usuario', 'Estado anterior', 'Estado nuevo', 'Comentario'],
-              headerStyle: pw.TextStyle(fontSize: 9,
-                  fontWeight: pw.FontWeight.bold, color: PdfColors.white),
-              headerDecoration: const pw.BoxDecoration(color: PdfColors.blueGrey700),
-              headerPadding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-              cellPadding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-              cellStyle: const pw.TextStyle(fontSize: 9),
-              columnWidths: {
-                0: const pw.FlexColumnWidth(1.8),
-                1: const pw.FlexColumnWidth(1.8),
-                2: const pw.FlexColumnWidth(1.5),
-                3: const pw.FlexColumnWidth(1.5),
-                4: const pw.FlexColumnWidth(2.5),
-              },
-              data: historial.map((h) => [
-                _fmtFecha(h.fecha),
-                h.usuarioNombre ?? '—',
-                h.estadoAnterior != null ? labelEstado(h.estadoAnterior!) : '—',
-                labelEstado(h.estadoNuevo),
-                h.comentario ?? '—',
-              ]).toList(),
-              cellDecoration: (index, data, rowIndex) => pw.BoxDecoration(
-                  color: rowIndex % 2 == 0 ? PdfColors.white : PdfColors.blueGrey50),
-            ),
+          pw.SizedBox(height: 6),
+          pw.Container(
+            width: double.infinity,
+            padding: const pw.EdgeInsets.all(12),
+            decoration: pw.BoxDecoration(
+                color: PdfColors.teal50,
+                borderRadius: pw.BorderRadius.circular(6),
+                border: pw.Border.all(color: PdfColors.teal200)),
+            child: pw.Text(ticket.observacionTecnico!,
+                style: const pw.TextStyle(fontSize: 11)),
+          ),
+          pw.SizedBox(height: 12),
         ],
-      ));
+        pw.SizedBox(height: 4),
+        pw.Text('HISTORIAL DE CAMBIOS', style: pw.TextStyle(
+            fontSize: 11, fontWeight: pw.FontWeight.bold,
+            color: PdfColors.blueGrey600, letterSpacing: 1)),
+        pw.SizedBox(height: 8),
+        if (historial.isEmpty)
+          pw.Text('Sin cambios registrados',
+              style: pw.TextStyle(fontSize: 10, color: PdfColors.grey))
+        else
+          pw.TableHelper.fromTextArray(
+            headers: ['Fecha', 'Usuario', 'Estado anterior', 'Estado nuevo', 'Comentario'],
+            headerStyle: pw.TextStyle(fontSize: 9,
+                fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+            headerDecoration: const pw.BoxDecoration(color: PdfColors.blueGrey700),
+            headerPadding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            cellPadding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+            cellStyle: const pw.TextStyle(fontSize: 9),
+            columnWidths: {
+              0: const pw.FlexColumnWidth(1.8),
+              1: const pw.FlexColumnWidth(1.8),
+              2: const pw.FlexColumnWidth(1.5),
+              3: const pw.FlexColumnWidth(1.5),
+              4: const pw.FlexColumnWidth(2.5),
+            },
+            data: historial.map((h) => [
+              _fmtFecha(h.fecha),
+              h.usuarioNombre ?? '—',
+              h.estadoAnterior != null ? labelEstado(h.estadoAnterior!) : '—',
+              labelEstado(h.estadoNuevo),
+              h.comentario ?? '—',
+            ]).toList(),
+            cellDecoration: (index, data, rowIndex) => pw.BoxDecoration(
+                color: rowIndex % 2 == 0 ? PdfColors.white : PdfColors.blueGrey50),
+          ),
+      ],
+    ));
 
+    return pdf;
+  }
+
+  // ── nombre de archivo consistente ────────────────────────────
+  String _nombreArchivo(Ticket ticket) =>
+      'ticket_${ticket.numero ?? ticket.id.substring(0, 8)}_'
+      '${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}.pdf';
+
+  // ── imprimir / vista previa ───────────────────────────────────
+  Future<void> _imprimirPdf(
+      Ticket ticket, List<TicketHistorial> historial) async {
+    setState(() => _generandoPdf = true);
+    try {
+      final pdf = await _buildPdf(ticket, historial);
       await Printing.layoutPdf(
         onLayout: (f) async => pdf.save(),
-        name: 'ticket_${ticket.numero ?? ticket.id.substring(0, 8)}_'
-            '${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}.pdf',
+        name: _nombreArchivo(ticket),
       );
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Error al generar PDF: $e'),
+          backgroundColor: Colors.red));
+    } finally {
+      if (mounted) setState(() => _generandoPdf = false);
+    }
+  }
+
+  // ── compartir PDF via share sheet nativo ─────────────────────
+  Future<void> _compartirPdf(
+      Ticket ticket, List<TicketHistorial> historial) async {
+    setState(() => _generandoPdf = true);
+    try {
+      final pdf   = await _buildPdf(ticket, historial);
+      final bytes = await pdf.save();
+      await Printing.sharePdf(
+        bytes: bytes,
+        filename: _nombreArchivo(ticket),
+      );
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error al compartir PDF: $e'),
           backgroundColor: Colors.red));
     } finally {
       if (mounted) setState(() => _generandoPdf = false);
@@ -619,16 +651,13 @@ class _State extends ConsumerState<TicketDetalleScreen> {
       final maquina    = ticket.maquinaNombre ?? 'Sin máquina';
       final numero     = ticket.numero != null ? ' (${ticket.numero})' : '';
 
-      // 1. Cerrar el ticket
       await ref.read(ticketsRepoProvider).updateEstado(
           ticketId, TicketEstados.cerrado,
           comentario: comentario);
 
-      // 2. Buscar todos los encargados activos
       final usuarios   = await ref.read(usuariosRepoProvider).getAll();
       final encargados = usuarios.where((u) => u.isEncargado).toList();
 
-      // 3. Crear notificación para cada encargado
       for (final encargado in encargados) {
         await ref.read(notificacionesRepoProvider).crear(
           tipo:          TiposNotificacion.ticketCerrado,
@@ -669,17 +698,47 @@ class _State extends ConsumerState<TicketDetalleScreen> {
         actions: [
           if (ticketAsync.valueOrNull != null)
             _generandoPdf
+                // ── Spinner mientras genera/comparte ──
                 ? const Padding(
                     padding: EdgeInsets.all(14),
-                    child: SizedBox(width: 20, height: 20,
+                    child: SizedBox(
+                        width: 20, height: 20,
                         child: CircularProgressIndicator(
                             strokeWidth: 2, color: Colors.white)))
-                : IconButton(
+                // ── Menú PDF: imprimir o compartir ────
+                : PopupMenuButton<String>(
                     icon: const Icon(Icons.picture_as_pdf_outlined),
-                    tooltip: 'Exportar PDF',
-                    onPressed: () => _exportarPdf(
-                        ticketAsync.value!,
-                        historialAsync.valueOrNull ?? [])),
+                    tooltip: 'PDF',
+                    onSelected: (v) {
+                      final ticket    = ticketAsync.value!;
+                      final historial = historialAsync.valueOrNull ?? [];
+                      if (v == 'imprimir') {
+                        _imprimirPdf(ticket, historial);
+                      } else {
+                        _compartirPdf(ticket, historial);
+                      }
+                    },
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(
+                        value: 'imprimir',
+                        child: Row(children: [
+                          Icon(Icons.print_outlined,
+                              size: 18, color: Colors.blueGrey),
+                          SizedBox(width: 10),
+                          Text('Imprimir / Vista previa'),
+                        ]),
+                      ),
+                      PopupMenuItem(
+                        value: 'compartir',
+                        child: Row(children: [
+                          Icon(Icons.share_outlined,
+                              size: 18, color: Colors.blueGrey),
+                          SizedBox(width: 10),
+                          Text('Compartir PDF'),
+                        ]),
+                      ),
+                    ],
+                  ),
         ],
       ),
       body: ticketAsync.when(

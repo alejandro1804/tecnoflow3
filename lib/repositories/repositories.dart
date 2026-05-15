@@ -29,7 +29,7 @@ class UsuariosRepository {
     String? nombre,
     String? rolId,
     String? estado,
-    String? email,       // ← nuevo
+    String? email,
   }) async {
     final map = <String, dynamic>{
       'updated_at': DateTime.now().toIso8601String(),
@@ -37,7 +37,7 @@ class UsuariosRepository {
     if (nombre != null) map['nombre']  = nombre;
     if (rolId  != null) map['rol_id']  = rolId;
     if (estado != null) map['estado']  = estado;
-    if (email  != null) map['email']   = email;   // ← nuevo
+    if (email  != null) map['email']   = email;
     await _db.from('usuarios').update(map).eq('id', id);
   }
 
@@ -102,20 +102,44 @@ class MaquinasRepository {
 // ── Repuestos ─────────────────────────────────────────────────
 class RepuestosRepository {
   Future<List<Repuesto>> getAll() async {
-    final data = await _db
-        .from('repuestos')
-        .select()
-        .eq('activo', true)
-        .order('descripcion', ascending: true);
-    return (data as List).map((e) => Repuesto.fromMap(e)).toList();
+    final List<dynamic> todos = [];
+    int desde = 0;
+    const paso = 1000;
+
+    while (true) {
+      final data = await _db
+          .from('repuestos')
+          .select()
+          .eq('activo', true)
+          .order('descripcion', ascending: true)
+          .range(desde, desde + paso - 1);
+
+      todos.addAll(data as List);
+      if ((data as List).length < paso) break;
+      desde += paso;
+    }
+
+    return todos.map((e) => Repuesto.fromMap(e)).toList();
   }
 
   Future<List<Repuesto>> getAllIncluyendoInactivos() async {
-    final data = await _db
-        .from('repuestos')
-        .select()
-        .order('descripcion', ascending: true);
-    return (data as List).map((e) => Repuesto.fromMap(e)).toList();
+    final List<dynamic> todos = [];
+    int desde = 0;
+    const paso = 1000;
+
+    while (true) {
+      final data = await _db
+          .from('repuestos')
+          .select()
+          .order('descripcion', ascending: true)
+          .range(desde, desde + paso - 1);
+
+      todos.addAll(data as List);
+      if ((data as List).length < paso) break;
+      desde += paso;
+    }
+
+    return todos.map((e) => Repuesto.fromMap(e)).toList();
   }
 
   Future<void> create(Repuesto r) async =>
@@ -444,4 +468,3 @@ class NotificacionesRepository {
     return (data as List).map((e) => Notificacion.fromMap(e)).toList();
   }
 }
-
