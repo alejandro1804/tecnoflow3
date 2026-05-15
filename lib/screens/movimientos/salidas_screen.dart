@@ -1,6 +1,7 @@
 // lib/screens/movimientos/salidas_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../core/widgets.dart';
 import '../../core/PdfGenerator.dart';
 import '../../models/models.dart';
@@ -20,31 +21,16 @@ class _State extends ConsumerState<SalidasScreen> {
   DateTime? _hasta;
   bool      _generandoPdf = false;
 
+  // Formatea un DateTime local a "dd/MM/yyyy"
+  String _fmt(DateTime d) => DateFormat('dd/MM/yyyy').format(d);
+
+  // Formatea un DateTime local a "dd/MM/yyyy HH:mm"
+  String _fmtConHora(DateTime d) => DateFormat('dd/MM/yyyy HH:mm').format(d);
+
   @override
   void initState() {
     super.initState();
     Future.microtask(() => ref.invalidate(salidasProvider));
-  }
-
-  // Intenta parsear "dd/MM/yyyy" o "yyyy-MM-dd" (lo que devuelva el modelo)
-  DateTime? _parseFecha(String raw) {
-    try {
-      final p = raw.trim();
-      if (p.contains('/')) {
-        final parts = p.split('/');
-        if (parts.length == 3) {
-          return DateTime(
-              int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0]));
-        }
-      } else if (p.contains('-')) {
-        final parts = p.split('-');
-        if (parts.length == 3) {
-          return DateTime(
-              int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
-        }
-      }
-    } catch (_) {}
-    return null;
   }
 
   List<SalidaRepuesto> _filtrar(List<SalidaRepuesto> todas) {
@@ -57,14 +43,14 @@ class _State extends ConsumerState<SalidasScreen> {
             (s.repuestoDescripcion ?? '').toLowerCase().contains(q);
         if (!coincide) return false;
       }
-      // Filtro cronológico
+      // Filtro cronológico — comparamos solo la fecha local (sin hora)
       if (_desde != null || _hasta != null) {
-        final fecha = _parseFecha(s.fecha);
-        if (fecha == null) return false;
-        if (_desde != null && fecha.isBefore(_desde!)) return false;
+        final soloFecha = DateTime(s.fecha.year, s.fecha.month, s.fecha.day);
+        if (_desde != null && soloFecha.isBefore(_desde!)) return false;
         if (_hasta != null &&
-            fecha.isAfter(
-                _hasta!.add(const Duration(days: 1) - const Duration(microseconds: 1)))) {
+            soloFecha.isAfter(
+                _hasta!.add(const Duration(days: 1) -
+                    const Duration(microseconds: 1)))) {
           return false;
         }
       }
@@ -96,9 +82,6 @@ class _State extends ConsumerState<SalidasScreen> {
   }
 
   void _limpiarFechas() => setState(() { _desde = null; _hasta = null; });
-
-  String _formatFecha(DateTime d) =>
-      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 
   Future<void> _exportarPdf(List<SalidaRepuesto> salidas) async {
     setState(() => _generandoPdf = true);
@@ -175,8 +158,9 @@ class _State extends ConsumerState<SalidasScreen> {
               _DetalleRow(Icons.numbers_outlined, 'Cantidad',
                   '-${s.cantidad}',
                   color: Colors.red),
-              _DetalleRow(
-                  Icons.calendar_today_outlined, 'Fecha', s.fecha),
+              // ← fecha local con hora
+              _DetalleRow(Icons.calendar_today_outlined, 'Fecha',
+                  _fmtConHora(s.fecha)),
               _DetalleRow(
                   Icons.confirmation_number_outlined,
                   'Ticket',
@@ -344,8 +328,6 @@ class _State extends ConsumerState<SalidasScreen> {
                 color: Colors.white,
                 padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
                 child: Column(children: [
-
-                  // Buscador por texto
                   TextField(
                     decoration: InputDecoration(
                       hintText: 'Buscar por código o descripción...',
@@ -364,9 +346,7 @@ class _State extends ConsumerState<SalidasScreen> {
                   ),
                   const SizedBox(height: 8),
 
-                  // ── Filtro desde / hasta ──────────────────────────
                   Row(children: [
-                    // Botón DESDE
                     Expanded(
                       child: GestureDetector(
                         onTap: () => _pickFecha(esDesde: true),
@@ -391,9 +371,7 @@ class _State extends ConsumerState<SalidasScreen> {
                             const SizedBox(width: 5),
                             Expanded(
                               child: Text(
-                                _desde != null
-                                    ? _formatFecha(_desde!)
-                                    : 'Desde',
+                                _desde != null ? _fmt(_desde!) : 'Desde',
                                 style: TextStyle(
                                     fontSize: 10,
                                     color: _desde != null
@@ -406,14 +384,9 @@ class _State extends ConsumerState<SalidasScreen> {
                       ),
                     ),
                     const SizedBox(width: 6),
-
-                    // Separador
                     const Text('—',
-                        style: TextStyle(
-                            fontSize: 12, color: Colors.grey)),
+                        style: TextStyle(fontSize: 12, color: Colors.grey)),
                     const SizedBox(width: 6),
-
-                    // Botón HASTA
                     Expanded(
                       child: GestureDetector(
                         onTap: () => _pickFecha(esDesde: false),
@@ -438,9 +411,7 @@ class _State extends ConsumerState<SalidasScreen> {
                             const SizedBox(width: 5),
                             Expanded(
                               child: Text(
-                                _hasta != null
-                                    ? _formatFecha(_hasta!)
-                                    : 'Hasta',
+                                _hasta != null ? _fmt(_hasta!) : 'Hasta',
                                 style: TextStyle(
                                     fontSize: 10,
                                     color: _hasta != null
@@ -452,8 +423,6 @@ class _State extends ConsumerState<SalidasScreen> {
                         ),
                       ),
                     ),
-
-                    // Botón limpiar fechas
                     if (hayFiltroFecha) ...[
                       const SizedBox(width: 6),
                       GestureDetector(
@@ -473,7 +442,6 @@ class _State extends ConsumerState<SalidasScreen> {
                   ]),
                   const SizedBox(height: 6),
 
-                  // Contador de resultados
                   Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
@@ -508,8 +476,6 @@ class _State extends ConsumerState<SalidasScreen> {
                                 crossAxisAlignment:
                                     CrossAxisAlignment.start,
                                 children: [
-
-                                  // Fila 1: Descripción
                                   Text(s.repuestoDescripcion ?? '',
                                       style: const TextStyle(
                                           fontWeight: FontWeight.w500,
@@ -517,8 +483,6 @@ class _State extends ConsumerState<SalidasScreen> {
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis),
                                   const SizedBox(height: 8),
-
-                                  // Fila 2: Datos + acciones
                                   Row(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.center,
@@ -556,7 +520,8 @@ class _State extends ConsumerState<SalidasScreen> {
                                                   size: 12,
                                                   color: Colors.grey),
                                               const SizedBox(width: 4),
-                                              Text(s.fecha,
+                                              // ← fecha local formateada
+                                              Text(_fmt(s.fecha),
                                                   style: const TextStyle(
                                                       fontSize: 12,
                                                       color: Colors.grey)),
@@ -610,8 +575,6 @@ class _State extends ConsumerState<SalidasScreen> {
                                           ],
                                         ),
                                       ),
-
-                                      // Acciones derecha
                                       const SizedBox(width: 8),
                                       Column(
                                         mainAxisSize: MainAxisSize.min,
@@ -654,8 +617,7 @@ class _State extends ConsumerState<SalidasScreen> {
                                               onSelected: (v) {
                                                 if (v == 'ver') {
                                                   _verDetalle(context, s);
-                                                } else if (v ==
-                                                    'editar') {
+                                                } else if (v == 'editar') {
                                                   Navigator.push(
                                                       context,
                                                       MaterialPageRoute(
@@ -668,57 +630,44 @@ class _State extends ConsumerState<SalidasScreen> {
                                                                       SalidaFormScreen(
                                                                           salida:
                                                                               s))));
-                                                } else if (v ==
-                                                    'eliminar') {
-                                                  _eliminar(
-                                                      context, ref, s);
+                                                } else if (v == 'eliminar') {
+                                                  _eliminar(context, ref, s);
                                                 }
                                               },
                                               itemBuilder: (_) => [
                                                 const PopupMenuItem(
                                                     value: 'ver',
-                                                    child: Row(
-                                                        children: [
-                                                          Icon(
-                                                              Icons
-                                                                  .visibility_outlined,
-                                                              size: 16,
-                                                              color: Colors
-                                                                  .teal),
-                                                          SizedBox(
-                                                              width: 8),
-                                                          Text(
-                                                              'Ver detalle')
-                                                        ])),
+                                                    child: Row(children: [
+                                                      Icon(
+                                                          Icons
+                                                              .visibility_outlined,
+                                                          size: 16,
+                                                          color: Colors.teal),
+                                                      SizedBox(width: 8),
+                                                      Text('Ver detalle')
+                                                    ])),
                                                 const PopupMenuItem(
                                                     value: 'editar',
-                                                    child: Row(
-                                                        children: [
-                                                          Icon(
-                                                              Icons
-                                                                  .edit_outlined,
-                                                              size: 16),
-                                                          SizedBox(
-                                                              width: 8),
-                                                          Text('Editar')
-                                                        ])),
+                                                    child: Row(children: [
+                                                      Icon(
+                                                          Icons.edit_outlined,
+                                                          size: 16),
+                                                      SizedBox(width: 8),
+                                                      Text('Editar')
+                                                    ])),
                                                 const PopupMenuItem(
                                                     value: 'eliminar',
-                                                    child: Row(
-                                                        children: [
-                                                          Icon(
-                                                              Icons
-                                                                  .delete_outline,
-                                                              size: 16,
-                                                              color: Colors
-                                                                  .red),
-                                                          SizedBox(
-                                                              width: 8),
-                                                          Text('Eliminar',
-                                                              style: TextStyle(
-                                                                  color: Colors
-                                                                      .red))
-                                                        ])),
+                                                    child: Row(children: [
+                                                      Icon(
+                                                          Icons.delete_outline,
+                                                          size: 16,
+                                                          color: Colors.red),
+                                                      SizedBox(width: 8),
+                                                      Text('Eliminar',
+                                                          style: TextStyle(
+                                                              color:
+                                                                  Colors.red))
+                                                    ])),
                                               ],
                                             ),
                                           if (!canEditItem)
@@ -726,12 +675,10 @@ class _State extends ConsumerState<SalidasScreen> {
                                               onTap: () =>
                                                   _verDetalle(context, s),
                                               borderRadius:
-                                                  BorderRadius.circular(
-                                                      6),
+                                                  BorderRadius.circular(6),
                                               child: Container(
                                                 padding:
-                                                    const EdgeInsets.all(
-                                                        6),
+                                                    const EdgeInsets.all(6),
                                                 decoration: BoxDecoration(
                                                     color: Colors.teal
                                                         .withOpacity(0.08),

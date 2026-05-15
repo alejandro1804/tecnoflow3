@@ -69,7 +69,7 @@ class Maquina {
   final String  codigo;
   final String  estado;
   final String? descripcion;
-  final String? imagenUrl;    // ← nuevo
+  final String? imagenUrl;
 
   const Maquina({
     required this.id,
@@ -79,7 +79,7 @@ class Maquina {
     required this.codigo,
     required this.estado,
     this.descripcion,
-    this.imagenUrl,           // ← nuevo
+    this.imagenUrl,
   });
 
   factory Maquina.fromMap(Map<String, dynamic> m) => Maquina(
@@ -90,7 +90,7 @@ class Maquina {
         codigo:       m['codigo'],
         estado:       m['estado'] ?? 'activo',
         descripcion:  m['descripcion'],
-        imagenUrl:    m['imagen_url'],   // ← nuevo
+        imagenUrl:    m['imagen_url'],
       );
 
   Map<String, dynamic> toMap() => {
@@ -99,7 +99,7 @@ class Maquina {
         'codigo':      codigo,
         'estado':      estado,
         'descripcion': descripcion,
-        'imagen_url':  imagenUrl,        // ← nuevo
+        'imagen_url':  imagenUrl,
       };
 }
 
@@ -249,16 +249,16 @@ class TicketHistorial {
 
 // ── Ingreso de repuesto ───────────────────────────────────────
 class IngresoRepuesto {
-  final String  id;
-  final String  repuestoId;
-  final String? repuestoCodigo;
-  final String? repuestoDescripcion;
-  final int?    repuestoRef;
-  final String  registradoPor;
-  final int     cantidad;
-  final String  quienEntrega;
-  final String? descripcion;
-  final String  fecha;
+  final String   id;
+  final String   repuestoId;
+  final String?  repuestoCodigo;
+  final String?  repuestoDescripcion;
+  final int?     repuestoRef;
+  final String   registradoPor;
+  final int      cantidad;
+  final String   quienEntrega;
+  final String?  descripcion;
+  final DateTime fecha; // ← ahora DateTime (UTC→local al mostrar)
 
   const IngresoRepuesto({
     required this.id,
@@ -283,24 +283,24 @@ class IngresoRepuesto {
         cantidad:            m['cantidad'] ?? 0,
         quienEntrega:        m['quien_entrega'] ?? '',
         descripcion:         m['descripcion'],
-        fecha:               m['fecha'] ?? '',
+        fecha:               DateTime.parse(m['fecha']).toLocal(),
       );
 }
 
 // ── Salida de repuesto ────────────────────────────────────────
 class SalidaRepuesto {
-  final String  id;
-  final String  repuestoId;
-  final String? repuestoCodigo;
-  final String? repuestoDescripcion;
-  final int?    repuestoRef;
-  final String? ticketId;
-  final String? ticketNumero;
-  final String  registradoPor;
-  final int     cantidad;
-  final String  fecha;
-  final String? observacion;
-  final String? quienRetira;
+  final String   id;
+  final String   repuestoId;
+  final String?  repuestoCodigo;
+  final String?  repuestoDescripcion;
+  final int?     repuestoRef;
+  final String?  ticketId;
+  final String?  ticketNumero;
+  final String   registradoPor;
+  final int      cantidad;
+  final DateTime fecha; // ← ahora DateTime (UTC→local al mostrar)
+  final String?  observacion;
+  final String?  quienRetira;
 
   const SalidaRepuesto({
     required this.id,
@@ -327,7 +327,7 @@ class SalidaRepuesto {
     ticketNumero:        m['tickets']?['numero'],
     registradoPor:       m['registrado_por'],
     cantidad:            m['cantidad'] ?? 0,
-    fecha:               m['fecha'] ?? '',
+    fecha:               DateTime.parse(m['fecha']).toLocal(),
     observacion:         m['observacion'],
     quienRetira:         m['quien_retira'],
   );

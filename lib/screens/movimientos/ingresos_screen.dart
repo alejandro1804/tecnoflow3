@@ -1,6 +1,7 @@
 // lib/screens/movimientos/ingresos_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../core/PdfGenerator.dart';
 import '../../models/models.dart';
 import '../../providers/providers.dart';
@@ -19,32 +20,11 @@ class _State extends ConsumerState<IngresosScreen> {
   DateTime? _hasta;
   bool      _generandoPdf = false;
 
-  @override
-  void initState() {
-    super.initState();
-    Future.microtask(() => ref.invalidate(ingresosProvider));
-  }
+  // Formatea un DateTime local a "dd/MM/yyyy"
+  String _fmt(DateTime d) => DateFormat('dd/MM/yyyy').format(d);
 
-  // Intenta parsear "dd/MM/yyyy" o "yyyy-MM-dd" (lo que devuelva el modelo)
-  DateTime? _parseFecha(String raw) {
-    try {
-      final p = raw.trim();
-      if (p.contains('/')) {
-        final parts = p.split('/');
-        if (parts.length == 3) {
-          return DateTime(
-              int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0]));
-        }
-      } else if (p.contains('-')) {
-        final parts = p.split('-');
-        if (parts.length == 3) {
-          return DateTime(
-              int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
-        }
-      }
-    } catch (_) {}
-    return null;
-  }
+  // Formatea un DateTime local a "dd/MM/yyyy HH:mm"
+  String _fmtConHora(DateTime d) => DateFormat('dd/MM/yyyy HH:mm').format(d);
 
   List<IngresoRepuesto> _filtrar(List<IngresoRepuesto> todos) {
     return todos.where((ing) {
@@ -57,13 +37,15 @@ class _State extends ConsumerState<IngresosScreen> {
             ing.quienEntrega.toLowerCase().contains(q);
         if (!coincide) return false;
       }
-      // Filtro cronológico
+      // Filtro cronológico — comparamos solo la fecha local (sin hora)
       if (_desde != null || _hasta != null) {
-        final fecha = _parseFecha(ing.fecha);
-        if (fecha == null) return false;
-        if (_desde != null && fecha.isBefore(_desde!)) return false;
+        final soloFecha = DateTime(
+            ing.fecha.year, ing.fecha.month, ing.fecha.day);
+        if (_desde != null && soloFecha.isBefore(_desde!)) return false;
         if (_hasta != null &&
-            fecha.isAfter(_hasta!.add(const Duration(days: 1) - const Duration(microseconds: 1)))) {
+            soloFecha.isAfter(
+                _hasta!.add(const Duration(days: 1) -
+                    const Duration(microseconds: 1)))) {
           return false;
         }
       }
@@ -86,7 +68,6 @@ class _State extends ConsumerState<IngresosScreen> {
     setState(() {
       if (esDesde) {
         _desde = picked;
-        // Si "hasta" queda antes de "desde", la limpiamos
         if (_hasta != null && _hasta!.isBefore(picked)) _hasta = null;
       } else {
         _hasta = picked;
@@ -96,9 +77,6 @@ class _State extends ConsumerState<IngresosScreen> {
   }
 
   void _limpiarFechas() => setState(() { _desde = null; _hasta = null; });
-
-  String _formatFecha(DateTime d) =>
-      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 
   Future<void> _exportarPdf(List<IngresoRepuesto> ingresos) async {
     setState(() => _generandoPdf = true);
@@ -228,7 +206,8 @@ class _State extends ConsumerState<IngresosScreen> {
           _DetalleRow(Icons.qr_code_outlined, 'Código', ing.repuestoCodigo ?? '—'),
           _DetalleRow(Icons.numbers_outlined, 'Cantidad', '+${ing.cantidad}',
               color: Colors.green),
-          _DetalleRow(Icons.calendar_today_outlined, 'Fecha', ing.fecha),
+          _DetalleRow(Icons.calendar_today_outlined, 'Fecha',
+              _fmtConHora(ing.fecha)),
           _DetalleRow(Icons.person_outline, 'Quien entrega', ing.quienEntrega),
           if (ing.descripcion != null)
             _DetalleRow(Icons.notes_outlined, 'Nota', ing.descripcion!),
@@ -236,6 +215,12 @@ class _State extends ConsumerState<IngresosScreen> {
         ]),
       ),
     );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() => ref.invalidate(ingresosProvider));
   }
 
   @override
@@ -320,7 +305,6 @@ class _State extends ConsumerState<IngresosScreen> {
 
                   // ── Filtro desde / hasta ──────────────────────────
                   Row(children: [
-                    // Botón DESDE
                     Expanded(
                       child: GestureDetector(
                         onTap: () => _pickFecha(esDesde: true),
@@ -345,9 +329,7 @@ class _State extends ConsumerState<IngresosScreen> {
                             const SizedBox(width: 5),
                             Expanded(
                               child: Text(
-                                _desde != null
-                                    ? _formatFecha(_desde!)
-                                    : 'Desde',
+                                _desde != null ? _fmt(_desde!) : 'Desde',
                                 style: TextStyle(
                                     fontSize: 10,
                                     color: _desde != null
@@ -360,14 +342,9 @@ class _State extends ConsumerState<IngresosScreen> {
                       ),
                     ),
                     const SizedBox(width: 6),
-
-                    // Separador
                     const Text('—',
-                        style:
-                            TextStyle(fontSize: 12, color: Colors.grey)),
+                        style: TextStyle(fontSize: 12, color: Colors.grey)),
                     const SizedBox(width: 6),
-
-                    // Botón HASTA
                     Expanded(
                       child: GestureDetector(
                         onTap: () => _pickFecha(esDesde: false),
@@ -392,9 +369,7 @@ class _State extends ConsumerState<IngresosScreen> {
                             const SizedBox(width: 5),
                             Expanded(
                               child: Text(
-                                _hasta != null
-                                    ? _formatFecha(_hasta!)
-                                    : 'Hasta',
+                                _hasta != null ? _fmt(_hasta!) : 'Hasta',
                                 style: TextStyle(
                                     fontSize: 10,
                                     color: _hasta != null
@@ -406,8 +381,6 @@ class _State extends ConsumerState<IngresosScreen> {
                         ),
                       ),
                     ),
-
-                    // Botón limpiar fechas (solo si hay alguna activa)
                     if (hayFiltroFecha) ...[
                       const SizedBox(width: 6),
                       GestureDetector(
@@ -427,7 +400,6 @@ class _State extends ConsumerState<IngresosScreen> {
                   ]),
                   const SizedBox(height: 6),
 
-                  // Contador de resultados
                   Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
@@ -457,8 +429,6 @@ class _State extends ConsumerState<IngresosScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-
-                                  // Fila 1: Descripción
                                   Text(ing.repuestoDescripcion ?? '',
                                       style: const TextStyle(
                                           fontWeight: FontWeight.w500,
@@ -466,8 +436,6 @@ class _State extends ConsumerState<IngresosScreen> {
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis),
                                   const SizedBox(height: 8),
-
-                                  // Fila 2: Datos + acciones
                                   Row(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.center,
@@ -501,7 +469,8 @@ class _State extends ConsumerState<IngresosScreen> {
                                                   size: 12,
                                                   color: Colors.grey),
                                               const SizedBox(width: 4),
-                                              Text(ing.fecha,
+                                              // ← fecha local formateada
+                                              Text(_fmt(ing.fecha),
                                                   style: const TextStyle(
                                                       fontSize: 12,
                                                       color: Colors.grey)),
@@ -546,8 +515,6 @@ class _State extends ConsumerState<IngresosScreen> {
                                           ],
                                         ),
                                       ),
-
-                                      // Acciones derecha
                                       const SizedBox(width: 8),
                                       Column(
                                         mainAxisSize: MainAxisSize.min,

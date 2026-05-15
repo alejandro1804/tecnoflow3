@@ -21,6 +21,16 @@ final _ticketProvider = FutureProvider.family<Ticket?, String>(
 final _historialProvider = FutureProvider.family<List<TicketHistorial>, String>(
     (ref, id) => ref.watch(ticketsRepoProvider).getHistorial(id));
 
+// ── Helper de formato de fechas (UTC → hora local) ────────────
+String _fmtFecha(dynamic fecha, {bool soloFecha = false}) {
+  if (fecha == null) return '—';
+  final dt = (fecha is DateTime) ? fecha : DateTime.parse(fecha.toString());
+  final local = dt.toLocal();
+  return soloFecha
+      ? DateFormat('dd/MM/yyyy').format(local)
+      : DateFormat('dd/MM/yyyy HH:mm').format(local);
+}
+
 class TicketDetalleScreen extends ConsumerStatefulWidget {
   final String ticketId;
   const TicketDetalleScreen({super.key, required this.ticketId});
@@ -145,7 +155,7 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                 _pdfFila('N° Externo', ticket.numero!),
               _pdfFila('Creado por', ticket.creadoPorNombre ?? '—'),
               _pdfFila('Técnico', ticket.tecnicoNombre ?? 'Sin asignar'),
-              _pdfFila('Fecha', ticket.createdAt.toString().substring(0, 10)),
+              _pdfFila('Fecha', _fmtFecha(ticket.createdAt, soloFecha: true)),
             ]),
           ),
           pw.SizedBox(height: 16),
@@ -223,7 +233,7 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                 4: const pw.FlexColumnWidth(2.5),
               },
               data: historial.map((h) => [
-                h.fecha.toString().substring(0, 16),
+                _fmtFecha(h.fecha),
                 h.usuarioNombre ?? '—',
                 h.estadoAnterior != null ? labelEstado(h.estadoAnterior!) : '—',
                 labelEstado(h.estadoNuevo),
@@ -729,7 +739,7 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                 _InfoRow(Icons.engineering_outlined, 'Técnico',
                     ticket.tecnicoNombre ?? 'Sin asignar'),
                 _InfoRow(Icons.calendar_today_outlined, 'Fecha',
-                    ticket.createdAt.toString().substring(0, 10)),
+                    _fmtFecha(ticket.createdAt, soloFecha: true)),
               ]),
             )),
 
@@ -1135,7 +1145,7 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                                     if (h.comentario != null)
                                       Text(h.comentario!,
                                           style: const TextStyle(fontSize: 12)),
-                                    Text(h.fecha.toString().substring(0, 16),
+                                    Text(_fmtFecha(h.fecha),
                                         style: const TextStyle(
                                             fontSize: 11,
                                             color: Colors.grey)),
@@ -1178,7 +1188,7 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                                     fontWeight: FontWeight.w600,
                                     fontSize: 12)),
                             subtitle: Text(
-                                c.createdAt.toString().substring(0, 16),
+                                _fmtFecha(c.createdAt),
                                 style: const TextStyle(fontSize: 11)),
                             trailing: const Icon(Icons.check_circle,
                                 color: Colors.green, size: 18),
