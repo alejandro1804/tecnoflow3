@@ -20,6 +20,7 @@ import '../screens/tickets/ticket_detalle_screen.dart';
 import '../screens/movimientos/ingresos_screen.dart';
 import '../screens/movimientos/ingreso_form_screen.dart';
 import '../screens/movimientos/salidas_screen.dart';
+import '../screens/backup/backup_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final auth    = ref.watch(authStateProvider);
@@ -77,6 +78,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/ingresos',       builder: (_, __) => const IngresosScreen()),
       GoRoute(path: '/ingresos/nuevo', builder: (_, __) => const IngresoFormScreen()),
       GoRoute(path: '/salidas',        builder: (_, __) => const SalidasScreen()),
+
+      // Backup / Exportar
+      GoRoute(path: '/backup',         builder: (_, __) => const BackupScreen()),
     ],
   );
 });

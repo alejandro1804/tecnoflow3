@@ -340,6 +340,11 @@ class HomeScreen extends ConsumerWidget {
                     icon: Icons.people_outline, title: 'Usuarios',
                     color: Colors.purple,
                     onTap: () => context.push('/usuarios')),
+                // ── Backup — solo admin ───────────────
+                _MenuCard(
+                    icon: Icons.table_chart_outlined, title: 'Exportar / Backup',
+                    color: Colors.green,
+                    onTap: () => context.push('/backup')),
               ],
 
               if (isTecnico)
