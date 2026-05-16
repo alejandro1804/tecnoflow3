@@ -292,6 +292,7 @@ class HomeScreen extends ConsumerWidget {
 
               const SizedBox(height: 8),
 
+              // ── Menú admin ────────────────────────────
               if (isAdmin || isTecnico || isPaniolero)
                 _MenuCard(
                     icon: Icons.inventory_2_outlined, title: 'Repuestos',
@@ -304,17 +305,17 @@ class HomeScreen extends ConsumerWidget {
                     color: Colors.teal,
                     onTap: () => context.push('/maquinas')),
 
-              if (isAdmin || isPaniolero)
+              // Ingresos y Salidas — solo admin y pañolero
+              if (isAdmin || isPaniolero) ...[
                 _MenuCard(
                     icon: Icons.input_outlined, title: 'Ingresos',
                     color: Colors.green,
                     onTap: () => context.push('/ingresos')),
-
-              if (isAdmin || isPaniolero)
                 _MenuCard(
                     icon: Icons.output_outlined, title: 'Salidas',
                     color: Colors.red,
                     onTap: () => context.push('/salidas')),
+              ],
 
               if (isAdmin)
                 _MenuCard(
@@ -340,25 +341,13 @@ class HomeScreen extends ConsumerWidget {
                     icon: Icons.people_outline, title: 'Usuarios',
                     color: Colors.purple,
                     onTap: () => context.push('/usuarios')),
-                // ── Backup — solo admin ───────────────
                 _MenuCard(
                     icon: Icons.table_chart_outlined, title: 'Exportar / Backup',
                     color: Colors.green,
                     onTap: () => context.push('/backup')),
               ],
 
-              if (isTecnico)
-                _MenuCard(
-                    icon: Icons.input_outlined, title: 'Ingresos',
-                    color: Colors.green,
-                    onTap: () => context.push('/ingresos')),
-
-              if (isTecnico)
-                _MenuCard(
-                    icon: Icons.output_outlined, title: 'Salidas',
-                    color: Colors.red,
-                    onTap: () => context.push('/salidas')),
-
+              // Tickets — todos los roles no admin
               if (!isAdmin)
                 _MenuCard(
                     icon: Icons.confirmation_number_outlined, title: 'Tickets',

@@ -83,7 +83,61 @@ class _State extends ConsumerState<MaquinasScreen> {
     }
   }
 
-  Future<void> _generarQr(Maquina maquina) async {
+  // ── Dialog de selección de tamaño ────────────────────────────
+  Future<void> _mostrarDialogTamanoQr(Maquina maquina) async {
+    String? tamanoElegido = await showDialog<String>(
+      context: context,
+      builder: (ctx) {
+        String seleccion = 'A7';
+        return StatefulBuilder(
+          builder: (ctx, setStateDialog) => AlertDialog(
+            title: const Text('Tamaño de etiqueta'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                RadioListTile<String>(
+                  title: const Text('A6  —  14,8 × 10,5 cm'),
+                  subtitle: const Text(
+                    'Máquinas grandes',
+                    style: TextStyle(fontSize: 11),
+                  ),
+                  value: 'A6',
+                  groupValue: seleccion,
+                  onChanged: (v) => setStateDialog(() => seleccion = v!),
+                ),
+                RadioListTile<String>(
+                  title: const Text('A7  —  10,5 × 7,4 cm'),
+                  subtitle: const Text(
+                    'Máquinas medianas o chicas',
+                    style: TextStyle(fontSize: 11),
+                  ),
+                  value: 'A7',
+                  groupValue: seleccion,
+                  onChanged: (v) => setStateDialog(() => seleccion = v!),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, seleccion),
+                child: const Text('Generar'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (tamanoElegido != null) {
+      await _generarQr(maquina, tamanoElegido);
+    }
+  }
+
+  Future<void> _generarQr(Maquina maquina, String tamano) async {
     setState(() => _generandoQr = maquina.id);
     try {
       final repuestos = await ref
@@ -92,6 +146,7 @@ class _State extends ConsumerState<MaquinasScreen> {
       await PdfGenerator.generarQrMaquina(
         maquina:   maquina,
         repuestos: repuestos,
+        tamano:    tamano,
       );
     } catch (e) {
       if (mounted) {
@@ -561,7 +616,7 @@ class _State extends ConsumerState<MaquinasScreen> {
                                               icon: Icons.qr_code_outlined,
                                               color: Colors.teal,
                                               tooltip: 'Generar QR',
-                                              onTap: () => _generarQr(m),
+                                              onTap: () => _mostrarDialogTamanoQr(m),
                                             ),
                                       const SizedBox(width: 8),
 

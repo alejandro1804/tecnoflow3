@@ -139,23 +139,6 @@ class _State extends ConsumerState<RepuestoFormScreen> {
     }
   }
 
-  Future<void> _delete() async {
-    final ok = await confirmarEliminacion(
-        context, '¿Eliminar "${_descCtrl.text}"?');
-    if (!ok) return;
-    setState(() => _loading = true);
-    try {
-      await ImageHelper.eliminarImagen(widget.repuestoId!);
-      await ref.read(repuestosRepoProvider).delete(widget.repuestoId!);
-      ref.invalidate(repuestosProvider);
-      if (mounted) context.pop();
-    } catch (e) {
-      setState(() => _error = e.toString());
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
   @override
   void dispose() {
     _codCtrl.dispose(); _descCtrl.dispose();
@@ -164,126 +147,114 @@ class _State extends ConsumerState<RepuestoFormScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final profile = ref.watch(myProfileProvider).valueOrNull;
-    final isAdmin = profile?.isAdmin ?? false;
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      title: Text(isEdit ? 'Editar repuesto' : 'Nuevo repuesto'),
+    ),
+    body: _loadingData
+        ? const Center(child: CircularProgressIndicator())
+        : SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(isEdit ? 'Editar repuesto' : 'Nuevo repuesto'),
-        actions: [
-          if (isEdit && isAdmin)
-            IconButton(
-                icon: const Icon(Icons.delete_outline),
-                color: Colors.red[200],
-                onPressed: _loading ? null : _delete),
-        ],
-      ),
-      body: _loadingData
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-
-                    // ── REF (solo lectura en edición) ─────
-                    if (isEdit && _ref != null) ...[
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 12),
-                        decoration: BoxDecoration(
-                            color: Colors.purple.withOpacity(0.06),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                                color: Colors.purple.withOpacity(0.3))),
-                        child: Row(children: [
-                          const Icon(Icons.tag,
-                              color: Colors.purple, size: 20),
-                          const SizedBox(width: 10),
-                          const Text('N° Referencia',
-                              style: TextStyle(
-                                  fontSize: 13, color: Colors.purple)),
-                          const Spacer(),
-                          Text('$_ref',
-                              style: const TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.purple)),
-                        ]),
-                      ),
-                      const SizedBox(height: 20),
-                    ],
-
-                    // ── Imagen ────────────────────────────
-                    const Text('IMAGEN', style: TextStyle(
-                        fontSize: 11, fontWeight: FontWeight.w700,
-                        color: Colors.grey, letterSpacing: 1)),
-                    const SizedBox(height: 8),
-                    _ImagenSelector(
-                      imagenBytes:   _imagenBytes,
-                      imagenUrl:     _imagenUrl,
-                      subiendoImg:   _subiendoImg,
-                      onSeleccionar: _seleccionarImagen,
-                      onQuitar:      _quitarImagen,
+                  // ── REF (solo lectura en edición) ─────
+                  if (isEdit && _ref != null) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                          color: Colors.purple.withOpacity(0.06),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                              color: Colors.purple.withOpacity(0.3))),
+                      child: Row(children: [
+                        const Icon(Icons.tag,
+                            color: Colors.purple, size: 20),
+                        const SizedBox(width: 10),
+                        const Text('N° Referencia',
+                            style: TextStyle(
+                                fontSize: 13, color: Colors.purple)),
+                        const Spacer(),
+                        Text('$_ref',
+                            style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.purple)),
+                      ]),
                     ),
                     const SizedBox(height: 20),
-
-                    // ── Campos ────────────────────────────
-                    TextFormField(
-                      controller: _codCtrl,
-                      textCapitalization: TextCapitalization.characters,
-                      decoration: const InputDecoration(
-                          labelText: 'Código / SKU (opcional)',
-                          prefixIcon: Icon(Icons.qr_code_outlined)),
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _descCtrl,
-                      maxLines: 2,
-                      decoration: const InputDecoration(
-                          labelText: 'Descripción',
-                          prefixIcon: Icon(Icons.description_outlined)),
-                      validator: (v) =>
-                          (v == null || v.trim().isEmpty) ? 'Requerido' : null,
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _minCtrl,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      decoration: const InputDecoration(
-                          labelText: 'Stock mínimo',
-                          prefixIcon: Icon(Icons.warning_amber_outlined)),
-                      validator: (v) =>
-                          (v == null || v.isEmpty) ? 'Requerido' : null,
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _ubicCtrl,
-                      decoration: const InputDecoration(
-                          labelText: 'Ubicación / Depósito (opcional)',
-                          prefixIcon: Icon(Icons.location_on_outlined))),
-
-                    if (_error != null) ...[
-                      const SizedBox(height: 12),
-                      ErrorContainer(_error!),
-                    ],
-                    const SizedBox(height: 28),
-                    LoadingButton(
-                      loading: _loading,
-                      onPressed: _submit,
-                      label: _subiendoImg
-                          ? 'Subiendo imagen...'
-                          : 'Guardar'),
                   ],
-                ),
+
+                  // ── Imagen ────────────────────────────
+                  const Text('IMAGEN', style: TextStyle(
+                      fontSize: 11, fontWeight: FontWeight.w700,
+                      color: Colors.grey, letterSpacing: 1)),
+                  const SizedBox(height: 8),
+                  _ImagenSelector(
+                    imagenBytes:   _imagenBytes,
+                    imagenUrl:     _imagenUrl,
+                    subiendoImg:   _subiendoImg,
+                    onSeleccionar: _seleccionarImagen,
+                    onQuitar:      _quitarImagen,
+                  ),
+                  const SizedBox(height: 20),
+
+                  // ── Campos ────────────────────────────
+                  TextFormField(
+                    controller: _codCtrl,
+                    textCapitalization: TextCapitalization.characters,
+                    decoration: const InputDecoration(
+                        labelText: 'Código / SKU (opcional)',
+                        prefixIcon: Icon(Icons.qr_code_outlined)),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _descCtrl,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                        labelText: 'Descripción',
+                        prefixIcon: Icon(Icons.description_outlined)),
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Requerido' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _minCtrl,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: const InputDecoration(
+                        labelText: 'Stock mínimo',
+                        prefixIcon: Icon(Icons.warning_amber_outlined)),
+                    validator: (v) =>
+                        (v == null || v.isEmpty) ? 'Requerido' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _ubicCtrl,
+                    decoration: const InputDecoration(
+                        labelText: 'Ubicación / Depósito (opcional)',
+                        prefixIcon: Icon(Icons.location_on_outlined))),
+
+                  if (_error != null) ...[
+                    const SizedBox(height: 12),
+                    ErrorContainer(_error!),
+                  ],
+                  const SizedBox(height: 28),
+                  LoadingButton(
+                    loading: _loading,
+                    onPressed: _submit,
+                    label: _subiendoImg
+                        ? 'Subiendo imagen...'
+                        : 'Guardar'),
+                ],
               ),
             ),
-    );
-  }
+          ),
+  );
 }
 
 // ── Widget selector de imagen ─────────────────────────────────
