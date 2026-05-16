@@ -9,6 +9,9 @@ import '../../core/imageHelper.dart';
 import '../../models/models.dart';
 import '../../providers/providers.dart';
 
+// Unidades de medida disponibles
+const _unidades = ['unidad', 'metro', 'litro', 'kg', 'rollo'];
+
 class RepuestoFormScreen extends ConsumerStatefulWidget {
   final String? repuestoId;
   const RepuestoFormScreen({super.key, this.repuestoId});
@@ -17,19 +20,21 @@ class RepuestoFormScreen extends ConsumerStatefulWidget {
 }
 
 class _State extends ConsumerState<RepuestoFormScreen> {
-  final _formKey  = GlobalKey<FormState>();
-  final _codCtrl  = TextEditingController();
-  final _descCtrl = TextEditingController();
-  final _minCtrl  = TextEditingController(text: '0');
-  final _ubicCtrl = TextEditingController();
+  final _formKey    = GlobalKey<FormState>();
+  final _codCtrl    = TextEditingController();
+  final _descCtrl   = TextEditingController();
+  final _minCtrl    = TextEditingController(text: '0');
+  final _ubicCtrl   = TextEditingController();
+  final _notasCtrl  = TextEditingController(); // NUEVO
 
-  bool       _loading     = false;
-  bool       _loadingData = false;
-  bool       _subiendoImg = false;
+  bool       _loading       = false;
+  bool       _loadingData   = false;
+  bool       _subiendoImg   = false;
   String?    _error;
   String?    _imagenUrl;
   Uint8List? _imagenBytes;
   int?       _ref;
+  String     _unidadMedida  = 'unidad'; // NUEVO
 
   bool get isEdit => widget.repuestoId != null;
 
@@ -41,13 +46,15 @@ class _State extends ConsumerState<RepuestoFormScreen> {
     try {
       final lista = await ref.read(repuestosRepoProvider).getAll();
       final rep   = lista.firstWhere((r) => r.id == widget.repuestoId);
-      _codCtrl.text  = rep.codigo ?? '';
-      _descCtrl.text = rep.descripcion;
-      _minCtrl.text  = rep.stockMinimo.toString();
-      _ubicCtrl.text = rep.ubicacion ?? '';
+      _codCtrl.text   = rep.codigo ?? '';
+      _descCtrl.text  = rep.descripcion;
+      _minCtrl.text   = rep.stockMinimo.toString();
+      _ubicCtrl.text  = rep.ubicacion ?? '';
+      _notasCtrl.text = rep.notas ?? ''; // NUEVO
       setState(() {
-        _imagenUrl = rep.imagenUrl;
-        _ref       = rep.ref;
+        _imagenUrl    = rep.imagenUrl;
+        _ref          = rep.ref;
+        _unidadMedida = rep.unidadMedida; // NUEVO
       });
     } finally {
       if (mounted) setState(() => _loadingData = false);
@@ -85,15 +92,21 @@ class _State extends ConsumerState<RepuestoFormScreen> {
           ? null
           : _codCtrl.text.trim();
 
+      final notasFinal = _notasCtrl.text.trim().isEmpty
+          ? null
+          : _notasCtrl.text.trim();
+
       final rep = Repuesto(
-        id:          widget.repuestoId ?? '',
-        codigo:      codigoFinal,
-        descripcion: _descCtrl.text.trim(),
-        stockActual: 0,
-        stockMinimo: int.tryParse(_minCtrl.text) ?? 0,
-        ubicacion:   _ubicCtrl.text.trim().isEmpty
+        id:           widget.repuestoId ?? '',
+        codigo:       codigoFinal,
+        descripcion:  _descCtrl.text.trim(),
+        stockActual:  0,
+        stockMinimo:  int.tryParse(_minCtrl.text) ?? 0,
+        ubicacion:    _ubicCtrl.text.trim().isEmpty
             ? null : _ubicCtrl.text.trim(),
-        imagenUrl:   urlFinal,
+        imagenUrl:    urlFinal,
+        unidadMedida: _unidadMedida, // NUEVO
+        notas:        notasFinal,    // NUEVO
       );
 
       if (isEdit) {
@@ -115,13 +128,15 @@ class _State extends ConsumerState<RepuestoFormScreen> {
               _imagenBytes!, nuevo.id);
           await ref.read(repuestosRepoProvider).update(
               nuevo.id, Repuesto(
-                id:          nuevo.id,
-                codigo:      rep.codigo,
-                descripcion: rep.descripcion,
-                stockActual: 0,
-                stockMinimo: rep.stockMinimo,
-                ubicacion:   rep.ubicacion,
-                imagenUrl:   urlNew,
+                id:           nuevo.id,
+                codigo:       rep.codigo,
+                descripcion:  rep.descripcion,
+                stockActual:  0,
+                stockMinimo:  rep.stockMinimo,
+                ubicacion:    rep.ubicacion,
+                imagenUrl:    urlNew,
+                unidadMedida: rep.unidadMedida, // NUEVO
+                notas:        rep.notas,        // NUEVO
               ));
         }
       }
@@ -141,8 +156,9 @@ class _State extends ConsumerState<RepuestoFormScreen> {
 
   @override
   void dispose() {
-    _codCtrl.dispose(); _descCtrl.dispose();
-    _minCtrl.dispose(); _ubicCtrl.dispose();
+    _codCtrl.dispose();   _descCtrl.dispose();
+    _minCtrl.dispose();   _ubicCtrl.dispose();
+    _notasCtrl.dispose(); // NUEVO
     super.dispose();
   }
 
@@ -203,7 +219,7 @@ class _State extends ConsumerState<RepuestoFormScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  // ── Campos ────────────────────────────
+                  // ── Código ────────────────────────────
                   TextFormField(
                     controller: _codCtrl,
                     textCapitalization: TextCapitalization.characters,
@@ -212,6 +228,8 @@ class _State extends ConsumerState<RepuestoFormScreen> {
                         prefixIcon: Icon(Icons.qr_code_outlined)),
                   ),
                   const SizedBox(height: 16),
+
+                  // ── Descripción ───────────────────────
                   TextFormField(
                     controller: _descCtrl,
                     maxLines: 2,
@@ -222,6 +240,24 @@ class _State extends ConsumerState<RepuestoFormScreen> {
                         (v == null || v.trim().isEmpty) ? 'Requerido' : null,
                   ),
                   const SizedBox(height: 16),
+
+                  // ── Unidad de medida (NUEVO) ───────────
+                  DropdownButtonFormField<String>(
+                    value: _unidadMedida,
+                    decoration: const InputDecoration(
+                        labelText: 'Unidad de medida',
+                        prefixIcon: Icon(Icons.straighten_outlined)),
+                    items: _unidades.map((u) => DropdownMenuItem(
+                      value: u,
+                      child: Text(u),
+                    )).toList(),
+                    onChanged: (v) {
+                      if (v != null) setState(() => _unidadMedida = v);
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  // ── Stock mínimo ──────────────────────
                   TextFormField(
                     controller: _minCtrl,
                     keyboardType: TextInputType.number,
@@ -233,11 +269,25 @@ class _State extends ConsumerState<RepuestoFormScreen> {
                         (v == null || v.isEmpty) ? 'Requerido' : null,
                   ),
                   const SizedBox(height: 16),
+
+                  // ── Ubicación ─────────────────────────
                   TextFormField(
                     controller: _ubicCtrl,
                     decoration: const InputDecoration(
                         labelText: 'Ubicación / Depósito (opcional)',
                         prefixIcon: Icon(Icons.location_on_outlined))),
+                  const SizedBox(height: 16),
+
+                  // ── Notas (NUEVO) ─────────────────────
+                  TextFormField(
+                    controller: _notasCtrl,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                        labelText: 'Notas (opcional)',
+                        hintText: 'Ej: usar solo en máquina X, viene en packs de 10...',
+                        prefixIcon: Icon(Icons.notes_outlined),
+                        alignLabelWithHint: true),
+                  ),
 
                   if (_error != null) ...[
                     const SizedBox(height: 12),

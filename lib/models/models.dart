@@ -119,6 +119,8 @@ class Repuesto {
   final String? imagenUrl;
   final bool    activo;
   final int?    ref;
+  final String  unidadMedida;   // NUEVO
+  final String? notas;          // NUEVO
 
   const Repuesto({
     required this.id,
@@ -130,39 +132,47 @@ class Repuesto {
     this.imagenUrl,
     this.activo = true,
     this.ref,
+    this.unidadMedida = 'unidad', // NUEVO
+    this.notas,                   // NUEVO
   });
 
   bool get stockBajo => stockActual < stockMinimo;
 
   factory Repuesto.fromMap(Map<String, dynamic> m) => Repuesto(
-    id:          m['id'],
-    codigo:      m['codigo'],
-    descripcion: m['descripcion'],
-    stockActual: m['stock_actual'] ?? 0,
-    stockMinimo: m['stock_minimo'] ?? 0,
-    ubicacion:   m['ubicacion'],
-    imagenUrl:   m['imagen_url'],
-    activo:      m['activo'] ?? true,
-    ref:         m['ref'],
+    id:           m['id'],
+    codigo:       m['codigo'],
+    descripcion:  m['descripcion'],
+    stockActual:  m['stock_actual'] ?? 0,
+    stockMinimo:  m['stock_minimo'] ?? 0,
+    ubicacion:    m['ubicacion'],
+    imagenUrl:    m['imagen_url'],
+    activo:       m['activo'] ?? true,
+    ref:          m['ref'],
+    unidadMedida: m['unidad_medida'] ?? 'unidad', // NUEVO
+    notas:        m['notas'],                      // NUEVO
   );
 
   Map<String, dynamic> toInsert() => {
-    'codigo':       codigo,
-    'descripcion':  descripcion,
-    'stock_actual': stockActual,
-    'stock_minimo': stockMinimo,
-    'ubicacion':    ubicacion,
-    'imagen_url':   imagenUrl,
-    'activo':       activo,
+    'codigo':        codigo,
+    'descripcion':   descripcion,
+    'stock_actual':  stockActual,
+    'stock_minimo':  stockMinimo,
+    'ubicacion':     ubicacion,
+    'imagen_url':    imagenUrl,
+    'activo':        activo,
+    'unidad_medida': unidadMedida, // NUEVO
+    'notas':         notas,        // NUEVO
   };
 
   Map<String, dynamic> toUpdate() => {
-    'codigo':       codigo,
-    'descripcion':  descripcion,
-    'stock_minimo': stockMinimo,
-    'ubicacion':    ubicacion,
-    'imagen_url':   imagenUrl,
-    'activo':       activo,
+    'codigo':        codigo,
+    'descripcion':   descripcion,
+    'stock_minimo':  stockMinimo,
+    'ubicacion':     ubicacion,
+    'imagen_url':    imagenUrl,
+    'activo':        activo,
+    'unidad_medida': unidadMedida, // NUEVO
+    'notas':         notas,        // NUEVO
   };
 }
 

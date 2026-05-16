@@ -307,7 +307,7 @@ class _RepuestoCard extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(2)))),
               const SizedBox(height: 16),
 
-              // ── Título + badge REF sin overflow ──────
+              // ── Título + badge REF ────────────────────
               Row(children: [
                 Expanded(
                   child: Text('DETALLE DE REPUESTO', style: const TextStyle(
@@ -338,6 +338,7 @@ class _RepuestoCard extends ConsumerWidget {
               ]),
               const SizedBox(height: 12),
 
+              // ── Imagen ────────────────────────────────
               if (repuesto.imagenUrl != null) ...[
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
@@ -380,13 +381,20 @@ class _RepuestoCard extends ConsumerWidget {
                 ),
                 const SizedBox(height: 16),
               ],
+
+              // ── Datos principales ─────────────────────
               _DetalleRow(Icons.qr_code_outlined, 'Código',
                   repuesto.codigo ?? '—'),
               _DetalleRow(Icons.description_outlined, 'Descripción',
                   repuesto.descripcion),
+              _DetalleRow(Icons.straighten_outlined, 'Unidad de medida',
+                  repuesto.unidadMedida),                          // NUEVO
               _DetalleRow(Icons.location_on_outlined, 'Ubicación',
                   repuesto.ubicacion ?? '—'),
+
               const Divider(height: 20),
+
+              // ── Stock ─────────────────────────────────
               _DetalleRow(Icons.inventory_2_outlined, 'Stock actual',
                   repuesto.stockActual.toString(),
                   color: repuesto.stockBajo ? Colors.red : Colors.green),
@@ -420,6 +428,47 @@ class _RepuestoCard extends ConsumerWidget {
                               ? Colors.red : Colors.green)),
                 ]),
               ),
+
+              // ── Notas (NUEVO) ─────────────────────────
+              if (repuesto.notas != null && repuesto.notas!.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                      color: Colors.amber.withOpacity(0.07),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                          color: Colors.amber.withOpacity(0.3))),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.notes_outlined,
+                          size: 16, color: Colors.amber),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('NOTAS',
+                                style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.amber,
+                                    letterSpacing: 0.8)),
+                            const SizedBox(height: 4),
+                            Text(repuesto.notas!,
+                                style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.black87,
+                                    height: 1.4)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -591,7 +640,7 @@ class _RepuestoCard extends ConsumerWidget {
                 ),
                 const SizedBox(height: 10),
 
-                // ── FILA 3: Íconos — ancho completo ──
+                // ── FILA 3: Íconos ────────────────────
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
