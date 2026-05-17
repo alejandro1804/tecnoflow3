@@ -440,9 +440,10 @@ class PdfGenerator {
   }
 
   // ── Tabla Repuestos ───────────────────────────────────────
+  // Columnas: REF | Descripcion | Unidad | Ubicacion | Stock | Min.
   static pw.Widget _buildTablaRepuestos(List<Repuesto> repuestos) {
     return pw.TableHelper.fromTextArray(
-      headers: ['REF', 'Codigo', 'Descripcion', 'Ubicacion', 'Stock', 'Min.'],
+      headers: ['REF', 'Descripcion', 'Unidad', 'Ubicacion', 'Stock', 'Min.'],
       headerStyle: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColors.white),
       headerDecoration: const pw.BoxDecoration(color: PdfColors.black),
       headerAlignment: pw.Alignment.centerLeft,
@@ -452,17 +453,17 @@ class PdfGenerator {
       cellStyle: const pw.TextStyle(fontSize: 8),
       border: _tablaBorde,
       columnWidths: {
-        0: const pw.FlexColumnWidth(0.6),
-        1: const pw.FlexColumnWidth(1.0),
-        2: const pw.FlexColumnWidth(5.2),
-        3: const pw.FlexColumnWidth(1.2),
-        4: const pw.FlexColumnWidth(0.7),
-        5: const pw.FlexColumnWidth(0.7),
+        0: const pw.FlexColumnWidth(0.6),  // REF
+        1: const pw.FlexColumnWidth(5.8),  // Descripcion (más ancha al quitar Codigo)
+        2: const pw.FlexColumnWidth(1.0),  // Unidad
+        3: const pw.FlexColumnWidth(1.2),  // Ubicacion
+        4: const pw.FlexColumnWidth(0.7),  // Stock
+        5: const pw.FlexColumnWidth(0.7),  // Min.
       },
       data: repuestos.map((r) => [
         r.ref?.toString() ?? '-',
-        (r.codigo == null || r.codigo!.isEmpty) ? '' : r.codigo!,
         r.descripcion,
+        r.unidadMedida,
         r.ubicacion ?? '-',
         r.stockActual.toString(),
         r.stockMinimo.toString(),
