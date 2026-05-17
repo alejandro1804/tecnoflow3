@@ -16,6 +16,8 @@ class _State extends ConsumerState<CambiarPasswordScreen> {
   final _passCtrl  = TextEditingController();
   final _pass2Ctrl = TextEditingController();
   bool _loading    = false;
+  bool _obscure1   = true;   // ← nuevo
+  bool _obscure2   = true;   // ← nuevo
   String? _error;
 
   @override
@@ -82,10 +84,16 @@ class _State extends ConsumerState<CambiarPasswordScreen> {
                   const SizedBox(height: 32),
                   TextFormField(
                     controller: _passCtrl,
-                    obscureText: true,
-                    decoration: const InputDecoration(
+                    obscureText: _obscure1,                          // ← cambiado
+                    decoration: InputDecoration(
                       labelText: 'Nueva contraseña',
-                      prefixIcon: Icon(Icons.lock_outline),
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(                        // ← nuevo
+                        icon: Icon(_obscure1
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined),
+                        onPressed: () => setState(() => _obscure1 = !_obscure1),
+                      ),
                     ),
                     validator: (v) =>
                         (v == null || v.length < 6) ? 'Mínimo 6 caracteres' : null,
@@ -93,10 +101,16 @@ class _State extends ConsumerState<CambiarPasswordScreen> {
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _pass2Ctrl,
-                    obscureText: true,
-                    decoration: const InputDecoration(
+                    obscureText: _obscure2,                          // ← cambiado
+                    decoration: InputDecoration(
                       labelText: 'Repetir contraseña',
-                      prefixIcon: Icon(Icons.lock_outline),
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(                        // ← nuevo
+                        icon: Icon(_obscure2
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined),
+                        onPressed: () => setState(() => _obscure2 = !_obscure2),
+                      ),
                     ),
                     validator: (v) =>
                         v != _passCtrl.text ? 'Las contraseñas no coinciden' : null,
