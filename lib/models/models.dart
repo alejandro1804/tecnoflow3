@@ -119,8 +119,8 @@ class Repuesto {
   final String? imagenUrl;
   final bool    activo;
   final int?    ref;
-  final String  unidadMedida;   // NUEVO
-  final String? notas;          // NUEVO
+  final String  unidadMedida;
+  final String? notas;
 
   const Repuesto({
     required this.id,
@@ -132,11 +132,38 @@ class Repuesto {
     this.imagenUrl,
     this.activo = true,
     this.ref,
-    this.unidadMedida = 'unidad', // NUEVO
-    this.notas,                   // NUEVO
+    this.unidadMedida = 'unidad',
+    this.notas,
   });
 
   bool get stockBajo => stockActual < stockMinimo;
+
+  // ── copyWith ──────────────────────────────────────────────
+  Repuesto copyWith({
+    String?  id,
+    String?  codigo,
+    String?  descripcion,
+    int?     stockActual,
+    int?     stockMinimo,
+    String?  ubicacion,
+    String?  imagenUrl,
+    bool?    activo,
+    int?     ref,
+    String?  unidadMedida,
+    String?  notas,
+  }) => Repuesto(
+    id:           id           ?? this.id,
+    codigo:       codigo       ?? this.codigo,
+    descripcion:  descripcion  ?? this.descripcion,
+    stockActual:  stockActual  ?? this.stockActual,
+    stockMinimo:  stockMinimo  ?? this.stockMinimo,
+    ubicacion:    ubicacion    ?? this.ubicacion,
+    imagenUrl:    imagenUrl    ?? this.imagenUrl,
+    activo:       activo       ?? this.activo,
+    ref:          ref          ?? this.ref,
+    unidadMedida: unidadMedida ?? this.unidadMedida,
+    notas:        notas        ?? this.notas,
+  );
 
   factory Repuesto.fromMap(Map<String, dynamic> m) => Repuesto(
     id:           m['id'],
@@ -148,8 +175,8 @@ class Repuesto {
     imagenUrl:    m['imagen_url'],
     activo:       m['activo'] ?? true,
     ref:          m['ref'],
-    unidadMedida: m['unidad_medida'] ?? 'unidad', // NUEVO
-    notas:        m['notas'],                      // NUEVO
+    unidadMedida: m['unidad_medida'] ?? 'unidad',
+    notas:        m['notas'],
   );
 
   Map<String, dynamic> toInsert() => {
@@ -160,8 +187,8 @@ class Repuesto {
     'ubicacion':     ubicacion,
     'imagen_url':    imagenUrl,
     'activo':        activo,
-    'unidad_medida': unidadMedida, // NUEVO
-    'notas':         notas,        // NUEVO
+    'unidad_medida': unidadMedida,
+    'notas':         notas,
   };
 
   Map<String, dynamic> toUpdate() => {
@@ -171,8 +198,8 @@ class Repuesto {
     'ubicacion':     ubicacion,
     'imagen_url':    imagenUrl,
     'activo':        activo,
-    'unidad_medida': unidadMedida, // NUEVO
-    'notas':         notas,        // NUEVO
+    'unidad_medida': unidadMedida,
+    'notas':         notas,
   };
 }
 

@@ -8,6 +8,7 @@ import '../../core/widgets.dart';
 import '../../core/imageHelper.dart';
 import '../../models/models.dart';
 import '../../providers/providers.dart';
+import '../movimientos/ingreso_form_screen.dart';
 
 // Unidades de medida disponibles
 const _unidades = ['unidad', 'metro', 'litro', 'kg', 'rollo'];
@@ -20,26 +21,29 @@ class RepuestoFormScreen extends ConsumerStatefulWidget {
 }
 
 class _State extends ConsumerState<RepuestoFormScreen> {
-  final _formKey    = GlobalKey<FormState>();
-  final _codCtrl    = TextEditingController();
-  final _descCtrl   = TextEditingController();
-  final _minCtrl    = TextEditingController(text: '0');
-  final _ubicCtrl   = TextEditingController();
-  final _notasCtrl  = TextEditingController(); // NUEVO
+  final _formKey   = GlobalKey<FormState>();
+  final _codCtrl   = TextEditingController();
+  final _descCtrl  = TextEditingController();
+  final _minCtrl   = TextEditingController(text: '0');
+  final _ubicCtrl  = TextEditingController();
+  final _notasCtrl = TextEditingController();
 
-  bool       _loading       = false;
-  bool       _loadingData   = false;
-  bool       _subiendoImg   = false;
+  bool       _loading      = false;
+  bool       _loadingData  = false;
+  bool       _subiendoImg  = false;
   String?    _error;
   String?    _imagenUrl;
   Uint8List? _imagenBytes;
   int?       _ref;
-  String     _unidadMedida  = 'unidad'; // NUEVO
+  String     _unidadMedida = 'unidad';
 
   bool get isEdit => widget.repuestoId != null;
 
   @override
-  void initState() { super.initState(); if (isEdit) _load(); }
+  void initState() {
+    super.initState();
+    if (isEdit) _load();
+  }
 
   Future<void> _load() async {
     setState(() => _loadingData = true);
@@ -50,11 +54,11 @@ class _State extends ConsumerState<RepuestoFormScreen> {
       _descCtrl.text  = rep.descripcion;
       _minCtrl.text   = rep.stockMinimo.toString();
       _ubicCtrl.text  = rep.ubicacion ?? '';
-      _notasCtrl.text = rep.notas ?? ''; // NUEVO
+      _notasCtrl.text = rep.notas ?? '';
       setState(() {
         _imagenUrl    = rep.imagenUrl;
         _ref          = rep.ref;
-        _unidadMedida = rep.unidadMedida; // NUEVO
+        _unidadMedida = rep.unidadMedida;
       });
     } finally {
       if (mounted) setState(() => _loadingData = false);
@@ -89,12 +93,9 @@ class _State extends ConsumerState<RepuestoFormScreen> {
       }
 
       final codigoFinal = _codCtrl.text.trim().isEmpty
-          ? null
-          : _codCtrl.text.trim();
-
+          ? null : _codCtrl.text.trim();
       final notasFinal = _notasCtrl.text.trim().isEmpty
-          ? null
-          : _notasCtrl.text.trim();
+          ? null : _notasCtrl.text.trim();
 
       final rep = Repuesto(
         id:           widget.repuestoId ?? '',
@@ -105,9 +106,11 @@ class _State extends ConsumerState<RepuestoFormScreen> {
         ubicacion:    _ubicCtrl.text.trim().isEmpty
             ? null : _ubicCtrl.text.trim(),
         imagenUrl:    urlFinal,
-        unidadMedida: _unidadMedida, // NUEVO
-        notas:        notasFinal,    // NUEVO
+        unidadMedida: _unidadMedida,
+        notas:        notasFinal,
       );
+
+      Repuesto? repuestoCreado;
 
       if (isEdit) {
         await ref.read(repuestosRepoProvider).update(widget.repuestoId!, rep);
@@ -121,31 +124,78 @@ class _State extends ConsumerState<RepuestoFormScreen> {
         }
       } else {
         await ref.read(repuestosRepoProvider).create(rep);
+        final todos = await ref.read(repuestosRepoProvider).getAll();
+        repuestoCreado = todos.firstWhere(
+            (r) => r.descripcion == rep.descripcion);
+
         if (_imagenBytes != null) {
-          final todos = await ref.read(repuestosRepoProvider).getAll();
-          final nuevo = todos.firstWhere((r) => r.descripcion == rep.descripcion);
           final urlNew = await ImageHelper.subirImagen(
-              _imagenBytes!, nuevo.id);
+              _imagenBytes!, repuestoCreado.id);
           await ref.read(repuestosRepoProvider).update(
-              nuevo.id, Repuesto(
-                id:           nuevo.id,
-                codigo:       rep.codigo,
-                descripcion:  rep.descripcion,
-                stockActual:  0,
-                stockMinimo:  rep.stockMinimo,
-                ubicacion:    rep.ubicacion,
-                imagenUrl:    urlNew,
-                unidadMedida: rep.unidadMedida, // NUEVO
-                notas:        rep.notas,        // NUEVO
-              ));
+              repuestoCreado.id,
+              repuestoCreado.copyWith(imagenUrl: urlNew));
+          repuestoCreado = repuestoCreado.copyWith(imagenUrl: urlNew);
         }
       }
 
       ref.invalidate(repuestosProvider);
+
       if (mounted) {
-        context.pop();
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Guardado'), backgroundColor: Colors.green));
+        if (!isEdit && repuestoCreado != null) {
+          // ── Dialog: ¿registrar ingreso inicial? ──────────────
+          final confirmar = await showDialog<bool>(
+            context: context,
+            barrierDismissible: false,
+            builder: (_) => AlertDialog(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              title: const Row(children: [
+                Icon(Icons.check_circle_outline, color: Colors.green),
+                SizedBox(width: 8),
+                Text('Repuesto creado'),
+              ]),
+              content: Text(
+                '¿Querés registrar el stock inicial de\n'
+                '"${repuestoCreado!.descripcion}"?',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('No, después'),
+                ),
+                FilledButton.icon(
+                  onPressed: () => Navigator.pop(context, true),
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Sí, ingresar'),
+                ),
+              ],
+            ),
+          );
+
+          if (mounted) {
+            context.pop(); // vuelve a la lista de repuestos
+            if (confirmar == true) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => IngresoFormScreen(
+                    repuestoPreseleccionado: repuestoCreado,
+                  ),
+                ),
+              );
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text('Repuesto guardado'),
+                  backgroundColor: Colors.green));
+            }
+          }
+        } else {
+          // edición → comportamiento original
+          context.pop();
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('Guardado'),
+              backgroundColor: Colors.green));
+        }
       }
     } catch (e) {
       setState(() => _error = e.toString());
@@ -158,7 +208,7 @@ class _State extends ConsumerState<RepuestoFormScreen> {
   void dispose() {
     _codCtrl.dispose();   _descCtrl.dispose();
     _minCtrl.dispose();   _ubicCtrl.dispose();
-    _notasCtrl.dispose(); // NUEVO
+    _notasCtrl.dispose();
     super.dispose();
   }
 
@@ -177,7 +227,7 @@ class _State extends ConsumerState<RepuestoFormScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
 
-                  // ── REF (solo lectura en edición) ─────
+                  // ── REF (solo lectura en edición) ─────────────
                   if (isEdit && _ref != null) ...[
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -205,7 +255,7 @@ class _State extends ConsumerState<RepuestoFormScreen> {
                     const SizedBox(height: 20),
                   ],
 
-                  // ── Imagen ────────────────────────────
+                  // ── Imagen ────────────────────────────────────
                   const Text('IMAGEN', style: TextStyle(
                       fontSize: 11, fontWeight: FontWeight.w700,
                       color: Colors.grey, letterSpacing: 1)),
@@ -219,7 +269,7 @@ class _State extends ConsumerState<RepuestoFormScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  // ── Código ────────────────────────────
+                  // ── Código ────────────────────────────────────
                   TextFormField(
                     controller: _codCtrl,
                     textCapitalization: TextCapitalization.characters,
@@ -229,7 +279,7 @@ class _State extends ConsumerState<RepuestoFormScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // ── Descripción ───────────────────────
+                  // ── Descripción ───────────────────────────────
                   TextFormField(
                     controller: _descCtrl,
                     maxLines: 2,
@@ -241,7 +291,7 @@ class _State extends ConsumerState<RepuestoFormScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // ── Unidad de medida (NUEVO) ───────────
+                  // ── Unidad de medida ──────────────────────────
                   DropdownButtonFormField<String>(
                     value: _unidadMedida,
                     decoration: const InputDecoration(
@@ -257,7 +307,7 @@ class _State extends ConsumerState<RepuestoFormScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // ── Stock mínimo ──────────────────────
+                  // ── Stock mínimo ──────────────────────────────
                   TextFormField(
                     controller: _minCtrl,
                     keyboardType: TextInputType.number,
@@ -270,21 +320,23 @@ class _State extends ConsumerState<RepuestoFormScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // ── Ubicación ─────────────────────────
+                  // ── Ubicación ─────────────────────────────────
                   TextFormField(
                     controller: _ubicCtrl,
                     decoration: const InputDecoration(
                         labelText: 'Ubicación / Depósito (opcional)',
-                        prefixIcon: Icon(Icons.location_on_outlined))),
+                        prefixIcon: Icon(Icons.location_on_outlined)),
+                  ),
                   const SizedBox(height: 16),
 
-                  // ── Notas (NUEVO) ─────────────────────
+                  // ── Notas ─────────────────────────────────────
                   TextFormField(
                     controller: _notasCtrl,
                     maxLines: 3,
                     decoration: const InputDecoration(
                         labelText: 'Notas (opcional)',
-                        hintText: 'Ej: usar solo en máquina X, viene en packs de 10...',
+                        hintText:
+                            'Ej: usar solo en máquina X, viene en packs de 10...',
                         prefixIcon: Icon(Icons.notes_outlined),
                         alignLabelWithHint: true),
                   ),
@@ -297,9 +349,8 @@ class _State extends ConsumerState<RepuestoFormScreen> {
                   LoadingButton(
                     loading: _loading,
                     onPressed: _submit,
-                    label: _subiendoImg
-                        ? 'Subiendo imagen...'
-                        : 'Guardar'),
+                    label: _subiendoImg ? 'Subiendo imagen...' : 'Guardar',
+                  ),
                 ],
               ),
             ),
@@ -309,9 +360,9 @@ class _State extends ConsumerState<RepuestoFormScreen> {
 
 // ── Widget selector de imagen ─────────────────────────────────
 class _ImagenSelector extends StatelessWidget {
-  final Uint8List? imagenBytes;
-  final String?    imagenUrl;
-  final bool       subiendoImg;
+  final Uint8List?   imagenBytes;
+  final String?      imagenUrl;
+  final bool         subiendoImg;
   final VoidCallback onSeleccionar;
   final VoidCallback onQuitar;
 
@@ -330,9 +381,9 @@ class _ImagenSelector extends StatelessWidget {
     return Container(
       height: 160,
       decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300)),
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade300)),
       child: tieneImagen
           ? Stack(fit: StackFit.expand, children: [
               ClipRRect(
@@ -367,14 +418,16 @@ class _ImagenSelector extends StatelessWidget {
                     decoration: BoxDecoration(
                         color: Colors.black.withOpacity(0.6),
                         borderRadius: BorderRadius.circular(8)),
-                    child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(Icons.edit_outlined,
-                          color: Colors.white, size: 14),
-                      SizedBox(width: 4),
-                      Text('Cambiar',
-                          style: TextStyle(
-                              color: Colors.white, fontSize: 12)),
-                    ])),
+                    child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.edit_outlined,
+                              color: Colors.white, size: 14),
+                          SizedBox(width: 4),
+                          Text('Cambiar',
+                              style: TextStyle(
+                                  color: Colors.white, fontSize: 12)),
+                        ])),
                 )),
               if (subiendoImg)
                 Container(
