@@ -71,7 +71,9 @@ class _State extends ConsumerState<TicketDetalleScreen> {
 
   // ── construir documento PDF ───────────────────────────────────
   Future<pw.Document> _buildPdf(
-      Ticket ticket, List<TicketHistorial> historial) async {
+      Ticket ticket,
+      List<TicketHistorial> historial,
+      List<SalidaRepuesto> salidas) async {
     final pdf   = pw.Document();
     final ahora = DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now());
 
@@ -87,9 +89,9 @@ class _State extends ConsumerState<TicketDetalleScreen> {
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
           pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-            pw.Text('TECNOFLOW3', style: pw.TextStyle(
+            pw.Text('TALLER DE MANTENIMIENTO', style: pw.TextStyle(
                 fontSize: 20, fontWeight: pw.FontWeight.bold,
-                color: PdfColors.blue800)),
+                color: PdfColors.black)),
             pw.Text('Control de stock de repuestos',
                 style: pw.TextStyle(fontSize: 11, color: PdfColors.blueGrey600)),
           ]),
@@ -207,6 +209,44 @@ class _State extends ConsumerState<TicketDetalleScreen> {
           ),
           pw.SizedBox(height: 12),
         ],
+
+        // ── Repuestos usados ──────────────────────────────────
+        pw.SizedBox(height: 4),
+        pw.Text('REPUESTOS USADOS', style: pw.TextStyle(
+            fontSize: 11, fontWeight: pw.FontWeight.bold,
+            color: PdfColors.blueGrey600, letterSpacing: 1)),
+        pw.SizedBox(height: 8),
+        if (salidas.isEmpty)
+          pw.Text('Sin repuestos registrados',
+              style: pw.TextStyle(fontSize: 10, color: PdfColors.grey))
+        else
+          pw.TableHelper.fromTextArray(
+            headers: ['Repuesto', 'Cantidad', 'Retiró'],
+            headerStyle: pw.TextStyle(fontSize: 9,
+                fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+            headerDecoration: const pw.BoxDecoration(color: PdfColors.blueGrey700),
+            headerPadding: const pw.EdgeInsets.symmetric(
+                horizontal: 8, vertical: 6),
+            cellPadding: const pw.EdgeInsets.symmetric(
+                horizontal: 8, vertical: 5),
+            cellStyle: const pw.TextStyle(fontSize: 9),
+            columnWidths: {
+              0: const pw.FlexColumnWidth(5.0),
+              1: const pw.FlexColumnWidth(1.2),
+              2: const pw.FlexColumnWidth(2.5),
+            },
+            data: salidas.map((s) => [
+              s.repuestoDescripcion ?? '—',
+              s.cantidad.toString(),
+              s.quienRetira ?? '—',
+            ]).toList(),
+            cellDecoration: (index, data, rowIndex) => pw.BoxDecoration(
+                color: rowIndex % 2 == 0
+                    ? PdfColors.white : PdfColors.blueGrey50),
+          ),
+        pw.SizedBox(height: 12),
+
+        // ── Historial ─────────────────────────────────────────
         pw.SizedBox(height: 4),
         pw.Text('HISTORIAL DE CAMBIOS', style: pw.TextStyle(
             fontSize: 11, fontWeight: pw.FontWeight.bold,
@@ -252,10 +292,11 @@ class _State extends ConsumerState<TicketDetalleScreen> {
       '${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}.pdf';
 
   Future<void> _imprimirPdf(
-      Ticket ticket, List<TicketHistorial> historial) async {
+      Ticket ticket, List<TicketHistorial> historial,
+      List<SalidaRepuesto> salidas) async {
     setState(() => _generandoPdf = true);
     try {
-      final pdf = await _buildPdf(ticket, historial);
+      final pdf = await _buildPdf(ticket, historial, salidas);
       await Printing.layoutPdf(
         onLayout: (f) async => pdf.save(),
         name: _nombreArchivo(ticket),
@@ -270,10 +311,11 @@ class _State extends ConsumerState<TicketDetalleScreen> {
   }
 
   Future<void> _compartirPdf(
-      Ticket ticket, List<TicketHistorial> historial) async {
+      Ticket ticket, List<TicketHistorial> historial,
+      List<SalidaRepuesto> salidas) async {
     setState(() => _generandoPdf = true);
     try {
-      final pdf   = await _buildPdf(ticket, historial);
+      final pdf   = await _buildPdf(ticket, historial, salidas);
       final bytes = await pdf.save();
       await Printing.sharePdf(
         bytes: bytes,
@@ -721,10 +763,11 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                     onSelected: (v) {
                       final ticket    = ticketAsync.value!;
                       final historial = historialAsync.valueOrNull ?? [];
+                      final salidas   = salidasAsync.valueOrNull ?? [];
                       if (v == 'imprimir') {
-                        _imprimirPdf(ticket, historial);
+                        _imprimirPdf(ticket, historial, salidas);
                       } else {
-                        _compartirPdf(ticket, historial);
+                        _compartirPdf(ticket, historial, salidas);
                       }
                     },
                     itemBuilder: (_) => const [
