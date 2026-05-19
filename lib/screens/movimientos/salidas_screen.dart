@@ -16,15 +16,13 @@ class SalidasScreen extends ConsumerStatefulWidget {
 }
 
 class _State extends ConsumerState<SalidasScreen> {
-  String    _busqueda     = '';
+  String    _busqueda      = '';
+  String    _busquedaTicket = '';
   DateTime? _desde;
   DateTime? _hasta;
-  bool      _generandoPdf = false;
+  bool      _generandoPdf  = false;
 
-  // Formatea un DateTime local a "dd/MM/yyyy"
-  String _fmt(DateTime d) => DateFormat('dd/MM/yyyy').format(d);
-
-  // Formatea un DateTime local a "dd/MM/yyyy HH:mm"
+  String _fmt(DateTime d)        => DateFormat('dd/MM/yyyy').format(d);
   String _fmtConHora(DateTime d) => DateFormat('dd/MM/yyyy HH:mm').format(d);
 
   @override
@@ -35,15 +33,24 @@ class _State extends ConsumerState<SalidasScreen> {
 
   List<SalidaRepuesto> _filtrar(List<SalidaRepuesto> todas) {
     return todas.where((s) {
-      // Filtro texto
+      // Filtro por repuesto
       if (_busqueda.isNotEmpty) {
         final q = _busqueda.toLowerCase();
         final coincide =
-            (s.repuestoCodigo ?? '').toLowerCase().contains(q) ||
+            (s.repuestoCodigo    ?? '').toLowerCase().contains(q) ||
             (s.repuestoDescripcion ?? '').toLowerCase().contains(q);
         if (!coincide) return false;
       }
-      // Filtro cronológico — comparamos solo la fecha local (sin hora)
+      // Filtro por ticket
+      if (_busquedaTicket.isNotEmpty) {
+        final q = _busquedaTicket.toLowerCase();
+        final coincide =
+            (s.ticketNumero ?? '').toLowerCase().contains(q) ||
+            (s.ticketId     ?? '').toLowerCase().contains(q) ||
+            (s.quienRetira  ?? '').toLowerCase().contains(q);
+        if (!coincide) return false;
+      }
+      // Filtro cronológico
       if (_desde != null || _hasta != null) {
         final soloFecha = DateTime(s.fecha.year, s.fecha.month, s.fecha.day);
         if (_desde != null && soloFecha.isBefore(_desde!)) return false;
@@ -87,7 +94,8 @@ class _State extends ConsumerState<SalidasScreen> {
     setState(() => _generandoPdf = true);
     try {
       await PdfGenerator.generarSalidas(
-          salidas: salidas, busqueda: _busqueda);
+          salidas: salidas, busqueda: _busqueda,
+          busquedaTicket: _busquedaTicket);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
@@ -139,8 +147,7 @@ class _State extends ConsumerState<SalidasScreen> {
                         border: Border.all(
                             color: Colors.purple.withOpacity(0.3))),
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      const Icon(Icons.tag,
-                          size: 10, color: Colors.purple),
+                      const Icon(Icons.tag, size: 10, color: Colors.purple),
                       const SizedBox(width: 3),
                       Text('REF ${s.repuestoRef}',
                           style: const TextStyle(
@@ -151,14 +158,12 @@ class _State extends ConsumerState<SalidasScreen> {
                   ),
               ]),
               const SizedBox(height: 12),
-              _DetalleRow(Icons.inventory_2_outlined, 'Rep',
+              _DetalleRow(Icons.inventory_2_outlined, 'Repuesto',
                   s.repuestoDescripcion ?? '—'),
               _DetalleRow(Icons.qr_code_outlined, 'Código',
                   s.repuestoCodigo ?? '—'),
               _DetalleRow(Icons.numbers_outlined, 'Cantidad',
-                  '-${s.cantidad}',
-                  color: Colors.red),
-              // ← fecha local con hora
+                  '-${s.cantidad}', color: Colors.red),
               _DetalleRow(Icons.calendar_today_outlined, 'Fecha',
                   _fmtConHora(s.fecha)),
               _DetalleRow(
@@ -169,6 +174,8 @@ class _State extends ConsumerState<SalidasScreen> {
                           ? 'N° ${s.ticketNumero!}'
                           : '${s.ticketId!.substring(0, 8)}...')
                       : 'Sin ticket asociado'),
+              if (s.quienRetira != null)
+                _DetalleRow(Icons.person_outline, 'Retiró', s.quienRetira!),
               if (s.observacion != null) ...[
                 const SizedBox(height: 8),
                 const Divider(),
@@ -220,19 +227,16 @@ class _State extends ConsumerState<SalidasScreen> {
             decoration: BoxDecoration(
                 color: Colors.green.withOpacity(0.08),
                 borderRadius: BorderRadius.circular(8),
-                border:
-                    Border.all(color: Colors.green.withOpacity(0.3))),
+                border: Border.all(color: Colors.green.withOpacity(0.3))),
             child: Row(children: [
-              const Icon(Icons.info_outline,
-                  color: Colors.green, size: 18),
+              const Icon(Icons.info_outline, color: Colors.green, size: 18),
               const SizedBox(width: 8),
               Expanded(
                   child: Text(
                 'Se devolverán ${s.cantidad} '
                 'unidad${s.cantidad != 1 ? 'es' : ''} '
                 'de "$repuesto" al stock.',
-                style: const TextStyle(
-                    fontSize: 12, color: Colors.green),
+                style: const TextStyle(fontSize: 12, color: Colors.green),
               )),
             ]),
           ),
@@ -242,8 +246,7 @@ class _State extends ConsumerState<SalidasScreen> {
               onPressed: () => Navigator.pop(context, false),
               child: const Text('Cancelar')),
           ElevatedButton(
-              style:
-                  ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
               onPressed: () => Navigator.pop(context, true),
               child: const Text('Eliminar y devolver stock')),
         ],
@@ -293,8 +296,7 @@ class _State extends ConsumerState<SalidasScreen> {
                             width: 20,
                             height: 20,
                             child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white)))
+                                strokeWidth: 2, color: Colors.white)))
                     : IconButton(
                         icon: const Icon(Icons.picture_as_pdf_outlined),
                         tooltip: 'Exportar PDF',
@@ -323,11 +325,14 @@ class _State extends ConsumerState<SalidasScreen> {
           return RefreshIndicator(
             onRefresh: () => ref.refresh(salidasProvider.future),
             child: Column(children: [
-              // ── Barra de filtros ──────────────────────────────────
+
+              // ── Barra de filtros ──────────────────────
               Container(
                 color: Colors.white,
                 padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
                 child: Column(children: [
+
+                  // Buscador repuesto
                   TextField(
                     decoration: InputDecoration(
                       hintText: 'Buscar por código o descripción...',
@@ -346,6 +351,37 @@ class _State extends ConsumerState<SalidasScreen> {
                   ),
                   const SizedBox(height: 8),
 
+                  // Buscador ticket / quien retira
+                  TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Buscar por N° ticket o quien retiró...',
+                      prefixIcon: const Icon(
+                          Icons.confirmation_number_outlined,
+                          size: 20, color: Colors.indigo),
+                      suffixIcon: _busquedaTicket.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 18),
+                              onPressed: () =>
+                                  setState(() => _busquedaTicket = ''))
+                          : null,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      isDense: true,
+                      enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(
+                              color: Colors.indigo.withOpacity(0.3))),
+                      focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide:
+                              const BorderSide(color: Colors.indigo)),
+                    ),
+                    onChanged: (v) =>
+                        setState(() => _busquedaTicket = v),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Filtro fechas
                   Row(children: [
                     Expanded(
                       child: GestureDetector(
@@ -366,8 +402,7 @@ class _State extends ConsumerState<SalidasScreen> {
                             Icon(Icons.calendar_today_outlined,
                                 size: 13,
                                 color: _desde != null
-                                    ? Colors.red
-                                    : Colors.grey),
+                                    ? Colors.red : Colors.grey),
                             const SizedBox(width: 5),
                             Expanded(
                               child: Text(
@@ -385,7 +420,8 @@ class _State extends ConsumerState<SalidasScreen> {
                     ),
                     const SizedBox(width: 6),
                     const Text('—',
-                        style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        style: TextStyle(
+                            fontSize: 12, color: Colors.grey)),
                     const SizedBox(width: 6),
                     Expanded(
                       child: GestureDetector(
@@ -406,8 +442,7 @@ class _State extends ConsumerState<SalidasScreen> {
                             Icon(Icons.calendar_today_outlined,
                                 size: 13,
                                 color: _hasta != null
-                                    ? Colors.red
-                                    : Colors.grey),
+                                    ? Colors.red : Colors.grey),
                             const SizedBox(width: 5),
                             Expanded(
                               child: Text(
@@ -453,7 +488,7 @@ class _State extends ConsumerState<SalidasScreen> {
               ),
               const Divider(height: 1),
 
-              // ── Lista ─────────────────────────────────────────────
+              // ── Lista ─────────────────────────────────
               Expanded(
                 child: salidas.isEmpty
                     ? const Center(child: Text('Sin resultados'))
@@ -492,6 +527,7 @@ class _State extends ConsumerState<SalidasScreen> {
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
+                                            // cantidad + fecha
                                             Row(children: [
                                               Container(
                                                 padding: const EdgeInsets
@@ -520,13 +556,13 @@ class _State extends ConsumerState<SalidasScreen> {
                                                   size: 12,
                                                   color: Colors.grey),
                                               const SizedBox(width: 4),
-                                              // ← fecha local formateada
                                               Text(_fmt(s.fecha),
                                                   style: const TextStyle(
                                                       fontSize: 12,
                                                       color: Colors.grey)),
                                             ]),
                                             const SizedBox(height: 4),
+                                            // ticket
                                             Row(children: [
                                               const Icon(
                                                   Icons
@@ -541,17 +577,31 @@ class _State extends ConsumerState<SalidasScreen> {
                                                           : 'Ticket: ${s.ticketId!.substring(0, 8)}...',
                                                       style: const TextStyle(
                                                           fontSize: 12,
-                                                          color:
-                                                              Colors.grey))
+                                                          color: Colors.grey))
                                                   : const Text(
                                                       'Sin ticket asociado',
                                                       style: TextStyle(
                                                           fontSize: 12,
-                                                          color: Colors
-                                                              .orange)),
+                                                          color:
+                                                              Colors.orange)),
                                             ]),
-                                            if (s.observacion !=
-                                                null) ...[
+                                            // quien retira
+                                            if (s.quienRetira != null) ...[
+                                              const SizedBox(height: 4),
+                                              Row(children: [
+                                                const Icon(
+                                                    Icons.person_outline,
+                                                    size: 12,
+                                                    color: Colors.grey),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                    'Retiró: ${s.quienRetira!}',
+                                                    style: const TextStyle(
+                                                        fontSize: 12,
+                                                        color: Colors.grey)),
+                                              ]),
+                                            ],
+                                            if (s.observacion != null) ...[
                                               const SizedBox(height: 4),
                                               Row(children: [
                                                 const Icon(
@@ -564,8 +614,8 @@ class _State extends ConsumerState<SalidasScreen> {
                                                         s.observacion!,
                                                         style: const TextStyle(
                                                             fontSize: 11,
-                                                            color: Colors
-                                                                .grey),
+                                                            color:
+                                                                Colors.grey),
                                                         maxLines: 1,
                                                         overflow:
                                                             TextOverflow
@@ -587,9 +637,8 @@ class _State extends ConsumerState<SalidasScreen> {
                                                   .symmetric(
                                                   horizontal: 6,
                                                   vertical: 2),
-                                              margin:
-                                                  const EdgeInsets.only(
-                                                      bottom: 4),
+                                              margin: const EdgeInsets
+                                                  .only(bottom: 4),
                                               decoration: BoxDecoration(
                                                   color: Colors.purple
                                                       .withOpacity(0.1),
@@ -606,8 +655,7 @@ class _State extends ConsumerState<SalidasScreen> {
                                                       fontSize: 10,
                                                       color: Colors.purple,
                                                       fontWeight:
-                                                          FontWeight
-                                                              .w800)),
+                                                          FontWeight.w800)),
                                             ),
                                           if (canEditItem)
                                             PopupMenuButton<String>(
@@ -626,12 +674,13 @@ class _State extends ConsumerState<SalidasScreen> {
                                                                   parent: ProviderScope
                                                                       .containerOf(
                                                                           context),
-                                                                  child:
-                                                                      SalidaFormScreen(
-                                                                          salida:
-                                                                              s))));
-                                                } else if (v == 'eliminar') {
-                                                  _eliminar(context, ref, s);
+                                                                  child: SalidaFormScreen(
+                                                                      salida:
+                                                                          s))));
+                                                } else if (v ==
+                                                    'eliminar') {
+                                                  _eliminar(
+                                                      context, ref, s);
                                                 }
                                               },
                                               itemBuilder: (_) => [
@@ -642,7 +691,8 @@ class _State extends ConsumerState<SalidasScreen> {
                                                           Icons
                                                               .visibility_outlined,
                                                           size: 16,
-                                                          color: Colors.teal),
+                                                          color:
+                                                              Colors.teal),
                                                       SizedBox(width: 8),
                                                       Text('Ver detalle')
                                                     ])),
@@ -650,7 +700,8 @@ class _State extends ConsumerState<SalidasScreen> {
                                                     value: 'editar',
                                                     child: Row(children: [
                                                       Icon(
-                                                          Icons.edit_outlined,
+                                                          Icons
+                                                              .edit_outlined,
                                                           size: 16),
                                                       SizedBox(width: 8),
                                                       Text('Editar')
@@ -659,14 +710,16 @@ class _State extends ConsumerState<SalidasScreen> {
                                                     value: 'eliminar',
                                                     child: Row(children: [
                                                       Icon(
-                                                          Icons.delete_outline,
+                                                          Icons
+                                                              .delete_outline,
                                                           size: 16,
-                                                          color: Colors.red),
+                                                          color:
+                                                              Colors.red),
                                                       SizedBox(width: 8),
                                                       Text('Eliminar',
                                                           style: TextStyle(
-                                                              color:
-                                                                  Colors.red))
+                                                              color: Colors
+                                                                  .red))
                                                     ])),
                                               ],
                                             ),

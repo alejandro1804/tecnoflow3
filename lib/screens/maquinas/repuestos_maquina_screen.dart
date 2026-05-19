@@ -44,11 +44,12 @@ class _State extends ConsumerState<RepuestosMaquinaScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final async       = ref.watch(repuestosMaquinasProvider(widget.maquinaId));
-    final profile     = ref.watch(myProfileProvider).valueOrNull;
-    final isAdmin     = profile?.isAdmin ?? false;
-    final isPaniolero = profile?.isPaniolero ?? false;
-    final canEdit     = isAdmin || (profile?.isTecnico ?? false) || isPaniolero;
+    final async          = ref.watch(repuestosMaquinasProvider(widget.maquinaId));
+    final todosRepuestos = ref.watch(repuestosProvider).valueOrNull ?? [];
+    final profile        = ref.watch(myProfileProvider).valueOrNull;
+    final isAdmin        = profile?.isAdmin ?? false;
+    final isPaniolero    = profile?.isPaniolero ?? false;
+    final canEdit        = isAdmin || (profile?.isTecnico ?? false) || isPaniolero;
 
     return Scaffold(
       backgroundColor: const Color(0xFFEFF6FF),
@@ -91,8 +92,30 @@ class _State extends ConsumerState<RepuestosMaquinaScreen> {
                 itemCount: items.length,
                 itemBuilder: (_, i) {
                   final item = items[i];
+
+                  // Buscar stock actual del repuesto en el provider global
+                  final repuesto = todosRepuestos
+                      .where((r) => r.id == item.repuestoId)
+                      .firstOrNull;
+                  final stockActual  = repuesto?.stockActual;
+                  final stockMinimo  = repuesto?.stockMinimo ?? 0;
+                  final stockBajo    = stockActual != null &&
+                      stockActual <= stockMinimo;
+                  final stockInsuficiente = stockActual != null &&
+                      stockActual < item.cantidad;
+
                   return Card(
                     margin: const EdgeInsets.only(bottom: 8),
+                    color: stockInsuficiente
+                        ? Colors.red.withOpacity(0.08)
+                        : null,
+                    shape: stockInsuficiente
+                        ? RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(
+                                color: Colors.red.withOpacity(0.3),
+                                width: 1))
+                        : null,
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
                       child: Column(
@@ -156,6 +179,38 @@ class _State extends ConsumerState<RepuestosMaquinaScreen> {
                           if (canEdit) ...[
                             const SizedBox(height: 8),
                             Row(children: [
+                              if (stockActual != null)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                      color: stockBajo
+                                          ? Colors.red.withOpacity(0.1)
+                                          : Colors.green.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                          color: stockBajo
+                                              ? Colors.red.withOpacity(0.3)
+                                              : Colors.green.withOpacity(0.3))),
+                                  child: Row(mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                    Icon(
+                                      stockBajo
+                                          ? Icons.warning_amber_rounded
+                                          : Icons.inventory_2_outlined,
+                                      size: 12,
+                                      color: stockBajo ? Colors.red : Colors.green),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Stock: $stockActual',
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                          color: stockBajo
+                                              ? Colors.red : Colors.green),
+                                    ),
+                                  ]),
+                                ),
                               const Spacer(),
                               InkWell(
                                 onTap: () => _mostrarModal(

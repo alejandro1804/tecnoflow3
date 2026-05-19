@@ -322,11 +322,13 @@ class PdfGenerator {
   static Future<void> generarSalidas({
     required List<SalidaRepuesto> salidas,
     required String busqueda,
+    String busquedaTicket = '',
   }) async {
     final pdf   = pw.Document();
     final ahora = DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now());
     String filtroTexto = 'Todas las salidas';
     if (busqueda.isNotEmpty) filtroTexto += ' - "$busqueda"';
+    if (busquedaTicket.isNotEmpty) filtroTexto += ' - Ticket: "$busquedaTicket"';
     final totalUnidades = salidas.fold<int>(0, (s, e) => s + e.cantidad);
     pdf.addPage(pw.MultiPage(
       pageFormat: PdfPageFormat.a4,
@@ -432,17 +434,14 @@ class PdfGenerator {
               style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.black)),
           pw.Text('Emitido: $fecha',
               style: pw.TextStyle(fontSize: 10, color: PdfColors.blueGrey600)),
-          /*pw.Text(filtro,
-              style: pw.TextStyle(fontSize: 11, color: PdfColors.blueGrey500)),  */
-              pw.Text(filtro,
-                  style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColors.black)),
+          pw.Text(filtro,
+              style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColors.black)),
         ]),
       ]),
     );
   }
 
   // ── Tabla Repuestos ───────────────────────────────────────
-  // Columnas: REF | Descripcion | Unidad | Ubicacion | Stock | Min.
   static pw.Widget _buildTablaRepuestos(List<Repuesto> repuestos) {
     return pw.TableHelper.fromTextArray(
       headers: ['REF', 'Descripcion', 'Unidad', 'Ubicacion', 'Stock', 'Min.'],
@@ -455,12 +454,12 @@ class PdfGenerator {
       cellStyle: const pw.TextStyle(fontSize: 8),
       border: _tablaBorde,
       columnWidths: {
-        0: const pw.FlexColumnWidth(0.6),  // REF
-        1: const pw.FlexColumnWidth(5.8),  // Descripcion (más ancha al quitar Codigo)
-        2: const pw.FlexColumnWidth(1.0),  // Unidad
-        3: const pw.FlexColumnWidth(1.3),  // Ubicacion
-        4: const pw.FlexColumnWidth(0.7),  // Stock
-        5: const pw.FlexColumnWidth(0.6),  // Min.
+        0: const pw.FlexColumnWidth(0.6),
+        1: const pw.FlexColumnWidth(5.8),
+        2: const pw.FlexColumnWidth(1.0),
+        3: const pw.FlexColumnWidth(1.3),
+        4: const pw.FlexColumnWidth(0.7),
+        5: const pw.FlexColumnWidth(0.6),
       },
       data: repuestos.map((r) => [
         r.ref?.toString() ?? '-',
@@ -471,7 +470,7 @@ class PdfGenerator {
         r.stockMinimo.toString(),
       ]).toList(),
       cellDecoration: (index, data, rowIndex) {
-        final dataIndex = rowIndex - 1; // compensar fila de header
+        final dataIndex = rowIndex - 1;
         if (dataIndex < 0 || dataIndex >= repuestos.length) {
           return const pw.BoxDecoration(color: PdfColors.white);
         }
@@ -516,7 +515,7 @@ class PdfGenerator {
   // ── Tabla Salidas ─────────────────────────────────────────
   static pw.Widget _buildTablaSalidas(List<SalidaRepuesto> salidas) {
     return pw.TableHelper.fromTextArray(
-      headers: ['REF', 'Codigo', 'Descripcion', 'Cantidad', 'Fecha', 'Ticket'],
+      headers: ['REF', 'Codigo', 'Descripcion', 'Cantidad', 'Fecha', 'Ticket', 'Retiro'],
       headerStyle: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.white),
       headerDecoration: const pw.BoxDecoration(color: PdfColors.black),
       headerAlignment: pw.Alignment.centerLeft,
@@ -526,20 +525,26 @@ class PdfGenerator {
       cellStyle: const pw.TextStyle(fontSize: 9),
       border: _tablaBorde,
       columnWidths: {
-        0: const pw.FlexColumnWidth(0.8),
-        1: const pw.FlexColumnWidth(1.4),
-        2: const pw.FlexColumnWidth(3.0),
-        3: const pw.FlexColumnWidth(0.9),
+        0: const pw.FlexColumnWidth(0.7),
+        1: const pw.FlexColumnWidth(1.3),
+        2: const pw.FlexColumnWidth(2.8),
+        3: const pw.FlexColumnWidth(0.8),
         4: const pw.FlexColumnWidth(1.2),
-        5: const pw.FlexColumnWidth(1.5),
+        5: const pw.FlexColumnWidth(1.4),
+        6: const pw.FlexColumnWidth(1.4),
       },
       data: salidas.map((s) => [
-        '-',
+        s.repuestoRef?.toString() ?? '-',
         s.repuestoCodigo ?? '-',
         s.repuestoDescripcion ?? '-',
         '-${s.cantidad}',
-        s.fecha,
-        s.ticketId != null ? '${s.ticketId!.substring(0, 8)}...' : 'Sin ticket',
+        DateFormat('dd/MM/yyyy').format(s.fecha),
+        s.ticketNumero != null
+            ? 'N° ${s.ticketNumero!}'
+            : s.ticketId != null
+                ? '${s.ticketId!.substring(0, 8)}...'
+                : 'Sin ticket',
+        s.quienRetira ?? '-',
       ]).toList(),
       cellDecoration: (index, data, rowIndex) =>
           const pw.BoxDecoration(color: PdfColors.white),
@@ -571,7 +576,7 @@ class PdfGenerator {
         ing.repuestoCodigo ?? '-',
         ing.repuestoDescripcion ?? '-',
         '+${ing.cantidad}',
-        ing.fecha,
+        DateFormat('dd/MM/yyyy').format(ing.fecha),
         ing.quienEntrega,
       ]).toList(),
       cellDecoration: (index, data, rowIndex) =>
@@ -604,7 +609,7 @@ class PdfGenerator {
         m.estado == 'en_reparacion' ? 'En reparacion' : m.estado == 'inactivo' ? 'Inactivo' : 'Activo',
       ]).toList(),
       cellDecoration: (index, data, rowIndex) {
-        final dataIndex = rowIndex - 1; // compensar fila de header
+        final dataIndex = rowIndex - 1;
         if (dataIndex < 0 || dataIndex >= maquinas.length) {
           return const pw.BoxDecoration(color: PdfColors.white);
         }
@@ -643,7 +648,7 @@ class PdfGenerator {
         t.tecnicoNombre ?? '-',
       ]).toList(),
       cellDecoration: (index, data, rowIndex) {
-        final dataIndex = rowIndex - 1; // compensar fila de header
+        final dataIndex = rowIndex - 1;
         if (dataIndex < 0 || dataIndex >= tickets.length) {
           return const pw.BoxDecoration(color: PdfColors.white);
         }
