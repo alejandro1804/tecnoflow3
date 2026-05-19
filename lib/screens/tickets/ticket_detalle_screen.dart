@@ -1,6 +1,7 @@
 // lib/screens/tickets/ticket_detalle_screen.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:pdf/pdf.dart';
@@ -13,7 +14,6 @@ import '../../core/widgets.dart';
 import '../../models/models.dart';
 import '../../providers/providers.dart';
 import '../maquinas/repuestos_maquina_screen.dart';
-import '../movimientos/salida_form_screen.dart';
 
 final _ticketProvider = FutureProvider.family<Ticket?, String>(
     (ref, id) => ref.watch(ticketsRepoProvider).getById(id));
@@ -69,7 +69,7 @@ class _State extends ConsumerState<TicketDetalleScreen> {
     }
   }
 
-  // ── construir documento PDF (lógica compartida) ───────────────
+  // ── construir documento PDF ───────────────────────────────────
   Future<pw.Document> _buildPdf(
       Ticket ticket, List<TicketHistorial> historial) async {
     final pdf   = pw.Document();
@@ -247,12 +247,10 @@ class _State extends ConsumerState<TicketDetalleScreen> {
     return pdf;
   }
 
-  // ── nombre de archivo consistente ────────────────────────────
   String _nombreArchivo(Ticket ticket) =>
       'ticket_${ticket.numero ?? ticket.id.substring(0, 8)}_'
       '${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}.pdf';
 
-  // ── imprimir / vista previa ───────────────────────────────────
   Future<void> _imprimirPdf(
       Ticket ticket, List<TicketHistorial> historial) async {
     setState(() => _generandoPdf = true);
@@ -271,7 +269,6 @@ class _State extends ConsumerState<TicketDetalleScreen> {
     }
   }
 
-  // ── compartir PDF via share sheet nativo ─────────────────────
   Future<void> _compartirPdf(
       Ticket ticket, List<TicketHistorial> historial) async {
     setState(() => _generandoPdf = true);
@@ -302,7 +299,6 @@ class _State extends ConsumerState<TicketDetalleScreen> {
         ]),
       );
 
-  // ── foto: seleccionar fuente ──────────────────────────────────
   Future<File?> _elegirFoto() async {
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
@@ -331,7 +327,6 @@ class _State extends ConsumerState<TicketDetalleScreen> {
     return p == null ? null : File(p.path);
   }
 
-  // ── actualizar foto principal ─────────────────────────────────
   Future<void> _actualizarFotoPrincipal(String ticketId) async {
     final archivo = await _elegirFoto();
     if (archivo == null) return;
@@ -351,7 +346,6 @@ class _State extends ConsumerState<TicketDetalleScreen> {
     }
   }
 
-  // ── agregar foto adicional ────────────────────────────────────
   Future<void> _agregarFotoAdicional(String ticketId) async {
     final archivo = await _elegirFoto();
     if (archivo == null) return;
@@ -394,7 +388,6 @@ class _State extends ConsumerState<TicketDetalleScreen> {
     }
   }
 
-  // ── eliminar foto adicional ───────────────────────────────────
   Future<void> _eliminarFotoAdicional(TicketFoto foto, String ticketId) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -423,7 +416,6 @@ class _State extends ConsumerState<TicketDetalleScreen> {
     }
   }
 
-  // ── ver foto en pantalla completa ─────────────────────────────
   void _verFoto(BuildContext context, String url) {
     showDialog(
       context: context,
@@ -445,7 +437,6 @@ class _State extends ConsumerState<TicketDetalleScreen> {
     );
   }
 
-  // ── asignar técnico ───────────────────────────────────────────
   Future<void> _asignarTecnico(String ticketId) async {
     final usuarios = await ref.read(usuariosRepoProvider).getAll();
     final tecnicos = usuarios.where((u) => u.isTecnico).toList();
@@ -473,7 +464,6 @@ class _State extends ConsumerState<TicketDetalleScreen> {
     }
   }
 
-  // ── cambiar estado genérico ───────────────────────────────────
   Future<void> _cambiarEstado(String ticketId, String nuevoEstado) async {
     String? comentario;
     if (nuevoEstado == TicketEstados.enEspera) {
@@ -513,7 +503,6 @@ class _State extends ConsumerState<TicketDetalleScreen> {
     }
   }
 
-  // ── enviar a revisión (técnico) ───────────────────────────────
   Future<void> _enviarARevision(String ticketId) async {
     final ctrl = TextEditingController();
     final comentario = await showDialog<String>(
@@ -576,7 +565,6 @@ class _State extends ConsumerState<TicketDetalleScreen> {
     }
   }
 
-  // ── cerrar ticket (admin) ─────────────────────────────────────
   Future<void> _cerrar(String ticketId, Ticket ticket) async {
     final ctrl = TextEditingController();
     final ok = await showDialog<bool>(
@@ -684,12 +672,35 @@ class _State extends ConsumerState<TicketDetalleScreen> {
     }
   }
 
+  // ── Bottom sheet: registrar salida de repuesto ────────────────
+  Future<void> _mostrarBottomSheetSalida(
+      Ticket ticket, String nombreTecnico, String? maquinaId) async {
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => ProviderScope(
+        parent: ProviderScope.containerOf(context),
+        child: _SalidaBottomSheet(
+          ticketId:      ticket.id,
+          maquinaId:     maquinaId,
+          nombreTecnico: nombreTecnico,
+        ),
+      ),
+    );
+    // Refrescar lista de repuestos usados al cerrar el sheet
+    ref.invalidate(salidasPorTicketProvider(ticket.id));
+    ref.invalidate(repuestosProvider);
+  }
+
   @override
   Widget build(BuildContext context) {
     final ticketAsync    = ref.watch(_ticketProvider(widget.ticketId));
     final historialAsync = ref.watch(_historialProvider(widget.ticketId));
     final fotosAsync     = ref.watch(ticketFotosProvider(widget.ticketId));
     final confirAsync    = ref.watch(confirmacionesTicketProvider(widget.ticketId));
+    final salidasAsync   = ref.watch(salidasPorTicketProvider(widget.ticketId));
     final profile        = ref.watch(myProfileProvider).valueOrNull;
 
     return Scaffold(
@@ -698,14 +709,12 @@ class _State extends ConsumerState<TicketDetalleScreen> {
         actions: [
           if (ticketAsync.valueOrNull != null)
             _generandoPdf
-                // ── Spinner mientras genera/comparte ──
                 ? const Padding(
                     padding: EdgeInsets.all(14),
                     child: SizedBox(
                         width: 20, height: 20,
                         child: CircularProgressIndicator(
                             strokeWidth: 2, color: Colors.white)))
-                // ── Menú PDF: imprimir o compartir ────
                 : PopupMenuButton<String>(
                     icon: const Icon(Icons.picture_as_pdf_outlined),
                     tooltip: 'PDF',
@@ -758,6 +767,10 @@ class _State extends ConsumerState<TicketDetalleScreen> {
           final puedeAgregarFotos =
               (isAdmin || (isTecnico && esAsignado)) &&
               ticket.estado != TicketEstados.cerrado;
+          final puedeRegistrarSalida =
+              (isAdmin || (isTecnico && esAsignado)) &&
+              ticket.estado != TicketEstados.cerrado &&
+              ticket.estado != TicketEstados.enRevision;
 
           return ListView(padding: const EdgeInsets.all(16), children: [
 
@@ -845,10 +858,8 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                     child: Text(
                         'Ver repuestos de ${ticket.maquinaNombre ?? 'la máquina'}'))),
 
-            // ── Registrar salida ──────────────────────
-            if ((isAdmin || (isTecnico && esAsignado)) &&
-                ticket.estado != TicketEstados.cerrado &&
-                ticket.estado != TicketEstados.enRevision)
+            // ── Botón registrar salida ────────────────
+            if (puedeRegistrarSalida)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: ElevatedButton.icon(
@@ -856,14 +867,152 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                         backgroundColor: Colors.red[700]),
                     icon: const Icon(Icons.output_outlined),
                     label: const Text('Registrar salida de repuesto'),
-                    onPressed: () => Navigator.push(context,
-                        MaterialPageRoute(builder: (_) => ProviderScope(
-                            parent: ProviderScope.containerOf(context),
-                            child: SalidaFormScreen(
-                                ticketIdInicial: ticket.id,
-                                maquinaId: ticket.maquinaId)))))),
+                    onPressed: () => _mostrarBottomSheetSalida(
+                        ticket,
+                        profile?.nombre ?? '',
+                        ticket.maquinaId))),
+
+            // ── REPUESTOS USADOS ──────────────────────
+            const SizedBox(height: 8),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+              child: Text('REPUESTOS USADOS', style: TextStyle(
+                  fontSize: 11, fontWeight: FontWeight.w700,
+                  color: Colors.grey, letterSpacing: 1)),
+            ),
+            salidasAsync.when(
+              loading: () => const Center(
+                  child: Padding(
+                      padding: EdgeInsets.all(12),
+                      child: CircularProgressIndicator())),
+              error: (e, _) => Text('Error: $e',
+                  style: const TextStyle(color: Colors.red)),
+              data: (salidas) => salidas.isEmpty
+                  ? Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(children: const [
+                          Icon(Icons.inventory_2_outlined,
+                              color: Colors.grey, size: 18),
+                          SizedBox(width: 10),
+                          Text('Sin repuestos registrados',
+                              style: TextStyle(
+                                  color: Colors.grey, fontSize: 12)),
+                        ]),
+                      ))
+                  : Card(
+                      child: Column(
+                        children: [
+                          // encabezado de tabla
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 10),
+                            child: Row(children: const [
+                              Expanded(
+                                flex: 5,
+                                child: Text('Repuesto', style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.grey,
+                                    letterSpacing: 0.5)),
+                              ),
+                              SizedBox(width: 8),
+                              Text('Cant.', style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.grey,
+                                  letterSpacing: 0.5)),
+                            ]),
+                          ),
+                          const Divider(height: 1),
+                          // filas
+                          ...salidas.asMap().entries.map((entry) {
+                            final i = entry.key;
+                            final s = entry.value;
+                            return Container(
+                              color: i % 2 == 0
+                                  ? Colors.transparent
+                                  : Colors.grey.withOpacity(0.04),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 10),
+                              child: Row(children: [
+                                Expanded(
+                                  flex: 5,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        s.repuestoDescripcion ?? '—',
+                                        style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500),
+                                      ),
+                                      if (s.quienRetira != null)
+                                        Text(
+                                          'Retiró: ${s.quienRetira}',
+                                          style: const TextStyle(
+                                              fontSize: 10,
+                                              color: Colors.grey),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                      color: Colors.red
+                                          .withOpacity(0.08),
+                                      borderRadius:
+                                          BorderRadius.circular(6),
+                                      border: Border.all(
+                                          color: Colors.red
+                                              .withOpacity(0.2))),
+                                  child: Text(
+                                    '${s.cantidad}',
+                                    style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.red),
+                                  ),
+                                ),
+                              ]),
+                            );
+                          }),
+                          // total
+                          if (salidas.length > 1) ...[
+                            const Divider(height: 1),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 10),
+                              child: Row(children: [
+                                const Expanded(
+                                  flex: 5,
+                                  child: Text('Total unidades',
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700)),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '${salidas.fold(0, (sum, s) => sum + s.cantidad)}',
+                                  style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.red),
+                                ),
+                              ]),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+            ),
 
             // ── Descripción ───────────────────────────
+            const SizedBox(height: 8),
             Card(child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -910,8 +1059,6 @@ class _State extends ConsumerState<TicketDetalleScreen> {
               padding: const EdgeInsets.all(16),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-
-                // ── Foto principal ────────────────────
                 const Text('Foto del desperfecto', style: TextStyle(
                     fontSize: 11, fontWeight: FontWeight.w600,
                     color: Colors.grey)),
@@ -978,7 +1125,6 @@ class _State extends ConsumerState<TicketDetalleScreen> {
                   const Text('Sin foto del desperfecto',
                       style: TextStyle(color: Colors.grey, fontSize: 12)),
 
-                // ── Fotos adicionales ─────────────────
                 const SizedBox(height: 20),
                 Row(children: [
                   const Text('Fotos adicionales', style: TextStyle(
@@ -1257,6 +1403,451 @@ class _State extends ConsumerState<TicketDetalleScreen> {
             ],
           ]);
         }),
+    );
+  }
+}
+
+// ── Bottom Sheet: registrar salida de repuesto ────────────────
+class _SalidaBottomSheet extends ConsumerStatefulWidget {
+  final String  ticketId;
+  final String? maquinaId;
+  final String  nombreTecnico;
+
+  const _SalidaBottomSheet({
+    required this.ticketId,
+    required this.maquinaId,
+    required this.nombreTecnico,
+  });
+
+  @override
+  ConsumerState<_SalidaBottomSheet> createState() => _SalidaBottomSheetState();
+}
+
+class _SalidaBottomSheetState extends ConsumerState<_SalidaBottomSheet> {
+  final _cantCtrl  = TextEditingController(text: '0');
+  final _busqCtrl  = TextEditingController();
+  final _refCtrl   = TextEditingController();
+
+  String?          _repuestoId;
+  String?          _repuestoDescripcion;
+  int?             _stockDisponible;
+  String           _busqueda    = '';
+  String           _busquedaRef = '';
+  bool             _loading     = false;
+  String?          _error;
+
+  List<Repuesto>?  _repuestosMaquina;
+  bool             _cargandoRepuestos = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.maquinaId != null) {
+      Future.microtask(() => _cargarRepuestosMaquina());
+    }
+  }
+
+  @override
+  void dispose() {
+    _cantCtrl.dispose();
+    _busqCtrl.dispose();
+    _refCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _cargarRepuestosMaquina() async {
+    setState(() => _cargandoRepuestos = true);
+    try {
+      final items = await ref
+          .read(repuestosMaquinasRepoProvider)
+          .getByMaquina(widget.maquinaId!);
+      final todosRepuestos = ref.read(repuestosProvider).valueOrNull ?? [];
+      final idsEnMaquina   = items.map((m) => m.repuestoId).toSet();
+      final filtrados = todosRepuestos
+          .where((r) => idsEnMaquina.contains(r.id))
+          .toList()
+        ..sort((a, b) => a.descripcion.compareTo(b.descripcion));
+      setState(() {
+        _repuestosMaquina  = filtrados.isEmpty ? null : filtrados;
+        _cargandoRepuestos = false;
+      });
+    } catch (_) {
+      setState(() => _cargandoRepuestos = false);
+    }
+  }
+
+  Future<void> _registrar() async {
+    if (_repuestoId == null) {
+      setState(() => _error = 'Seleccioná un repuesto');
+      return;
+    }
+    final cantidad = int.tryParse(_cantCtrl.text) ?? 0;
+    if (cantidad <= 0) {
+      setState(() => _error = 'La cantidad debe ser mayor a 0');
+      return;
+    }
+    if (_stockDisponible != null && cantidad > _stockDisponible!) {
+      setState(() => _error = 'Stock insuficiente (disponible: $_stockDisponible)');
+      return;
+    }
+    setState(() { _loading = true; _error = null; });
+    try {
+      await ref.read(movimientosRepoProvider).createSalida(
+        repuestoId:  _repuestoId!,
+        cantidad:    cantidad,
+        ticketId:    widget.ticketId,
+        quienRetira: widget.nombreTecnico.isNotEmpty
+            ? widget.nombreTecnico : null,
+      );
+      ref.invalidate(salidasProvider);
+      ref.invalidate(repuestosProvider);
+      ref.invalidate(salidasPorTicketProvider(widget.ticketId));
+      if (mounted) {
+        Navigator.pop(context);
+        // El snackbar se muestra desde el contexto del padre
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Salida registrada'),
+            backgroundColor: Colors.green));
+      }
+    } catch (e) {
+      final msg = e.toString();
+      setState(() => _error = msg.contains('Stock insuficiente')
+          ? 'Stock insuficiente. Verificá la cantidad disponible.'
+          : 'Error al registrar. Intentá nuevamente.');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final todosRepuestos = ref.watch(repuestosProvider).valueOrNull ?? [];
+    final fuente = _repuestosMaquina ?? todosRepuestos;
+
+    List<Repuesto> filtrados;
+    if (_busquedaRef.isNotEmpty) {
+      final refNum = int.tryParse(_busquedaRef);
+      filtrados = refNum != null
+          ? fuente.where((r) => r.ref == refNum).toList()
+          : [];
+    } else if (_busqueda.isNotEmpty) {
+      filtrados = fuente.where((r) =>
+          (r.codigo ?? '').toLowerCase().contains(_busqueda.toLowerCase()) ||
+          r.descripcion.toLowerCase().contains(_busqueda.toLowerCase()))
+          .toList()
+        ..sort((a, b) => a.descripcion.compareTo(b.descripcion));
+    } else {
+      filtrados = [];
+    }
+
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+    return Padding(
+      padding: EdgeInsets.only(
+          left: 20, right: 20, top: 20, bottom: bottomInset + 20),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+
+            // ── Título ────────────────────────────────
+            Row(children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8)),
+                child: const Icon(Icons.output_outlined,
+                    color: Colors.red, size: 20),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text('Registrar salida de repuesto',
+                    style: TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.w700)),
+              ),
+              IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context)),
+            ]),
+
+            // ── Técnico (solo lectura) ────────────────
+            if (widget.nombreTecnico.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                    color: Colors.teal.withOpacity(0.06),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                        color: Colors.teal.withOpacity(0.2))),
+                child: Row(children: [
+                  const Icon(Icons.engineering_outlined,
+                      size: 16, color: Colors.teal),
+                  const SizedBox(width: 8),
+                  Text('Retira: ${widget.nombreTecnico}',
+                      style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.teal,
+                          fontWeight: FontWeight.w600)),
+                ]),
+              ),
+            ],
+
+            // ── Repuesto seleccionado ─────────────────
+            if (_repuestoId != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                        color: Colors.green.withOpacity(0.3))),
+                child: Row(children: [
+                  const Icon(Icons.check_circle_outline,
+                      color: Colors.green, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _repuestoDescripcion ?? '',
+                      style: const TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  if (_stockDisponible != null)
+                    Text('Stock: $_stockDisponible',
+                        style: const TextStyle(
+                            fontSize: 11, color: Colors.grey)),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () => setState(() {
+                      _repuestoId          = null;
+                      _repuestoDescripcion = null;
+                      _stockDisponible     = null;
+                      _busqCtrl.clear();
+                      _refCtrl.clear();
+                      _busqueda    = '';
+                      _busquedaRef = '';
+                    }),
+                    child: const Icon(Icons.close,
+                        size: 16, color: Colors.grey),
+                  ),
+                ]),
+              ),
+            ],
+
+            // ── Buscador ──────────────────────────────
+            if (_repuestoId == null) ...[
+              const SizedBox(height: 16),
+              if (_repuestosMaquina != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 5),
+                  margin: const EdgeInsets.only(bottom: 8),
+                  decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                          color: Colors.blue.withOpacity(0.2))),
+                  child: Row(children: [
+                    const Icon(Icons.precision_manufacturing_outlined,
+                        size: 14, color: Colors.blue),
+                    const SizedBox(width: 6),
+                    Text(
+                        'Repuestos de la máquina (${_repuestosMaquina!.length})',
+                        style: const TextStyle(
+                            fontSize: 9, color: Colors.blue)),
+                  ]),
+                ),
+              if (_cargandoRepuestos)
+                const Center(child: CircularProgressIndicator())
+              else ...[
+                TextField(
+                  controller: _busqCtrl,
+                  style: const TextStyle(fontSize: 12),
+                  decoration: const InputDecoration(
+                      labelText: 'Buscar por código o descripción',
+                      prefixIcon: Icon(Icons.search),
+                      labelStyle: TextStyle(fontSize: 11),
+                      isDense: true),
+                  onChanged: (v) => setState(() {
+                    _busqueda    = v;
+                    _busquedaRef = '';
+                    _refCtrl.clear();
+                  }),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _refCtrl,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  style: const TextStyle(fontSize: 12),
+                  decoration: InputDecoration(
+                    labelText: 'Buscar por N° REF',
+                    prefixIcon: const Icon(Icons.tag,
+                        color: Colors.purple, size: 20),
+                    labelStyle: const TextStyle(
+                        fontSize: 11, color: Colors.purple),
+                    isDense: true,
+                    suffixIcon: _busquedaRef.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, size: 18),
+                            onPressed: () {
+                              _refCtrl.clear();
+                              setState(() {
+                                _busquedaRef = '';
+                              });
+                            })
+                        : null,
+                    enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(
+                            color: Colors.purple.withOpacity(0.3))),
+                    focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide:
+                            const BorderSide(color: Colors.purple)),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                  ),
+                  onChanged: (v) => setState(() {
+                    _busquedaRef = v;
+                    _busqueda    = '';
+                    _busqCtrl.clear();
+                  }),
+                ),
+                if (filtrados.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Container(
+                    constraints: const BoxConstraints(maxHeight: 180),
+                    decoration: BoxDecoration(
+                        border: Border.all(
+                            color: Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(10)),
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: filtrados.length,
+                      itemBuilder: (_, i) {
+                        final r       = filtrados[i];
+                        final sinStock = r.stockActual == 0;
+                        return ListTile(
+                          dense: true,
+                          enabled: !sinStock,
+                          leading: StockBadge(
+                              stock: r.stockActual,
+                              minimo: r.stockMinimo),
+                          title: Text(r.descripcion,
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  color: sinStock
+                                      ? Colors.grey : null)),
+                          subtitle: Text(
+                              sinStock
+                                  ? 'Sin stock'
+                                  : 'Stock: ${r.stockActual}'
+                                    '${r.ref != null ? '  •  REF ${r.ref}' : ''}',
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  color: sinStock
+                                      ? Colors.red : null)),
+                          onTap: sinStock
+                              ? null
+                              : () => setState(() {
+                                    _repuestoId          = r.id;
+                                    _repuestoDescripcion = r.descripcion;
+                                    _stockDisponible     = r.stockActual;
+                                    _busqueda            = '';
+                                    _busquedaRef         = '';
+                                    _busqCtrl.clear();
+                                    _refCtrl.clear();
+                                  }),
+                        );
+                      },
+                    ),
+                  ),
+                ] else if (_busqueda.isNotEmpty || _busquedaRef.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  const Padding(
+                    padding: EdgeInsets.all(12),
+                    child: Text('Sin resultados',
+                        style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  ),
+                ],
+              ],
+            ],
+
+            // ── Cantidad ──────────────────────────────
+            const SizedBox(height: 16),
+            Row(children: [
+              const Text('CANTIDAD', style: TextStyle(
+                  fontSize: 11, fontWeight: FontWeight.w700,
+                  color: Colors.grey, letterSpacing: 1)),
+              const Spacer(),
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  IconButton(
+                    icon: const Icon(Icons.remove, size: 20),
+                    onPressed: () {
+                      final v = int.tryParse(_cantCtrl.text) ?? 0;
+                      if (v > 0) setState(() => _cantCtrl.text = '${v - 1}');
+                    },
+                  ),
+                  SizedBox(
+                    width: 48,
+                    child: Text(
+                      _cantCtrl.text,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                          fontSize: 20, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.add, size: 20),
+                    onPressed: () {
+                      final v = int.tryParse(_cantCtrl.text) ?? 0;
+                      if (_stockDisponible == null || v < _stockDisponible!) {
+                        setState(() => _cantCtrl.text = '${v + 1}');
+                      }
+                    },
+                  ),
+                ]),
+              ),
+            ]),
+
+            if (_error != null) ...[
+              const SizedBox(height: 10),
+              ErrorContainer(_error!),
+            ],
+
+            // ── Botón confirmar ───────────────────────
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red[700],
+                  padding: const EdgeInsets.symmetric(vertical: 14)),
+              icon: _loading
+                  ? const SizedBox(
+                      width: 16, height: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.output_outlined),
+              label: Text(
+                _loading ? 'Registrando...' : 'Confirmar salida',
+                style: const TextStyle(
+                    fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+              onPressed: (_loading || _repuestoId == null) ? null : _registrar,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

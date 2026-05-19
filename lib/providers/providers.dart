@@ -66,6 +66,12 @@ final ingresosProvider  = FutureProvider<List<IngresoRepuesto>>(
 final salidasProvider   = FutureProvider<List<SalidaRepuesto>>(
     (ref) => ref.watch(movimientosRepoProvider).getSalidas());
 
+// ── Salidas por ticket ────────────────────────────────────────
+final salidasPorTicketProvider =
+    FutureProvider.family<List<SalidaRepuesto>, String>(
+        (ref, ticketId) =>
+            ref.watch(movimientosRepoProvider).getSalidasPorTicket(ticketId));
+
 // ── RepuestosMaquinas ─────────────────────────────────────────
 final repuestosMaquinasRepoProvider =
     Provider((_) => RepuestosMaquinasRepository());

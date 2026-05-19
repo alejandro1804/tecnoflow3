@@ -352,6 +352,16 @@ class MovimientosRepository {
     return (data as List).map((e) => SalidaRepuesto.fromMap(e)).toList();
   }
 
+  // ── Salidas por ticket ────────────────────────────────────
+  Future<List<SalidaRepuesto>> getSalidasPorTicket(String ticketId) async {
+    final data = await _db
+        .from('salida_repuestos')
+        .select('*, repuestos(descripcion, codigo)')
+        .eq('ticket_id', ticketId)
+        .order('created_at', ascending: true);
+    return (data as List).map((e) => SalidaRepuesto.fromMap(e)).toList();
+  }
+
   Future<void> createSalida({
     required String repuestoId,
     required int    cantidad,
