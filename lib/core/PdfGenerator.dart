@@ -432,8 +432,10 @@ class PdfGenerator {
               style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.black)),
           pw.Text('Emitido: $fecha',
               style: pw.TextStyle(fontSize: 10, color: PdfColors.blueGrey600)),
-          pw.Text(filtro,
-              style: pw.TextStyle(fontSize: 9, color: PdfColors.blueGrey500)),
+          /*pw.Text(filtro,
+              style: pw.TextStyle(fontSize: 11, color: PdfColors.blueGrey500)),  */
+              pw.Text(filtro,
+                  style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColors.black)),
         ]),
       ]),
     );
@@ -456,9 +458,9 @@ class PdfGenerator {
         0: const pw.FlexColumnWidth(0.6),  // REF
         1: const pw.FlexColumnWidth(5.8),  // Descripcion (más ancha al quitar Codigo)
         2: const pw.FlexColumnWidth(1.0),  // Unidad
-        3: const pw.FlexColumnWidth(1.2),  // Ubicacion
+        3: const pw.FlexColumnWidth(1.3),  // Ubicacion
         4: const pw.FlexColumnWidth(0.7),  // Stock
-        5: const pw.FlexColumnWidth(0.7),  // Min.
+        5: const pw.FlexColumnWidth(0.6),  // Min.
       },
       data: repuestos.map((r) => [
         r.ref?.toString() ?? '-',
@@ -469,8 +471,11 @@ class PdfGenerator {
         r.stockMinimo.toString(),
       ]).toList(),
       cellDecoration: (index, data, rowIndex) {
-        if (rowIndex >= repuestos.length) return const pw.BoxDecoration(color: PdfColors.white);
-        final r = repuestos[rowIndex];
+        final dataIndex = rowIndex - 1; // compensar fila de header
+        if (dataIndex < 0 || dataIndex >= repuestos.length) {
+          return const pw.BoxDecoration(color: PdfColors.white);
+        }
+        final r = repuestos[dataIndex];
         if (r.stockBajo) return const pw.BoxDecoration(color: PdfColors.grey300);
         return const pw.BoxDecoration(color: PdfColors.white);
       },
@@ -599,8 +604,11 @@ class PdfGenerator {
         m.estado == 'en_reparacion' ? 'En reparacion' : m.estado == 'inactivo' ? 'Inactivo' : 'Activo',
       ]).toList(),
       cellDecoration: (index, data, rowIndex) {
-        if (rowIndex >= maquinas.length) return const pw.BoxDecoration(color: PdfColors.white);
-        final m = maquinas[rowIndex];
+        final dataIndex = rowIndex - 1; // compensar fila de header
+        if (dataIndex < 0 || dataIndex >= maquinas.length) {
+          return const pw.BoxDecoration(color: PdfColors.white);
+        }
+        final m = maquinas[dataIndex];
         if (m.estado == 'en_reparacion') return const pw.BoxDecoration(color: PdfColors.grey300);
         if (m.estado == 'inactivo') return const pw.BoxDecoration(color: PdfColors.grey200);
         return const pw.BoxDecoration(color: PdfColors.white);
@@ -635,8 +643,11 @@ class PdfGenerator {
         t.tecnicoNombre ?? '-',
       ]).toList(),
       cellDecoration: (index, data, rowIndex) {
-        if (rowIndex >= tickets.length) return const pw.BoxDecoration(color: PdfColors.white);
-        final estado = tickets[rowIndex].estado;
+        final dataIndex = rowIndex - 1; // compensar fila de header
+        if (dataIndex < 0 || dataIndex >= tickets.length) {
+          return const pw.BoxDecoration(color: PdfColors.white);
+        }
+        final estado = tickets[dataIndex].estado;
         if (estado == 'abierto') return const pw.BoxDecoration(color: PdfColors.grey300);
         if (estado == 'en_espera') return const pw.BoxDecoration(color: PdfColors.grey200);
         return const pw.BoxDecoration(color: PdfColors.white);
