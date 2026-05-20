@@ -92,19 +92,22 @@ class _State extends ConsumerState<RepuestoFormScreen> {
         await ImageHelper.eliminarImagen(widget.repuestoId!);
       }
 
+      // Normaliza: quita espacios al inicio/fin y colapsa espacios internos
+      String norm(String s) => s.trim().replaceAll(RegExp(r' +'), ' ');
+
       final codigoFinal = _codCtrl.text.trim().isEmpty
-          ? null : _codCtrl.text.trim();
+          ? null : norm(_codCtrl.text);
       final notasFinal = _notasCtrl.text.trim().isEmpty
-          ? null : _notasCtrl.text.trim();
+          ? null : norm(_notasCtrl.text);
 
       final rep = Repuesto(
         id:           widget.repuestoId ?? '',
         codigo:       codigoFinal,
-        descripcion:  _descCtrl.text.trim(),
+        descripcion:  norm(_descCtrl.text),
         stockActual:  0,
         stockMinimo:  int.tryParse(_minCtrl.text) ?? 0,
         ubicacion:    _ubicCtrl.text.trim().isEmpty
-            ? null : _ubicCtrl.text.trim(),
+            ? null : norm(_ubicCtrl.text),
         imagenUrl:    urlFinal,
         unidadMedida: _unidadMedida,
         notas:        notasFinal,

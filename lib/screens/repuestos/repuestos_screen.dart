@@ -307,7 +307,6 @@ class _RepuestoCard extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(2)))),
               const SizedBox(height: 16),
 
-              // ── Título + badge REF ────────────────────
               Row(children: [
                 Expanded(
                   child: Text('DETALLE DE REPUESTO', style: const TextStyle(
@@ -338,7 +337,6 @@ class _RepuestoCard extends ConsumerWidget {
               ]),
               const SizedBox(height: 12),
 
-              // ── Imagen ────────────────────────────────
               if (repuesto.imagenUrl != null) ...[
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
@@ -382,19 +380,17 @@ class _RepuestoCard extends ConsumerWidget {
                 const SizedBox(height: 16),
               ],
 
-              // ── Datos principales ─────────────────────
               _DetalleRow(Icons.qr_code_outlined, 'Código',
                   repuesto.codigo ?? '—'),
               _DetalleRow(Icons.description_outlined, 'Descripción',
                   repuesto.descripcion),
               _DetalleRow(Icons.straighten_outlined, 'Unidad de medida',
-                  repuesto.unidadMedida),                          // NUEVO
+                  repuesto.unidadMedida),
               _DetalleRow(Icons.location_on_outlined, 'Ubicación',
                   repuesto.ubicacion ?? '—'),
 
               const Divider(height: 20),
 
-              // ── Stock ─────────────────────────────────
               _DetalleRow(Icons.inventory_2_outlined, 'Stock actual',
                   repuesto.stockActual.toString(),
                   color: repuesto.stockBajo ? Colors.red : Colors.green),
@@ -429,7 +425,6 @@ class _RepuestoCard extends ConsumerWidget {
                 ]),
               ),
 
-              // ── Notas (NUEVO) ─────────────────────────
               if (repuesto.notas != null && repuesto.notas!.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 Container(
@@ -518,6 +513,36 @@ class _RepuestoCard extends ConsumerWidget {
             content: Text('Error: $e'), backgroundColor: Colors.red));
       }
     }
+  }
+
+  // ── Bottom sheet: asociar nueva máquina ───────────────────
+  Future<void> _asociarMaquina(BuildContext context, WidgetRef ref,
+      List<RepuestoMaquina> yaAsociadas) async {
+    final maquinas = await ref.read(maquinasRepoProvider).getAll();
+    final idsYaAsociados = yaAsociadas.map((m) => m.maquinaId).toSet();
+    final disponibles =
+        maquinas.where((m) => !idsYaAsociados.contains(m.id)).toList();
+
+    if (!context.mounted) return;
+
+    if (disponibles.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Todas las máquinas ya están asociadas a este repuesto'),
+          backgroundColor: Colors.orange));
+      return;
+    }
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => _AsociarMaquinaSheet(
+        repuesto:    repuesto,
+        disponibles: disponibles,
+        onGuardado:  () => ref.invalidate(maquinasPorRepuestoProvider(repuesto.id)),
+      ),
+    );
   }
 
   @override
@@ -726,26 +751,56 @@ class _RepuestoCard extends ConsumerWidget {
                     child: Text('Error: $e',
                         style: const TextStyle(
                             color: Colors.red, fontSize: 10))),
-                data: (maquinas) {
-                  if (maquinas.isEmpty) {
-                    return const Padding(
-                        padding: EdgeInsets.fromLTRB(12, 8, 12, 12),
-                        child: Text('Sin máquinas asociadas',
-                            style: TextStyle(
-                                fontSize: 10, color: Colors.grey)));
-                  }
-                  final totalUnidades = maquinas.fold<int>(
-                      0, (sum, m) => sum + m.cantidad);
-                  return Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
+                data: (maquinas) => Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // ── Encabezado ────────────────
+                      Row(children: [
                         const Text('MÁQUINAS QUE USAN ESTE REPUESTO',
                             style: TextStyle(
                                 fontSize: 9, fontWeight: FontWeight.w700,
                                 color: Colors.grey, letterSpacing: 0.5)),
-                        const SizedBox(height: 8),
+                        const Spacer(),
+                        if (canManage)
+                          InkWell(
+                            onTap: () => _asociarMaquina(context, ref, maquinas),
+                            borderRadius: BorderRadius.circular(6),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                  color: Colors.blue.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                      color: Colors.blue.withOpacity(0.3))),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.add, size: 12, color: Colors.blue),
+                                  SizedBox(width: 4),
+                                  Text('Asociar máquina',
+                                      style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.blue,
+                                          fontWeight: FontWeight.w600)),
+                                ],
+                              ),
+                            ),
+                          ),
+                      ]),
+                      const SizedBox(height: 8),
+
+                      // ── Lista de máquinas ─────────
+                      if (maquinas.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Text('Sin máquinas asociadas',
+                              style: TextStyle(
+                                  fontSize: 10, color: Colors.grey[500])),
+                        )
+                      else ...[
                         ...maquinas.map((m) => Padding(
                           padding: const EdgeInsets.only(bottom: 6),
                           child: Row(children: [
@@ -797,7 +852,8 @@ class _RepuestoCard extends ConsumerWidget {
                                 decoration: BoxDecoration(
                                     color: Colors.blue.withOpacity(0.1),
                                     borderRadius: BorderRadius.circular(8)),
-                                child: Text('$totalUnidades uds',
+                                child: Text(
+                                    '${maquinas.fold<int>(0, (s, m) => s + m.cantidad)} uds',
                                     style: const TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.w700,
@@ -805,12 +861,307 @@ class _RepuestoCard extends ConsumerWidget {
                           ],
                         ),
                       ],
-                    ),
-                  );
-                },
+                    ],
+                  ),
+                ),
               ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+// ── Bottom sheet: asociar máquina ─────────────────────────────
+class _AsociarMaquinaSheet extends ConsumerStatefulWidget {
+  final Repuesto      repuesto;
+  final List<Maquina> disponibles;
+  final VoidCallback  onGuardado;
+
+  const _AsociarMaquinaSheet({
+    required this.repuesto,
+    required this.disponibles,
+    required this.onGuardado,
+  });
+
+  @override
+  ConsumerState<_AsociarMaquinaSheet> createState() => _AsociarMaquinaSheetState();
+}
+
+class _AsociarMaquinaSheetState extends ConsumerState<_AsociarMaquinaSheet> {
+  final _cantCtrl  = TextEditingController(text: '1');
+  final _ubicCtrl  = TextEditingController();
+  final _obsCtrl   = TextEditingController();
+  final _busCtrl   = TextEditingController();
+  final _formKey   = GlobalKey<FormState>();
+
+  Maquina? _seleccionada;
+  String   _busqueda = '';
+  bool     _loading  = false;
+  String?  _error;
+
+  @override
+  void dispose() {
+    _cantCtrl.dispose();
+    _ubicCtrl.dispose();
+    _obsCtrl.dispose();
+    _busCtrl.dispose();
+    super.dispose();
+  }
+
+  List<Maquina> get _filtradas => _busqueda.isEmpty
+      ? widget.disponibles
+      : widget.disponibles
+          .where((m) =>
+              m.nombre.toLowerCase().contains(_busqueda.toLowerCase()) ||
+              m.codigo.toLowerCase().contains(_busqueda.toLowerCase()))
+          .toList();
+
+  Future<void> _guardar() async {
+    if (_seleccionada == null) {
+      setState(() => _error = 'Seleccioná una máquina');
+      return;
+    }
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() { _loading = true; _error = null; });
+    try {
+      final rm = RepuestoMaquina(
+        id:                 '',
+        repuestoId:         widget.repuesto.id,
+        maquinaId:          _seleccionada!.id,
+        cantidad:           int.tryParse(_cantCtrl.text) ?? 1,
+        ubicacionEnMaquina: _ubicCtrl.text.trim().isEmpty
+            ? null : _ubicCtrl.text.trim(),
+        observacion:        _obsCtrl.text.trim().isEmpty
+            ? null : _obsCtrl.text.trim(),
+      );
+      await ref
+          .read(repuestosMaquinasRepoProvider)
+          .create(rm, _seleccionada!.id);
+
+      widget.onGuardado();
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(
+                'Máquina "${_seleccionada!.nombre}" asociada correctamente'),
+            backgroundColor: Colors.green));
+      }
+    } catch (e) {
+      setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filtradas = _filtradas;
+
+    return Padding(
+      padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.75,
+        maxChildSize: 0.95,
+        minChildSize: 0.5,
+        builder: (_, ctrl) => Column(
+          children: [
+            // ── Handle ───────────────────────────
+            Padding(
+              padding: const EdgeInsets.only(top: 12, bottom: 8),
+              child: Center(
+                child: Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2))),
+              ),
+            ),
+
+            // ── Título ───────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+              child: Row(children: [
+                const Icon(Icons.precision_manufacturing_outlined,
+                    color: Colors.blue, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Asociar máquina',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.w700)),
+                      Text(widget.repuesto.descripcion,
+                          style: const TextStyle(
+                              fontSize: 11, color: Colors.grey),
+                          overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
+                ),
+              ]),
+            ),
+            const Divider(height: 1),
+
+            // ── Contenido scrollable ─────────────
+            Expanded(
+              child: SingleChildScrollView(
+                controller: ctrl,
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+
+                      // ── Buscador de máquinas ──
+                      TextField(
+                        controller: _busCtrl,
+                        decoration: InputDecoration(
+                          hintText: 'Buscar máquina...',
+                          prefixIcon: const Icon(Icons.search, size: 18),
+                          suffixIcon: _busqueda.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear, size: 16),
+                                  onPressed: () {
+                                    _busCtrl.clear();
+                                    setState(() => _busqueda = '');
+                                  })
+                              : null,
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                        ),
+                        onChanged: (v) => setState(() => _busqueda = v),
+                      ),
+                      const SizedBox(height: 8),
+
+                      // ── Lista de máquinas ─────
+                      if (filtradas.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          child: Center(
+                            child: Text('Sin resultados',
+                                style: TextStyle(
+                                    color: Colors.grey[500], fontSize: 12)),
+                          ),
+                        )
+                      else
+                        Container(
+                          constraints: const BoxConstraints(maxHeight: 220),
+                          decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey.shade200),
+                              borderRadius: BorderRadius.circular(10)),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: ListView.separated(
+                              shrinkWrap: true,
+                              itemCount: filtradas.length,
+                              separatorBuilder: (_, __) =>
+                                  const Divider(height: 1),
+                              itemBuilder: (_, i) {
+                                final m = filtradas[i];
+                                final sel = _seleccionada?.id == m.id;
+                                return ListTile(
+                                  dense: true,
+                                  selected: sel,
+                                  selectedTileColor:
+                                      Colors.blue.withOpacity(0.08),
+                                  leading: Icon(
+                                      Icons.precision_manufacturing_outlined,
+                                      size: 18,
+                                      color: sel
+                                          ? Colors.blue
+                                          : Colors.grey),
+                                  title: Text(m.nombre,
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: sel
+                                              ? FontWeight.w700
+                                              : FontWeight.w400,
+                                          color: sel
+                                              ? Colors.blue
+                                              : Colors.black87)),
+                                  subtitle: Text(m.codigo,
+                                      style: const TextStyle(fontSize: 10)),
+                                  trailing: sel
+                                      ? const Icon(Icons.check_circle,
+                                          color: Colors.blue, size: 16)
+                                      : null,
+                                  onTap: () =>
+                                      setState(() => _seleccionada = m),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: 16),
+
+                      // ── Cantidad ──────────────
+                      TextFormField(
+                        controller: _cantCtrl,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly
+                        ],
+                        decoration: const InputDecoration(
+                            labelText: 'Cantidad',
+                            prefixIcon:
+                                Icon(Icons.numbers_outlined)),
+                        validator: (v) {
+                          if (v == null || v.isEmpty) return 'Requerido';
+                          if ((int.tryParse(v) ?? 0) < 1) {
+                            return 'Debe ser mayor a 0';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+
+                      // ── Ubicación en máquina ──
+                      TextFormField(
+                        controller: _ubicCtrl,
+                        decoration: const InputDecoration(
+                            labelText: 'Ubicación en máquina (opcional)',
+                            hintText: 'Ej: eje principal, polea tensora...',
+                            prefixIcon:
+                                Icon(Icons.location_on_outlined)),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // ── Observación ───────────
+                      TextFormField(
+                        controller: _obsCtrl,
+                        maxLines: 2,
+                        decoration: const InputDecoration(
+                            labelText: 'Observación (opcional)',
+                            prefixIcon: Icon(Icons.notes_outlined),
+                            alignLabelWithHint: true),
+                      ),
+
+                      if (_error != null) ...[
+                        const SizedBox(height: 12),
+                        ErrorContainer(_error!),
+                      ],
+                      const SizedBox(height: 20),
+
+                      // ── Botón guardar ─────────
+                      LoadingButton(
+                        loading: _loading,
+                        onPressed: _guardar,
+                        label: 'Asociar máquina',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -872,4 +1223,3 @@ class _DetalleRow extends StatelessWidget {
     ]),
   );
 }
-
