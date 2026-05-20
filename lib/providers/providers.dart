@@ -43,8 +43,9 @@ final rolesProvider     = FutureProvider<List<Rol>>(
 final sectoresProvider  = FutureProvider<List<Sector>>(
     (ref) => ref.watch(sectoresRepoProvider).getAll());
 
+// ── Máquinas — cacheado, no se reconsulta en cada rebuild ─────
 final maquinasProvider  = FutureProvider<List<Maquina>>(
-    (ref) => ref.watch(maquinasRepoProvider).getAll());
+    (ref) => ref.read(maquinasRepoProvider).getAll());
 
 final repuestosProvider = FutureProvider<List<Repuesto>>(
     (ref) => ref.watch(repuestosRepoProvider).getAll());

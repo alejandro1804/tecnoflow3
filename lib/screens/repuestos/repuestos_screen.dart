@@ -518,7 +518,9 @@ class _RepuestoCard extends ConsumerWidget {
   // ── Bottom sheet: asociar nueva máquina ───────────────────
   Future<void> _asociarMaquina(BuildContext context, WidgetRef ref,
       List<RepuestoMaquina> yaAsociadas) async {
-    final maquinas = await ref.read(maquinasRepoProvider).getAll();
+    // Usa el provider cacheado en lugar de llamar al repo directamente
+    final maquinasAsync = ref.read(maquinasProvider);
+    final maquinas = maquinasAsync.valueOrNull ?? [];
     final idsYaAsociados = yaAsociadas.map((m) => m.maquinaId).toSet();
     final disponibles =
         maquinas.where((m) => !idsYaAsociados.contains(m.id)).toList();
@@ -548,7 +550,7 @@ class _RepuestoCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final maquinasAsync = expandido
-        ? ref.watch(maquinasPorRepuestoProvider(repuesto.id))
+        ? ref.read(maquinasPorRepuestoProvider(repuesto.id))
         : null;
 
     return Card(
