@@ -253,8 +253,6 @@ class _State extends ConsumerState<RepuestosScreen> {
                                 _expandidos.remove(r.id);
                               } else {
                                 _expandidos.add(r.id);
-                                ref.invalidate(
-                                    maquinasPorRepuestoProvider(r.id));
                               }
                             }),
                           );
@@ -542,7 +540,7 @@ class _RepuestoCard extends ConsumerWidget {
       builder: (ctx) => _AsociarMaquinaSheet(
         repuesto:    repuesto,
         disponibles: disponibles,
-        onGuardado:  () => ref.invalidate(maquinasPorRepuestoProvider(repuesto.id)),
+        onGuardado:  () => ref.invalidate(todasRepuestosMaquinasProvider),
       ),
     );
   }
@@ -550,7 +548,8 @@ class _RepuestoCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final maquinasAsync = expandido
-        ? ref.read(maquinasPorRepuestoProvider(repuesto.id))
+        ? ref.watch(todasRepuestosMaquinasProvider).whenData(
+            (mapa) => mapa[repuesto.id] ?? [])
         : null;
 
     return Card(

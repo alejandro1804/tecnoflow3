@@ -403,6 +403,16 @@ class MovimientosRepository {
 
 // ── RepuestosMaquinas ─────────────────────────────────────────
 class RepuestosMaquinasRepository {
+
+  // Trae todas las asociaciones en una sola consulta (usado en repuestos_screen)
+  Future<List<RepuestoMaquina>> getAll() async {
+    final data = await _db
+        .from('repuestos_maquinas')
+        .select('*, maquinas(nombre, codigo, estado)')
+        .order('repuesto_id', ascending: true);
+    return (data as List).map((e) => RepuestoMaquina.fromMap(e)).toList();
+  }
+
   Future<List<RepuestoMaquina>> getByMaquina(String maquinaId) async {
     final data = await _db
         .from('repuestos_maquinas')

@@ -82,7 +82,19 @@ final repuestosMaquinasProvider =
         (ref, maquinaId) =>
             ref.watch(repuestosMaquinasRepoProvider).getByMaquina(maquinaId));
 
+// ── Todas las asociaciones repuesto-máquina (consulta única) ──
+final todasRepuestosMaquinasProvider =
+    FutureProvider<Map<String, List<RepuestoMaquina>>>((ref) async {
+  final todas = await ref.read(repuestosMaquinasRepoProvider).getAll();
+  final mapa = <String, List<RepuestoMaquina>>{};
+  for (final rm in todas) {
+    mapa.putIfAbsent(rm.repuestoId, () => []).add(rm);
+  }
+  return mapa;
+});
+
 // ── Máquinas que usan un repuesto específico ──────────────────
+// Mantener para compatibilidad con otras pantallas que lo usen
 final maquinasPorRepuestoProvider =
     FutureProvider.family<List<RepuestoMaquina>, String>(
         (ref, repuestoId) => ref
