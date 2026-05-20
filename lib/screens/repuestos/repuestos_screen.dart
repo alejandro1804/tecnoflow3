@@ -757,39 +757,38 @@ class _RepuestoCard extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // ── Encabezado ────────────────
-                      Row(children: [
-                        const Text('MÁQUINAS QUE USAN ESTE REPUESTO',
-                            style: TextStyle(
-                                fontSize: 9, fontWeight: FontWeight.w700,
-                                color: Colors.grey, letterSpacing: 0.5)),
-                        const Spacer(),
-                        if (canManage)
-                          InkWell(
-                            onTap: () => _asociarMaquina(context, ref, maquinas),
-                            borderRadius: BorderRadius.circular(6),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                  color: Colors.blue.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(
-                                      color: Colors.blue.withOpacity(0.3))),
-                              child: const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.add, size: 12, color: Colors.blue),
-                                  SizedBox(width: 4),
-                                  Text('Asociar máquina',
-                                      style: TextStyle(
-                                          fontSize: 10,
-                                          color: Colors.blue,
-                                          fontWeight: FontWeight.w600)),
-                                ],
-                              ),
+                      const Text('MÁQUINAS QUE USAN ESTE REPUESTO',
+                          style: TextStyle(
+                              fontSize: 9, fontWeight: FontWeight.w700,
+                              color: Colors.grey, letterSpacing: 0.5)),
+                      if (canManage) ...[
+                        const SizedBox(height: 6),
+                        InkWell(
+                          onTap: () => _asociarMaquina(context, ref, maquinas),
+                          borderRadius: BorderRadius.circular(6),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                                color: Colors.blue.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                    color: Colors.blue.withOpacity(0.3))),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.add, size: 12, color: Colors.blue),
+                                SizedBox(width: 4),
+                                Text('Asociar máquina',
+                                    style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.blue,
+                                        fontWeight: FontWeight.w600)),
+                              ],
                             ),
                           ),
-                      ]),
+                        ),
+                      ],
                       const SizedBox(height: 8),
 
                       // ── Lista de máquinas ─────────
