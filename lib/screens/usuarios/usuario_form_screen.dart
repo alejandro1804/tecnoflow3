@@ -25,7 +25,7 @@ class _State extends ConsumerState<UsuarioFormScreen> {
   bool    _loading      = false;
   bool    _loadingData  = false;
   bool    _primerLogin  = false;
-  String? _emailOriginal; // ← para detectar si cambió
+  String? _emailOriginal;
   String? _error;
 
   bool get isEdit => widget.userId != null;
@@ -64,7 +64,6 @@ class _State extends ConsumerState<UsuarioFormScreen> {
         final emailNuevo  = _emailCtrl.text.trim();
         final emailCambio = emailNuevo != _emailOriginal;
 
-        // 1. Si cambió el email, actualizar en Supabase Auth via Admin API
         if (emailCambio) {
           await adminClient.auth.admin.updateUserById(
             widget.userId!,
@@ -72,7 +71,6 @@ class _State extends ConsumerState<UsuarioFormScreen> {
           );
         }
 
-        // 2. Actualizar tabla usuarios (nombre, rol, estado y email si cambió)
         await ref.read(usuariosRepoProvider).update(
           widget.userId!,
           nombre: _nombreCtrl.text.trim(),
@@ -113,160 +111,29 @@ class _State extends ConsumerState<UsuarioFormScreen> {
 
   // ── Modal resetear contraseña ─────────────────────────────
   Future<void> _mostrarResetPassword() async {
-    final passCtrl  = TextEditingController();
-    final pass2Ctrl = TextEditingController();
-    final formKey   = GlobalKey<FormState>();
-    bool    loading = false;
-    String? error;
-
-    await showModalBottomSheet(
+    final exito = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModal) => Padding(
-          padding: EdgeInsets.only(
-              left: 24, right: 24, top: 24,
-              bottom: MediaQuery.of(ctx).viewInsets.bottom + 24),
-          child: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(child: Container(
-                    width: 40, height: 4,
-                    decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(2)))),
-                const SizedBox(height: 16),
-
-                Row(children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                        color: Colors.orange.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8)),
-                    child: const Icon(Icons.lock_reset_outlined,
-                        color: Colors.orange, size: 22)),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Resetear contraseña',
-                            style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.w700)),
-                        Text(_nombreCtrl.text,
-                            style: const TextStyle(
-                                fontSize: 12, color: Colors.grey)),
-                      ],
-                    ),
-                  ),
-                ]),
-                const SizedBox(height: 12),
-
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                      color: Colors.orange.withOpacity(0.06),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                          color: Colors.orange.withOpacity(0.2))),
-                  child: const Text(
-                      'El usuario deberá cambiar esta contraseña en su próximo ingreso.',
-                      style: TextStyle(fontSize: 11, color: Colors.orange)),
-                ),
-                const SizedBox(height: 16),
-
-                TextFormField(
-                  controller: passCtrl,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                      labelText: 'Nueva contraseña temporal',
-                      prefixIcon: Icon(Icons.lock_outline)),
-                  validator: (v) =>
-                      (v == null || v.length < 6)
-                          ? 'Mínimo 6 caracteres' : null),
-                const SizedBox(height: 12),
-
-                TextFormField(
-                  controller: pass2Ctrl,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                      labelText: 'Confirmar contraseña',
-                      prefixIcon: Icon(Icons.lock_outline)),
-                  validator: (v) =>
-                      v != passCtrl.text
-                          ? 'Las contraseñas no coinciden' : null),
-
-                if (error != null) ...[
-                  const SizedBox(height: 10),
-                  ErrorContainer(error!),
-                ],
-                const SizedBox(height: 20),
-
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14)),
-                  onPressed: loading
-                      ? null
-                      : () async {
-                          if (!formKey.currentState!.validate()) return;
-                          setModal(() { loading = true; error = null; });
-                          try {
-                            final adminClient = SupabaseClient(
-                                supabaseUrl, supabaseServiceKey);
-
-                            await adminClient.auth.admin.updateUserById(
-                              widget.userId!,
-                              attributes: AdminUserAttributes(
-                                  password: passCtrl.text.trim()),
-                            );
-
-                            await adminClient
-                                .from('usuarios')
-                                .update({'primer_login': true})
-                                .eq('id', widget.userId!);
-
-                            ref.invalidate(usuariosProvider);
-
-                            if (ctx.mounted) {
-                              Navigator.pop(ctx);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                      content: Text('Contraseña reseteada'),
-                                      backgroundColor: Colors.orange));
-                            }
-                            if (mounted) {
-                              setState(() => _primerLogin = true);
-                            }
-                          } catch (e) {
-                            setModal(() {
-                              loading = false;
-                              error   = e.toString();
-                            });
-                          }
-                        },
-                  child: loading
-                      ? const SizedBox(
-                          height: 18, width: 18,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white))
-                      : const Text('Confirmar reset'),
-                ),
-              ],
-            ),
-          ),
-        ),
+      builder: (ctx) => _ResetPasswordModal(
+        userId: widget.userId!,
+        nombre: _nombreCtrl.text,
       ),
     );
 
-    passCtrl.dispose();
-    pass2Ctrl.dispose();
+    // El modal ya cerró completamente — ahora es seguro actualizar
+    if (exito == true && mounted) {
+      ref.invalidate(usuariosProvider);
+      setState(() => _primerLogin = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Contraseña reseteada'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      context.pop(); // ← volver a la lista de usuarios
+    }
   }
 
   @override
@@ -342,14 +209,13 @@ class _State extends ConsumerState<UsuarioFormScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // ── Email — visible siempre ───────────
+                    // ── Email ─────────────────────────────
                     TextFormField(
                       controller: _emailCtrl,
                       keyboardType: TextInputType.emailAddress,
                       decoration: InputDecoration(
                         labelText: 'Correo',
                         prefixIcon: const Icon(Icons.email_outlined),
-                        // ← aviso si cambió respecto al original
                         suffixIcon: isEdit &&
                                 _emailCtrl.text.trim() != (_emailOriginal ?? '')
                             ? const Tooltip(
@@ -358,7 +224,7 @@ class _State extends ConsumerState<UsuarioFormScreen> {
                                     color: Colors.blue, size: 18))
                             : null,
                       ),
-                      onChanged: (_) => setState(() {}), // refresca suffixIcon
+                      onChanged: (_) => setState(() {}),
                       validator: (v) =>
                           (v == null || v.trim().isEmpty) ? 'Requerido' : null,
                     ),
@@ -426,6 +292,160 @@ class _State extends ConsumerState<UsuarioFormScreen> {
                 ),
               ),
             ),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// Widget separado para el modal — tiene su propio ciclo de vida
+// ══════════════════════════════════════════════════════════════
+class _ResetPasswordModal extends StatefulWidget {
+  final String userId;
+  final String nombre;
+  const _ResetPasswordModal({
+    required this.userId,
+    required this.nombre,
+  });
+  @override
+  State<_ResetPasswordModal> createState() => _ResetPasswordModalState();
+}
+
+class _ResetPasswordModalState extends State<_ResetPasswordModal> {
+  final _formKey   = GlobalKey<FormState>();
+  final _passCtrl  = TextEditingController();
+  final _pass2Ctrl = TextEditingController();
+  bool    _loading = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _passCtrl.dispose();
+    _pass2Ctrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _confirmar() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() { _loading = true; _error = null; });
+    try {
+      // ── Admin API solo para Auth ──────────────────────────
+      final adminClient = SupabaseClient(supabaseUrl, supabaseServiceKey);
+      await adminClient.auth.admin.updateUserById(
+        widget.userId,
+        attributes: AdminUserAttributes(password: _passCtrl.text.trim()),
+      );
+
+      // ── Cliente normal para la tabla usuarios ─────────────
+      await Supabase.instance.client
+          .from('usuarios')
+          .update({'primer_login': true})
+          .eq('id', widget.userId);
+
+      // ── Cerrar modal devolviendo éxito ────────────────────
+      if (mounted) Navigator.of(context).pop(true);
+
+    } catch (e) {
+      setState(() { _loading = false; _error = e.toString(); });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+          left: 24, right: 24, top: 24,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 24),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(child: Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2)))),
+            const SizedBox(height: 16),
+
+            Row(children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8)),
+                child: const Icon(Icons.lock_reset_outlined,
+                    color: Colors.orange, size: 22)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Resetear contraseña',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w700)),
+                    Text(widget.nombre,
+                        style: const TextStyle(
+                            fontSize: 12, color: Colors.grey)),
+                  ],
+                ),
+              ),
+            ]),
+            const SizedBox(height: 12),
+
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.withOpacity(0.2))),
+              child: const Text(
+                  'El usuario deberá cambiar esta contraseña en su próximo ingreso.',
+                  style: TextStyle(fontSize: 11, color: Colors.orange)),
+            ),
+            const SizedBox(height: 16),
+
+            TextFormField(
+              controller: _passCtrl,
+              obscureText: true,
+              decoration: const InputDecoration(
+                  labelText: 'Nueva contraseña temporal',
+                  prefixIcon: Icon(Icons.lock_outline)),
+              validator: (v) =>
+                  (v == null || v.length < 6) ? 'Mínimo 6 caracteres' : null),
+            const SizedBox(height: 12),
+
+            TextFormField(
+              controller: _pass2Ctrl,
+              obscureText: true,
+              decoration: const InputDecoration(
+                  labelText: 'Confirmar contraseña',
+                  prefixIcon: Icon(Icons.lock_outline)),
+              validator: (v) =>
+                  v != _passCtrl.text ? 'Las contraseñas no coinciden' : null),
+
+            if (_error != null) ...[
+              const SizedBox(height: 10),
+              ErrorContainer(_error!),
+            ],
+            const SizedBox(height: 20),
+
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14)),
+              onPressed: _loading ? null : _confirmar,
+              child: _loading
+                  ? const SizedBox(
+                      height: 18, width: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
+                  : const Text('Confirmar reset'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

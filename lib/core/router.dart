@@ -33,15 +33,24 @@ final routerProvider = Provider<GoRouter>((ref) {
       final onLogin   = state.matchedLocation == '/login';
       final onCambiar = state.matchedLocation == '/cambiar-password';
 
+      // No logueado → login
       if (!loggedIn && !onLogin) return '/login';
-      if (loggedIn  &&  onLogin) {
+
+      if (loggedIn && onLogin) {
+        // Si el perfil todavía está cargando, quedarse en login
+        // hasta tener el valor real
+        if (profile.isLoading) return null;
         final primerLogin = profile.valueOrNull?.primerLogin ?? false;
         return primerLogin ? '/cambiar-password' : '/home';
       }
+
       if (loggedIn && !onLogin && !onCambiar) {
+        // Si el perfil todavía está cargando, no redirigir todavía
+        if (profile.isLoading) return null;
         final primerLogin = profile.valueOrNull?.primerLogin ?? false;
         if (primerLogin) return '/cambiar-password';
       }
+
       return null;
     },
     routes: [

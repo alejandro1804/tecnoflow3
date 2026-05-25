@@ -94,7 +94,6 @@ final todasRepuestosMaquinasProvider =
 });
 
 // ── Máquinas que usan un repuesto específico ──────────────────
-// Mantener para compatibilidad con otras pantallas que lo usen
 final maquinasPorRepuestoProvider =
     FutureProvider.family<List<RepuestoMaquina>, String>(
         (ref, repuestoId) => ref
