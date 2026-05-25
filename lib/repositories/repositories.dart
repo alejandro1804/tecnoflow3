@@ -44,21 +44,27 @@ class UsuariosRepository {
   Future<void> delete(String id) async =>
       _db.from('usuarios').delete().eq('id', id);
 }
-
-// ── Roles ─────────────────────────────────────────────────────
+//  roles    _________________________________________
 class RolesRepository {
   Future<List<Rol>> getAll() async {
-    final data = await _db.from('roles').select().order('nombre');
+    final data = await _db
+        .from('roles')
+        .select()
+        .order('nombre', ascending: true);
     return (data as List).map((e) => Rol.fromMap(e)).toList();
   }
 }
 
 // ── Sectores ──────────────────────────────────────────────────
 class SectoresRepository {
-  Future<List<Sector>> getAll() async {
-    final data = await _db.from('sectores').select().order('nombre');
-    return (data as List).map((e) => Sector.fromMap(e)).toList();
-  }
+
+   Future<List<Sector>> getAll() async {
+      final data = await _db
+          .from('sectores')
+          .select()
+          .order('nombre', ascending: true);  // ← agregar ascending: true
+      return (data as List).map((e) => Sector.fromMap(e)).toList();
+    }
 
   Future<void> create(Sector s) async =>
       _db.from('sectores').insert(s.toMap());
